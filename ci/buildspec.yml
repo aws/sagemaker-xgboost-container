@@ -1,8 +1,5 @@
 version: 0.2
 
-# Currently using the account number 465774300030 which is a personal AWS account.
-# This should be replaced after the ECR repo has been created through CFT.
-
 phases:
   pre_build:
     commands:
@@ -12,12 +9,12 @@ phases:
     commands:
     - echo Build started on `date`
     - echo Building the Docker image...
-    - docker build -t xgboost-container-base:0.82.0-cpu-py3 -f docker/v0.82/base/Dockerfile.cpu --build-arg py_version=3 .
+    - docker build -t xgboost-container-base:0.82.0-cpu-py3 -f docker/0.82.0/base/Dockerfile.cpu .
     - python setup.py bdist_wheel --universal
-    - docker build -t preprod-xgboost-container:0.82.0-cpu-py3 -f docker/v0.82/final/Dockerfile.cpu --build-arg py_version=3 .
-    - docker tag preprod-xgboost-container:0.82.0-cpu-py3 465774300030.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost-container:0.82.0-cpu-py3
+    - docker build -t preprod-xgboost-container:0.82.0-cpu-py3 -f docker/0.82.0/final/Dockerfile.cpu .
+    - docker tag preprod-xgboost-container:0.82.0-cpu-py3 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.82.0-cpu-py3
   post_build:
     commands:
     - echo Build completed on `date`
     - echo Pushing the Docker image...
-    - docker push 465774300030.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost-container:0.82.0-cpu-py3
+    - docker push 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.82.0-cpu-py3
