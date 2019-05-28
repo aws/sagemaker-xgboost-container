@@ -25,16 +25,16 @@ import xgboost as xgb
 
 
 # Copied from AI ALGS SDK
-from sagemaker_xgboost_framework.exceptions import AlgorithmError, CustomerValueError, PlatformError, CustomerError
+from sagemaker_xgboost_container.exceptions import AlgorithmError, CustomerValueError, PlatformError, CustomerError
 # Commented out for time being
 # from sg_algorithms_sdk.base.integration import setup_main_logger
 
 # Copied from AI APPS XGB
-from sagemaker_xgboost_framework.bootstrap import file_prepare, cluster_config, start_daemons
-from sagemaker_xgboost_framework.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
+from sagemaker_xgboost_container.bootstrap import file_prepare, cluster_config, start_daemons
+from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
-from sagemaker_xgboost_framework.metrics.performance_metrics import create_runtime, get_runtime, \
+from sagemaker_xgboost_container.metrics.performance_metrics import create_runtime, get_runtime, \
     XGBoostPerformanceMetrics
 
 

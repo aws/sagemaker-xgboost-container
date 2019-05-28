@@ -17,7 +17,7 @@ from shutil import copyfile
 import subprocess
 
 
-from sagemaker_xgboost_framework.constants.xgb_constants import FNULL
+from sagemaker_xgboost_container.constants.xgb_constants import FNULL
 
 
 HADOOP_PREFIX = os.environ['HADOOP_PREFIX']

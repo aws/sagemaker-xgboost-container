@@ -6,7 +6,7 @@ import pytest
 import xgboost as xgb
 
 from sagemaker_containers.beta.framework import (content_types, encoders, errors)
-from sagemaker_xgboost_framework import serving
+from sagemaker_xgboost_container import serving
 
 
 @pytest.fixture(scope='module', name='np_array')
