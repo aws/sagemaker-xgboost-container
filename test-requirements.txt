@@ -1,0 +1,12 @@
+Flask
+PyYAML<4.3
+boto3>=1.4.8
+coverage
+docker-compose
+flake8
+mock
+pytest
+pytest-cov
+pytest-xdist
+sagemaker>=1.3.0
+tox
