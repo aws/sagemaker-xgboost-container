@@ -34,7 +34,7 @@ def test_libsvm_to_dmatrix(target):
     temp_libsvm_file_name = temp_libsvm_file.name
     assert os.path.exists(temp_libsvm_file_name)
 
-    with mock.patch('sagemaker_xgboost_framework.encoder.tempfile') as mock_tempfile:
+    with mock.patch('sagemaker_xgboost_container.encoder.tempfile') as mock_tempfile:
         mock_tempfile.NamedTemporaryFile.return_value = temp_libsvm_file
         actual = encoder.libsvm_to_dmatrix(target)
 

@@ -36,7 +36,6 @@ setup(
     install_requires=read("requirements.txt"),
 
     extras_require={
-        'test': ['tox', 'flake8', 'coverage', 'pytest', 'pytest-cov', 'pytest-xdist', 'mock', 'Flask', 'boto3>=1.4.8',
-                 'docker-compose', 'sagemaker>=1.3.0']
+        'test': read("test-requirements.txt")
     }
 )

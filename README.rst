@@ -148,6 +148,8 @@ If you want to run unit tests, then use:
     # or you can use tox to run unit tests as well as flake8 and code coverage
 
     tox
+    tox -e py3-xgboost0.82,flake8
+    tox -e py3-xgboost0.72,py3-xgboostlatest
 
 
 Local Integration Tests

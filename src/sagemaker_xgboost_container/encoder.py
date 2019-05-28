@@ -43,7 +43,7 @@ def csv_to_dmatrix(string_like, dtype=None):  # type: (str) -> xgb.DMatrix
     delimiter = ',' if sniff_delimiter.isalnum() else sniff_delimiter
     logging.info("Determined delimiter of CSV input is \'{}\'".format(delimiter))
 
-    np_payload = np.array(map(lambda x: _clean_csv_string(x, delimiter), string_like.split('\n'))).astype(dtype)
+    np_payload = np.array(list(map(lambda x: _clean_csv_string(x, delimiter), string_like.split('\n')))).astype(dtype)
     return xgb.DMatrix(np_payload)
 
 
@@ -58,7 +58,7 @@ def libsvm_to_dmatrix(string_like):  # type: (str) -> xgb.DMatrix
     try:
         with tempfile.NamedTemporaryFile(delete=False) as libsvm_file:
             temp_file_location = libsvm_file.name
-            libsvm_file.write(string_like)
+            libsvm_file.write(string_like.encode())
 
         dmatrix = xgb.DMatrix(temp_file_location)
     finally:
