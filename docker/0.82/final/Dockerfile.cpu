@@ -1,0 +1,41 @@
+FROM xgboost-framework-base:0.82-cpu-py3
+
+LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
+
+COPY dist/sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl /sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl
+RUN pip install --no-cache /sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl && \
+    rm /sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl
+
+
+# Copied from AIApplicationsBaseDockerCPUImage
+LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
+
+ENV ALGO_INPUT_DIR /opt/ml/input
+ENV ALGO_INPUT_DATA_DIR $ALGO_INPUT_DIR/data
+ENV ALGO_INPUT_TRAINING_CONFIG_FILE $ALGO_INPUT_DIR/config/hyperparameters.json
+ENV ALGO_INPUT_DATA_CONFIG_FILE $ALGO_INPUT_DIR/config/inputdataconfig.json
+ENV ALGO_INPUT_RESOURCE_CONFIG_FILE $ALGO_INPUT_DIR/config/resourceconfig.json
+ENV ALGO_ERROR_FILE /opt/ml/errors/errors.log
+
+ENV ALGO_OUTPUT_DIR /opt/ml/output
+ENV ALGO_OUTPUT_FAILED_FILE $ALGO_OUTPUT_DIR/failure
+ENV ALGO_OUTPUT_DATA_DIR $ALGO_OUTPUT_DIR/data
+ENV ALGO_MODEL_DIR /opt/ml/model
+
+# setup ENV for hadoop and java
+ENV HADOOP_PREFIX=/opt/amazon/hadoop
+ENV HADOOP_HOME=$HADOOP_PREFIX
+ENV HADOOP_COMMON_HOME=$HADOOP_PREFIX
+ENV HADOOP_CONF_DIR=$HADOOP_PREFIX/etc/hadoop
+ENV HADOOP_HDFS_HOME=$HADOOP_PREFIX
+ENV HADOOP_MAPRED_HOME=$HADOOP_PREFIX
+ENV HADOOP_YARN_HOME=$HADOOP_PREFIX
+ENV JAVA_HOME=/opt/amazon/jdk1.8
+
+ENV SAGEMAKER_HTTP_PORT=8080
+
+# Make sure that we expose our HTTP port.
+EXPOSE $SAGEMAKER_HTTP_PORT
+
+ENV SAGEMAKER_TRAINING_MODULE sagemaker_xgboost_framework.training:main
+ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_framework.serving:main

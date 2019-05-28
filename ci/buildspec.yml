@@ -1,0 +1,23 @@
+version: 0.2
+
+# Currently using the account number 465774300030 which is a personal AWS account.
+# This should be replaced after the ECR repo has been created through CFT.
+
+phases:
+  pre_build:
+    commands:
+    - echo Logging in to Amazon ECR...
+    - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+  build:
+    commands:
+    - echo Build started on `date`
+    - echo Building the Docker image...
+    - docker build -t xgboost-framework-base:0.82.0-cpu-py3 -f docker/v0.82/base/Dockerfile.cpu --build-arg py_version=3 .
+    - python setup.py bdist_wheel --universal
+    - docker build -t preprod-xgboost-framework:0.82.0-cpu-py3 -f docker/v0.82/final/Dockerfile.cpu --build-arg py_version=3 .
+    - docker tag preprod-xgboost-framework:0.82.0-cpu-py3 465774300030.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost-framework:0.82.0-cpu-py3
+  post_build:
+    commands:
+    - echo Build completed on `date`
+    - echo Pushing the Docker image...
+    - docker push 465774300030.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost-framework:0.82.0-cpu-py3
