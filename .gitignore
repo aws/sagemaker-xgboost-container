@@ -1,3 +1,5 @@
 dist/
 build/
 src/sagemaker_xgboost_framework.egg-info/
+.venv
+*~
