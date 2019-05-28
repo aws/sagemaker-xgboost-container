@@ -13,8 +13,8 @@
 from __future__ import absolute_import
 import logging
 
+from sagemaker_xgboost_container.algorithm_mode import default_entry_point
 import sagemaker_containers.beta.framework as framework
-from sagemaker_xgboost_container.default_entry_point import algorithm_mode_train
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def train(training_environment):
                                      training_environment.to_env_vars(), training_environment.module_name)
     else:
         logger.info("Algorithm mode-development mode")
-        algorithm_mode_train()
+        default_entry_point.algorithm_mode_train()
 
 
 def main():
