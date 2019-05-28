@@ -33,8 +33,7 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
 
-    install_requires=['matplotlib', 'numpy', 'pandas', 'psutil', 'retrying==1.3.3', 'scikit-learn',
-                      'sagemaker-containers >= 2.2.5'],
+    install_requires=read("requirements.txt"),
 
     extras_require={
         'test': ['tox', 'flake8', 'coverage', 'pytest', 'pytest-cov', 'pytest-xdist', 'mock', 'Flask', 'boto3>=1.4.8',

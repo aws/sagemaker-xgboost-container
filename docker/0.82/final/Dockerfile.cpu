@@ -2,6 +2,9 @@ FROM xgboost-framework-base:0.82-cpu-py3
 
 LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
 
+COPY requirements.txt /requirements.txt
+RUN pip install -r /requirements.txt && rm /requirements.txt
+
 COPY dist/sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl /sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl
 RUN pip install --no-cache /sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl && \
     rm /sagemaker_xgboost_framework-1.0-py2.py3-none-any.whl
