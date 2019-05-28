@@ -1,5 +1,8 @@
 dist/
 build/
-src/sagemaker_xgboost_framework.egg-info/
+src/sagemaker_xgboost_container.egg-info/
 .venv
 *~
+.tox
+__pycache__
+.coverage*
