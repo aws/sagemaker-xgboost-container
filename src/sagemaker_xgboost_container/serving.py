@@ -15,7 +15,7 @@ from __future__ import absolute_import
 import logging
 from sagemaker_containers.beta.framework import (
     encoders, env, modules, transformer, worker)
-from sagemaker_xgboost_framework import encoder as xgb_encoders
+from sagemaker_xgboost_container import encoder as xgb_encoders
 
 logging.basicConfig(format='%(asctime)s %(levelname)s - %(name)s - %(message)s', level=logging.INFO)
 

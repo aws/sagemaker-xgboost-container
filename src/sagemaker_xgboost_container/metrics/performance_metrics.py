@@ -13,13 +13,13 @@
 from collections import defaultdict
 from collections import namedtuple
 
-from sagemaker_xgboost_framework.metrics.utils import Preconditions
-from sagemaker_xgboost_framework.exceptions import AlgorithmError, CustomerValueError
+from sagemaker_xgboost_container.metrics.utils import Preconditions
+from sagemaker_xgboost_container.exceptions import AlgorithmError, CustomerValueError
 
-from sagemaker_xgboost_framework.metrics.performance_metric_definitions import QualityMetricDefinition, \
+from sagemaker_xgboost_container.metrics.performance_metric_definitions import QualityMetricDefinition, \
     SCORE_METRIC_TYPE, FREQUENCY_PER_EPOCH, LOSS_METRIC_TYPE, PROGRESS_METRIC_TYPE, THROUGHPUT_METRIC_TYPE
 
-from sagemaker_xgboost_framework.xgb_constants import TRAIN_CHANNEL, VAL_CHANNEL, _SEPARATOR
+from sagemaker_xgboost_container.constants.xgb_constants import TRAIN_CHANNEL, VAL_CHANNEL, _SEPARATOR
 
 MetricNameComponents = namedtuple('MetricNameComponents',
                                   ['data_segment', 'metric_name', 'emission_frequency'])

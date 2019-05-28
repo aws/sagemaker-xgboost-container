@@ -17,9 +17,9 @@ import sys
 import traceback
 
 # Copied from AI ALGS SDK
-from sagemaker_xgboost_framework.exceptions import convert_to_algorithm_error, PlatformError, CustomerError
+from sagemaker_xgboost_container.exceptions import convert_to_algorithm_error, PlatformError, CustomerError
 
-from sagemaker_xgboost_framework.train_helper import get_all_sizes, train_job
+from sagemaker_xgboost_container.train_helper import get_all_sizes, train_job
 
 
 ERROR_FILE = os.getenv("ALGO_ERROR_FILE")

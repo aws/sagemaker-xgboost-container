@@ -10,8 +10,8 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-from sagemaker_xgboost_framework.exceptions import AlgorithmError
-from sagemaker_xgboost_framework.metrics.utils import Preconditions
+from sagemaker_xgboost_container.exceptions import AlgorithmError
+from sagemaker_xgboost_container.metrics.utils import Preconditions
 
 LOSS_METRIC_TYPE = 'loss'
 SCORE_METRIC_TYPE = 'score'

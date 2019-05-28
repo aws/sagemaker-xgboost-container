@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from mock import MagicMock, patch
 
-from sagemaker_xgboost_framework import training
+from sagemaker_xgboost_container import training
 
 
 def mock_training_env(current_host='algo-1', module_dir='s3://my/script', module_name='svm', **kwargs):

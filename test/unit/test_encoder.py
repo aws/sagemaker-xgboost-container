@@ -19,7 +19,7 @@ import tempfile
 import xgboost as xgb
 
 from sagemaker_containers import _content_types, _errors
-from sagemaker_xgboost_framework import encoder
+from sagemaker_xgboost_container import encoder
 
 
 @pytest.mark.parametrize('target', ('42,6,9', '42.0,6.0,9.0', '42\n6\n9\n'))

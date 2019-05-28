@@ -22,7 +22,7 @@ import numpy as np
 import xgboost as xgb
 
 from sagemaker_containers import _content_types, _errors
-from sagemaker_xgboost_framework.constants import xgb_content_types
+from sagemaker_xgboost_container.constants import xgb_content_types
 
 
 def _clean_csv_string(csv_string, delimiter):

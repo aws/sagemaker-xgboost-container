@@ -12,7 +12,7 @@ def read(fname):
 
 
 setup(
-    name='sagemaker_xgboost_framework',
+    name='sagemaker_xgboost_container',
     version='1.0',
     description='Open source library for creating XGBoost containers to run on Amazon SageMaker.',
 

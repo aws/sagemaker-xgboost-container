@@ -14,7 +14,7 @@ from __future__ import absolute_import
 import logging
 
 import sagemaker_containers.beta.framework as framework
-from sagemaker_xgboost_framework.default_entry_point import algorithm_mode_train
+from sagemaker_xgboost_container.default_entry_point import algorithm_mode_train
 
 logger = logging.getLogger(__name__)
 
