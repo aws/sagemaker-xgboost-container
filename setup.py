@@ -37,5 +37,7 @@ setup(
 
     extras_require={
         'test': read("test-requirements.txt")
-    }
+    },
+
+    python_requires='>=3.5',
 )

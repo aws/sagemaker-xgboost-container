@@ -361,7 +361,7 @@ def validate_file_format(dir_path, file_type):
 
 
 def validate_csv_format(file_path):
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', errors='ignore') as f:
         first_line = f.readline()
         # validate it's not libsvm
         if ' ' in first_line and ':' in first_line:
@@ -379,7 +379,7 @@ def validate_csv_format(file_path):
 
 
 def validate_libsvm_format(file_path):
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', errors='ignore') as f:
         first_line = f.readline()
         # validate it's not csv
         if not (' ' in first_line and ':' in first_line):
@@ -391,7 +391,7 @@ def validate_libsvm_format(file_path):
 def get_csv_dmatrix(files_path, csv_weights):
     # infer delimiter of CSV input
     csv_file = [f for f in os.listdir(files_path) if os.path.isfile(os.path.join(files_path, f))][0]
-    with open(os.path.join(files_path, csv_file)) as f:
+    with open(os.path.join(files_path, csv_file), errors='ignore') as f:
         sample_text = f.readline().strip()[:512]
     try:
         delimiter = csv.Sniffer().sniff(sample_text).delimiter
