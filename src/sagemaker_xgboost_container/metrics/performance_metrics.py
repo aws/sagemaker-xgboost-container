@@ -100,6 +100,14 @@ class XGBoostPerformanceMetrics(object):
                                              emission_frequencies={FREQUENCY_PER_EPOCH}, tunable=True,
                                              description="Mean average precision")
 
+        metric_accuracy = QualityMetricDefinition(name="accuracy", m_type=SCORE_METRIC_TYPE,
+                                                  emission_frequencies={FREQUENCY_PER_EPOCH}, tunable=True,
+                                                  description="Accuracy")
+
+        metric_f1_score = QualityMetricDefinition(name="f1", m_type=SCORE_METRIC_TYPE,
+                                                  emission_frequencies={FREQUENCY_PER_EPOCH}, tunable=True,
+                                                  description="F1 Score")
+
         self.register_allowed_metric(TRAIN_CHANNEL, metric_rmse)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_mae)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_logloss)
@@ -109,6 +117,8 @@ class XGBoostPerformanceMetrics(object):
         self.register_allowed_metric(TRAIN_CHANNEL, metric_auc)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_ndcg)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_map)
+        self.register_allowed_metric(TRAIN_CHANNEL, metric_accuracy)
+        self.register_allowed_metric(TRAIN_CHANNEL, metric_f1_score)
         self.register_allowed_metric(VAL_CHANNEL, metric_rmse)
         self.register_allowed_metric(VAL_CHANNEL, metric_mae)
         self.register_allowed_metric(VAL_CHANNEL, metric_logloss)
@@ -118,6 +128,8 @@ class XGBoostPerformanceMetrics(object):
         self.register_allowed_metric(VAL_CHANNEL, metric_auc)
         self.register_allowed_metric(VAL_CHANNEL, metric_ndcg)
         self.register_allowed_metric(VAL_CHANNEL, metric_map)
+        self.register_allowed_metric(VAL_CHANNEL, metric_accuracy)
+        self.register_allowed_metric(VAL_CHANNEL, metric_f1_score)
 
     def register_allowed_metric(self, data_segment, metric_def):
         """
