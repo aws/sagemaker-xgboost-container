@@ -14,7 +14,6 @@ from __future__ import unicode_literals
 
 import csv
 import logging
-import numpy as np
 import os
 import pickle as pkl
 import psutil
@@ -24,7 +23,6 @@ import subprocess
 import sys
 import time
 
-from sklearn.metrics import f1_score
 import xgboost as xgb
 
 
@@ -40,7 +38,7 @@ from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESS
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
 from sagemaker_xgboost_container.metrics.performance_metrics import create_runtime, get_runtime, \
     XGBoostPerformanceMetrics
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1
+from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1  # noqa: F401
 
 
 MODEL_DIR = os.getenv("ALGO_MODEL_DIR")
@@ -55,36 +53,6 @@ THRESHOLD_MEMORY = 1024 * 1024 * 1024
 TRAIN_CHANNEL = 'train'
 VAL_CHANNEL = 'validation'
 HPO_SEPARATOR = ':'
-
-
-# TODO: Rename both according to AutoML standards
-def accuracy(preds, dtrain):
-    """Compute accuracy.
-
-    :param preds: Prediction values
-    :param dtrain: Training data with labels
-    :return: Metric name, accuracy value.
-    """
-    labels = dtrain.get_label()
-    return 'accuracy', float(sum(labels == (preds > 0.0))) / len(labels)
-
-
-def f1(preds, dtrain):
-    """Compute f1 score. This can be used for multiclassification training.
-    The F1 score is computed as the following:
-
-        F1 = 2 * (precision * recall) / (precision + recall)
-
-    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
-
-    :param preds: Prediction values
-    :param dtrain: Training data with labels
-    :return: Metric name, f1 score
-    """
-    labels = dtrain.get_label()
-    y_bin = [1. if preds_cont > 0.5 else 0. for preds_cont in preds]  # binaryzing output
-    return 'f1', f1_score(labels, y_bin)
-
 
 
 #######################################################################
@@ -581,10 +549,11 @@ def train_job(resource_config, train_cfg, data_cfg):
         if tuning_objective_metric_name in ["f1", "accuracy"]:
             custom_objective_metric = globals()[tuning_objective_metric_name]
 
-    if custom_objective_metric:
-        param.pop("eval_metric", None)  # Can't set feval and evals for xgb train
-    else:
-        eval_metric = param.get("eval_metric")
+    eval_metric = param.get("eval_metric")
+    if custom_objective_metric and eval_metric:
+        raise CustomerValueError("Evaluation metrics 'accuracy' and 'f1' cannot be used with other metrics but"
+                                 "'eval_metric' set to {}".format(eval_metric))
+    elif not custom_objective_metric:
         union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
         if union_metrics is not None:
             param["eval_metric"] = union_metrics
