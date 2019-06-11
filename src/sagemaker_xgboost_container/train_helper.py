@@ -12,6 +12,7 @@
 # language governing permissions and limitations under the License.
 from __future__ import unicode_literals
 
+from array import array
 import csv
 import logging
 import os
@@ -38,7 +39,7 @@ from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESS
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
 from sagemaker_xgboost_container.metrics.performance_metrics import create_runtime, get_runtime, \
     XGBoostPerformanceMetrics
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1  # noqa: F401
+from sagemaker_xgboost_container.metrics.custom_metrics import CUSTOM_METRICS, get_custom_metrics, configure_feval
 
 
 MODEL_DIR = os.getenv("ALGO_MODEL_DIR")
@@ -305,11 +306,10 @@ def get_params(cfg):
                     raise CustomerValueError("Metric 'auc' can only be applied for classification and ranking problem.")
             if "<function" in metric:
                 raise CustomerValueError("User defined evaluation metric {} is not supported yet.".format(metric))
-            if "@" not in metric and metric not in supported_metric:
+            if "@" not in metric and metric not in supported_metric and metric not in CUSTOM_METRICS.keys():
                 raise CustomerValueError(
-                    "Metric '{}' is not supported. Parameter 'eval_metric' should be one of these options:"
-                    "'rmse', 'mae', 'logloss', 'error', 'merror', 'mlogloss', 'auc', 'ndcg', 'map', "
-                    "'poisson-nloglik', 'gamma-nloglik', 'gamma-deviance', 'tweedie-nloglik'.".format(metric))
+                    "Metric '{}' is not supported. Parameter 'eval_metric' should be one of these options: "
+                    "{}, {}".format(metric, ",".join(supported_metric), ",".join(CUSTOM_METRICS.keys())))
             if "@" in metric:
                 metric_name = metric.split('@')[0].strip()
                 metric_threshold = metric.split('@')[1].strip()
@@ -519,6 +519,62 @@ def get_union_metrics(metric_a, metric_b):
         return metric_list
 
 
+def remove_intersection(all_metrics, metrics_to_remove):
+    """
+    Remove intersection of all_metrics, metrics_to_remove.
+
+    This is used to remove feval metrics from the list of XGBoost supported metrics.
+
+    :param all_metrics: list
+    :param metrics_to_remove: list
+    :return: all_metrics with intersection removed.
+    """
+    cleaned_metric = list()
+    for metric in all_metrics:
+        if metric not in metrics_to_remove:
+            cleaned_metric.append(metric)
+    return cleaned_metric
+
+
+def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
+    """Return list of default xgb evaluation metrics and list of container defined metrics.
+
+    XGB uses the 'eval_metric' parameter for the evaluation metrics supported by default, and 'feval' as an argument
+    during training to validate using custom evaluation metrics. The argument 'feval' takes a function as value; the
+    method returned here will be configured to run for only the metrics the user specifies.
+
+    :param tuning_objective_metric_param: HPO metric
+    :param eval_metric: list of xgb metrics to output
+    :return: cleaned list of xgb supported evaluation metrics, method configured with container defined metrics.
+    """
+    tuning_objective_metric = None
+    configued_eval = None
+    cleaned_eval_metrics = None
+
+    if tuning_objective_metric_param is not None:
+        tuning_objective_metric_tuple = XGBoostPerformanceMetrics.decode_metric_name(tuning_objective_metric_param)
+
+        tuning_objective_metric_name = tuning_objective_metric_tuple.metric_name
+        tuning_objective_metric = tuning_objective_metric_name.split(',')
+        logging.info('Setting up HPO optimized metric to be : {}'.format(tuning_objective_metric_name))
+
+    union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
+
+    logging.info("All metrics to evaluate: {}".format(union_metrics))
+
+    if union_metrics is not None:
+        feval_metrics = get_custom_metrics(union_metrics)
+        if feval_metrics:
+            configued_eval = configure_feval(feval_metrics)
+            cleaned_eval_metrics = remove_intersection(union_metrics, feval_metrics)
+            logging.info("Running container defined metrics: {}".format(feval_metrics))
+        else:
+            cleaned_eval_metrics = union_metrics
+
+    logging.info("Running xgb supported metrics: {}".format(cleaned_eval_metrics))
+    return cleaned_eval_metrics, configued_eval
+
+
 def train_job(resource_config, train_cfg, data_cfg):
     param = get_params(train_cfg)
     if train_cfg.get("num_round") is None:
@@ -536,27 +592,13 @@ def train_job(resource_config, train_cfg, data_cfg):
     create_runtime(param, data_cfg)
     get_runtime()
 
-    # union 'eval_metric' with '_tuning_objective_metric' to support HPO
-    tuning_objective_metric = None
-    custom_objective_metric = None
-    if param.get("_tuning_objective_metric") is not None:
-        tuning_objective_metric_tuple = XGBoostPerformanceMetrics.decode_metric_name(
-            param.get("_tuning_objective_metric"))
-        tuning_objective_metric_name = tuning_objective_metric_tuple.metric_name
-        tuning_objective_metric = tuning_objective_metric_name.split(',')
-        logging.info('Setting up HPO optimized metric to be : {}'.format(tuning_objective_metric_name))
-
-        if tuning_objective_metric_name in ["f1", "accuracy"]:
-            custom_objective_metric = globals()[tuning_objective_metric_name]
-
+    tuning_objective_metric_param = param.get("_tuning_objective_metric")
     eval_metric = param.get("eval_metric")
-    if custom_objective_metric and eval_metric:
-        raise CustomerValueError("Evaluation metrics 'accuracy' and 'f1' cannot be used with other metrics but"
-                                 "'eval_metric' set to {}".format(eval_metric))
-    elif not custom_objective_metric:
-        union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
-        if union_metrics is not None:
-            param["eval_metric"] = union_metrics
+    cleaned_eval_metric, configured_feval = get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric)
+    if cleaned_eval_metric:
+        param['eval_metric'] = cleaned_eval_metric
+    else:
+        param.pop('eval_metric', None)
 
     num_hosts = len(resource_config["hosts"])
     channels = list(data_cfg.keys())
@@ -596,7 +638,7 @@ def train_job(resource_config, train_cfg, data_cfg):
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
 
     try:
-        bst = xgb.train(param, dtrain, num_boost_round=num_round, evals=watchlist, feval=custom_objective_metric,
+        bst = xgb.train(param, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)
     except Exception as e:
         exception_prefix = "XGB train call failed with exception"
