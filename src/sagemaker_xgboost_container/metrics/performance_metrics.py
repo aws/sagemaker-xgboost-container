@@ -108,6 +108,10 @@ class XGBoostPerformanceMetrics(object):
                                                   emission_frequencies={FREQUENCY_PER_EPOCH}, tunable=True,
                                                   description="F1 Score")
 
+        metric_mse = QualityMetricDefinition(name="mse", m_type=LOSS_METRIC_TYPE,
+                                             emission_frequencies={FREQUENCY_PER_EPOCH}, tunable=True,
+                                             description="Mean Square Error")
+
         self.register_allowed_metric(TRAIN_CHANNEL, metric_rmse)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_mae)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_logloss)
@@ -119,6 +123,7 @@ class XGBoostPerformanceMetrics(object):
         self.register_allowed_metric(TRAIN_CHANNEL, metric_map)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_accuracy)
         self.register_allowed_metric(TRAIN_CHANNEL, metric_f1_score)
+        self.register_allowed_metric(TRAIN_CHANNEL, metric_mse)
         self.register_allowed_metric(VAL_CHANNEL, metric_rmse)
         self.register_allowed_metric(VAL_CHANNEL, metric_mae)
         self.register_allowed_metric(VAL_CHANNEL, metric_logloss)
@@ -130,6 +135,7 @@ class XGBoostPerformanceMetrics(object):
         self.register_allowed_metric(VAL_CHANNEL, metric_map)
         self.register_allowed_metric(VAL_CHANNEL, metric_accuracy)
         self.register_allowed_metric(VAL_CHANNEL, metric_f1_score)
+        self.register_allowed_metric(VAL_CHANNEL, metric_mse)
 
     def register_allowed_metric(self, data_segment, metric_def):
         """

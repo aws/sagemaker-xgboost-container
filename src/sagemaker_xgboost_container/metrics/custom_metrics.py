@@ -1,4 +1,4 @@
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, mean_squared_error
 
 
 # TODO: Rename both according to AutoML standards
@@ -15,9 +15,6 @@ def accuracy(preds, dtrain):
 
 def f1(preds, dtrain):
     """Compute f1 score. This can be used for multiclassification training.
-    The F1 score is computed as the following:
-
-        F1 = 2 * (precision * recall) / (precision + recall)
 
     For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
 
@@ -30,9 +27,22 @@ def f1(preds, dtrain):
     return 'f1', f1_score(labels, y_bin)
 
 
+def mse(preds, dtrain):
+    """Compute mean squared error.
+
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, mean squared error
+    """
+    labels = dtrain.get_label()
+    return 'mse', mean_squared_error(labels, preds)
+
+
 CUSTOM_METRICS = {
     "accuracy": accuracy,
-    "f1": f1
+    "f1": f1,
+    "mse": mse
 }
 
 
