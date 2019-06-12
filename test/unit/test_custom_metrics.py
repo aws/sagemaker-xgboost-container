@@ -1,7 +1,7 @@
 import numpy as np
 import xgboost as xgb
 
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1
+from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse
 
 
 train_data = np.random.rand(10, 2)
@@ -19,3 +19,8 @@ def test_accuracy():
 def test_f1():
     f1_score_name, f1_score_result = f1(preds, dtrain)
     assert f1_score_name == 'f1'
+
+
+def test_mse():
+    mse_score_name, mse_score_result = mse(preds, dtrain)
+    assert mse_score_name == 'mse'
