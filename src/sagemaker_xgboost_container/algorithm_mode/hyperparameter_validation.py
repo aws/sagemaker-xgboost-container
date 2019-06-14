@@ -84,18 +84,23 @@ def initialize(metrics):
                  "reg:logistic", "rank:pairwise", "binary:hinge"]):
                 raise exc.UserError("Metric 'auc' can only be applied for classification and ranking problem.")
 
+    num_round = hpv.HyperparameterBuilder.Integer("num_round").required().with_range(min_closed=1).with_tunable_range(
+        min_closed=1, max_closed=4000, scale=hpv.Interval.LINEAR_SCALE)
+    csv_weights = hpv.HyperparameterBuilder.Integer("csv_weights").with_default(0).with_range(min_closed=0, max_closed=1)
+    early_stopping_rounds = hpv.HyperparameterBuilder.Integer("early_stopping_rounds").with_range(min_closed=1).not_required()
+    silent = hpv.HyperparameterBuilder.Integer("silent").with_range(min_closed=0, max_closed=1).with_default(1)
+    nthread = hpv.HyperparameterBuilder.Integer("nthread").with_range(min_closed=1).not_required()
+    max_depth = hpv.HyperparameterBuilder.Integer("max_depth").with_range(min_closed=0).with_default(
+        6).with_tunable_range(min_closed=0, max_closed=10, scale=hpv.Interval.LINEAR_SCALE)
+
+
     hyperparameters = hpv.Hyperparameters(
-        hpv.IntegerHyperparameter(name="num_round", required=True,
-                                  range=hpv.Interval(min_closed=1),
-                                  tunable=True, tunable_recommended_range=hpv.Interval(
-                                      min_closed=1,
-                                      max_closed=4000,
-                                      scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.IntegerHyperparameter(name="csv_weights", range=hpv.Interval(min_closed=0, max_closed=1), default=0),
-        hpv.IntegerHyperparameter(name="early_stopping_rounds", range=hpv.Interval(min_closed=1), required=False),
+        num_round.build(),
+        csv_weights.build(),
+        early_stopping_rounds.build(),
         hpv.CategoricalHyperparameter(name="booster", range=["gbtree", "gblinear", "dart"], default="gbtree"),
-        hpv.IntegerHyperparameter(name="silent", range=hpv.Interval(min_closed=0, max_closed=1), default=1),
-        hpv.IntegerHyperparameter(name="nthread", range=hpv.Interval(min_closed=1), required=False),
+        silent.build(),
+        nthread.build(),
         hpv.ContinuousHyperparameter(name="eta", range=hpv.Interval(min_closed=0, max_closed=1), default=0.3,
                                      tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0.1, max_closed=0.5,
@@ -104,10 +109,7 @@ def initialize(metrics):
                                      tunable=True, tunable_recommended_range=hpv.Interval(
                                          min_closed=0, max_closed=5,
                                          scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.IntegerHyperparameter(name="max_depth", range=hpv.Interval(min_closed=0), default=6,
-                                  tunable=True, tunable_recommended_range=hpv.Interval(
-                                      min_closed=0, max_closed=10,
-                                      scale=hpv.Interval.LINEAR_SCALE)),
+        max_depth.build()
         hpv.ContinuousHyperparameter(name="min_child_weight", range=hpv.Interval(min_closed=0), default=1,
                                      tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0, max_closed=120,

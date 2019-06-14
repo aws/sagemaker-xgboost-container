@@ -358,3 +358,64 @@ class dependencies_validator:
             def __call__(self, value, dependencies):
                 return f(value, dependencies)
         return inner()
+
+
+class HyperparameterBuilder:
+    class Integer:
+        def __init__(self, name):
+            self._name = name
+            self._range = None
+            self._default = None
+            self._required = None
+            self._tunable = False
+            self._tunable_range = None
+            self._dependencies = None
+
+        def build(self):
+            return IntegerHyperparameter(self._name,
+                                         range=self._range,
+                                         dependencies=self._dependencies,
+                                         default=self._default,
+                                         required=self._required,
+                                         tunable=self._tunable,
+                                         tunable_recommended_range=self._tunable_range)
+
+        def with_range(self, min_closed=None, min_open=None, max_closed=None, max_open=None):
+            self._range = Interval(min_closed=min_closed,
+                                   min_open=min_open,
+                                   max_closed=max_closed,
+                                   max_open=max_open)
+            return self
+
+        def with_custom_range(self, range_):
+            self._range = range_
+            return self
+
+        def with_default(self, value):
+            self._default = value
+            return self
+
+        def required(self):
+            self._required = True
+            return self
+
+        def not_required(self):
+            self._required = False
+            return self
+
+        def tunable(self):
+            self._tunable = True
+            return self
+
+        def with_tunable_range(self, min_closed=None, min_open=None, max_closed=None, max_open=None, scale=None):
+            self._tunable = True
+            self._tunable_range = Interval(min_closed=min_closed,
+                                           min_open=min_open,
+                                           max_closed=max_closed,
+                                           max_open=max_open,
+                                           scale=scale)
+            return self
+
+        def with_dependencies(self, dependencies):
+            self.dependencies = dependencies
+            return self
