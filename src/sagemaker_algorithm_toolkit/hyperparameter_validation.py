@@ -16,11 +16,11 @@ from sagemaker_algorithm_toolkit import exceptions as exc
 
 
 class Hyperparameter(object):
-    """Represents a single SageMAker training job hyperparameter."""
+    """Represents a single SageMaker training job hyperparameter."""
     def __init__(self,
                  name,
                  range=None,
-                 dependencies=None, dependencies_validator=None,
+                 dependencies=None,
                  required=None, default=None,
                  tunable=False, tunable_recommended_range=None):
         if required is None and default is None:
@@ -28,8 +28,7 @@ class Hyperparameter(object):
 
         self.name = name
         self.range = range
-        self.dependencies = dependencies or []
-        self.dependencies_validator = dependencies_validator
+        self.dependencies = dependencies
         self.required = required
         self.default = default
         self.tunable = tunable
@@ -39,7 +38,7 @@ class Hyperparameter(object):
     def type(self):
         return "FreeText"
 
-    def convert(self, value):
+    def parse(self, value):
         return value
 
     def validate_range(self, value):
@@ -47,10 +46,13 @@ class Hyperparameter(object):
             raise exc.UserError("Hyperparameter {}: {} is not in {}".format(self.name, value, self.range))
 
     def validate_dependencies(self, value, dependencies):
-        if self.dependencies_validator is not None:
-            self.dependencies_validator(value, dependencies)
+        if self.dependencies is not None:
+            self.dependencies(value, dependencies)
 
     def format_range(self):
+        raise NotImplementedError
+
+    def format_tunable_range(self):
         raise NotImplementedError
 
     def format(self):
@@ -72,17 +74,17 @@ class Hyperparameter(object):
         return return_value
 
 
-class IntegralHyperparameter(Hyperparameter):
+class IntegerHyperparameter(Hyperparameter):
     def __init__(self, *args, **kwargs):
         if kwargs.get("range") is None:
             raise exc.AlgorithmError("range must be specified")
-        super(IntegralHyperparameter, self).__init__(*args, **kwargs)
+        super(IntegerHyperparameter, self).__init__(*args, **kwargs)
 
     @property
     def type(self):
         return "Integer"
 
-    def convert(self, value):
+    def parse(self, value):
         return int(value)
 
     def format_range(self):
@@ -114,12 +116,9 @@ class CategoricalHyperparameter(Hyperparameter):
         return "Categorical"
 
     def _format_range_helper(self, range_):
-        formatted_range = range_
         if isinstance(range_, list) or isinstance(range_, tuple):
-            formatted_range = [str(x) for x in range_]
-        elif hasattr(range_, "CATEGORIES"):
-            formatted_range = range_.CATEGORIES
-        return formatted_range
+            return range_
+        return range_.format()
 
     def format_range(self):
         return {"CategoricalParameterRangeSpecification": {
@@ -143,7 +142,7 @@ class ContinuousHyperparameter(Hyperparameter):
     def type(self):
         return "Continuous"
 
-    def convert(self, value):
+    def parse(self, value):
         return float(value)
 
     def format_range(self):
@@ -165,9 +164,11 @@ class ContinuousHyperparameter(Hyperparameter):
 
 class CommaSeparatedListHyperparameter(Hyperparameter):
     def __init__(self, *args, **kwargs):
+        if kwargs.get("range") is None:
+            raise exc.AlgorithmError("range must be specified")
         super(CommaSeparatedListHyperparameter, self).__init__(*args, **kwargs)
 
-    def convert(self, value):
+    def parse(self, value):
         return value.split(",")
 
     def validate_range(self, value):
@@ -185,9 +186,10 @@ class Hyperparameters(object):
 
         def _visit(name, visited, stack):
             visited[name] = True
-            for dep in self.hyperparameters[name].dependencies:
-                if dep in visited and not visited[dep]:
-                    _visit(dep, visited, stack)
+            if self.hyperparameters[name].dependencies:
+                for dep in self.hyperparameters[name].dependencies:
+                    if dep in visited and not visited[dep]:
+                        _visit(dep, visited, stack)
             stack.insert(0, name)
 
         for hp in hyperparameters:
@@ -213,7 +215,7 @@ class Hyperparameters(object):
             except KeyError:
                 raise exc.UserError("Extraneous hyperparameter found: {}".format(hp))
             try:
-                converted_hyperparameters[hp] = hyperparameter_obj.convert(value)
+                converted_hyperparameters[hp] = hyperparameter_obj.parse(value)
             except ValueError as e:
                 raise exc.UserError("Hyperparameter {}: could not parse value".format(hp), caused_by=e)
 
@@ -233,10 +235,11 @@ class Hyperparameters(object):
         while sorted_deps:
             hp = sorted_deps.pop()
             value = converted_hyperparameters[hp]
-            dependencies = {hp_d: new_validated_hyperparameters[hp_d]
-                            for hp_d in self.hyperparameters[hp].dependencies
-                            if hp_d in new_validated_hyperparameters}
-            self.hyperparameters[hp].validate_dependencies(value, dependencies)
+            if self.hyperparameters[hp].dependencies:
+                dependencies = {hp_d: new_validated_hyperparameters[hp_d]
+                                for hp_d in self.hyperparameters[hp].dependencies
+                                if hp_d in new_validated_hyperparameters}
+                self.hyperparameters[hp].validate_dependencies(value, dependencies)
             new_validated_hyperparameters[hp] = value
 
         return new_validated_hyperparameters
@@ -249,7 +252,19 @@ class Hyperparameters(object):
                 for name, hyperparameter in self.hyperparameters.items()]
 
 
-class Interval(object):
+class Range:
+    """Abstract interface for Hyperparameter.range objects."""
+    def __contains__(self, value):
+        raise NotImplementedError
+
+    def format(self):
+        raise NotImplementedError
+
+    def __str__(self):
+        raise NotImplementedError
+
+
+class Interval(Range):
     LINEAR_SCALE = "Linear"
 
     def __init__(self, min_open=None, min_closed=None, max_open=None, max_closed=None, scale=None):
@@ -304,3 +319,42 @@ class Interval(object):
         max_float = sys.float_info.max
         return (self._format_range_value(self.min_open, self.min_closed, -max_float),
                 self._format_range_value(self.max_open, self.max_closed, max_float))
+
+
+class range_validator:
+    """Function decorator helper to override hyperparameter's range validation."""
+    def __init__(self, range):
+        self.range = range
+
+    def __call__(self, f):
+        class inner(Range):
+            def format(self_):
+                return self.range
+
+            def __str__(self_):
+                return str(self.range)
+
+            def __contains__(self_, value):
+                return f(self.range, value)
+        return inner()
+
+
+class dependencies_validator:
+    """Function decorator helper to override hyperparameter's dependency validation."""
+    def __init__(self, dependencies):
+        self.dependencies = dependencies
+
+    def __call__(self, f):
+        class inner:
+            def __init__(self_):
+                self_.dependencies = self.dependencies
+
+            def __iter__(self):
+                return iter(self.dependencies)
+
+            def __next__(self):
+                return next(self.dependencies)
+
+            def __call__(self, value, dependencies):
+                return f(value, dependencies)
+        return inner()

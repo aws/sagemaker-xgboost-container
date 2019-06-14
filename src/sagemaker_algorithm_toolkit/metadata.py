@@ -46,6 +46,11 @@ class Product:
     BATCH_TRANSFORM = "BatchTransform"
 
 
+def _trim(instance_type_product):
+    SEPARATOR = "-"  # e.g. ml.p3.2xlarge-Hosting
+    return instance_type_product.split(SEPARATOR)[0]
+
+
 def get_cpu_instance_types(product, **kwargs):
     results = []
     for instance_type, gpu_count in _get_instance_types(**kwargs).items():
@@ -54,7 +59,7 @@ def get_cpu_instance_types(product, **kwargs):
     return results
 
 
-def get_gpu_instance_types(product, **kwargs):
+def get_single_gpu_instance_types(product, **kwargs):
     results = []
     for instance_type, gpu_count in _get_instance_types(**kwargs).items():
         if gpu_count == 1 and product in instance_type:
@@ -62,17 +67,12 @@ def get_gpu_instance_types(product, **kwargs):
     return results
 
 
-def get_multigpu_instance_types(product, **kwargs):
+def get_multi_gpu_instance_types(product, **kwargs):
     results = []
     for instance_type, gpu_count in _get_instance_types(**kwargs).items():
         if gpu_count > 1 and product in instance_type:
             results.append(_trim(instance_type))
     return results
-
-
-def _trim(instance_type_product):
-    SEPARATOR = "-"  # e.g. ml.p3.2xlarge-Hosting
-    return instance_type_product.split(SEPARATOR)[0]
 
 
 def training_spec(hyperparameters, channels, metrics,

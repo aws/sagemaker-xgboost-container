@@ -53,7 +53,7 @@ class TestCreateAlgorithm(unittest.TestCase):
                     "MaxNumberOfTrainingJobs": 6,
                     "MaxParallelTrainingJobs": 2
                 },
-                "HyperParameterTuningJobObjective": objective.format(),
+                "HyperParameterTuningJobObjective": objective.format_tunable(),
                 "ParameterRanges": hyperparameters["alpha"].format_tunable_range()
             },
             TrainingJobDefinition={

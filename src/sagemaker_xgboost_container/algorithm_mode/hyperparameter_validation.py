@@ -3,17 +3,13 @@ from sagemaker_algorithm_toolkit import hyperparameter_validation as hpv
 
 
 def initialize(metrics):
-    class tree_method_range_validator:
-        CATEGORIES = ["auto", "exact", "approx", "hist"]
+    @hpv.range_validator(["auto", "exact", "approx", "hist"])
+    def tree_method_range_validator(CATEGORIES, value):
+        if "gpu" in value:
+            raise exc.UserError("GPU training is not supported yet.")
+        return value in CATEGORIES
 
-        def __str__(self):
-            return str(self.CATEGORIES)
-
-        def __contains__(self, value):
-            if "gpu" in value:
-                raise exc.UserError("GPU training is not supported yet.")
-            return value in self.CATEGORIES
-
+    @hpv.dependencies_validator(["booster", "process_type"])
     def updater_validator(value, dependencies):
         valid_tree_plugins = ['grow_colmaker', 'distcol', 'grow_histmaker', 'grow_local_histmaker',
                               'grow_skmaker', 'sync', 'refresh', 'prune']
@@ -44,17 +40,13 @@ def initialize(metrics):
                                     "following: 'grow_colmaker', 'distcol', 'grow_histmaker', "
                                     "'grow_local_histmaker', 'grow_skmaker'")
 
-    class predictor_validator:
-        CATEGORIES = ["cpu_predictor"]
+    @hpv.range_validator(["cpu_predictor"])
+    def predictor_validator(CATEGORIES, value):
+        if "gpu" in value:
+            raise exc.UserError("GPU training is not supported yet.")
+        return value in CATEGORIES
 
-        def __str__(self):
-            return str(self.CATEGORIES)
-
-        def __contains__(self, value):
-            if "gpu" in value:
-                raise exc.UserError("GPU training is not supported yet.")
-            return value in self.CATEGORIES
-
+    @hpv.dependencies_validator(["num_class"])
     def objective_validator(value, dependencies):
         num_class = dependencies.get("num_class")
         if value in ("multi:softmax", "multi:softprob") and num_class is None:
@@ -63,32 +55,28 @@ def initialize(metrics):
             raise exc.UserError("Do not need to setup parameter 'num_class' for learning task other than "
                                 "multi-classification.")
 
-    class eval_metric_range_validator:
-        SUPPORTED_METRIC = ["rmse", "mae", "logloss", "error", "merror", "mlogloss", "auc", "ndcg", "map",
-                            "poisson-nloglik", "gamma-nloglik", "gamma-deviance", "tweedie-nloglik"]
+    @hpv.range_validator(["rmse", "mae", "logloss", "error", "merror", "mlogloss", "auc", "ndcg", "map",
+                          "poisson-nloglik", "gamma-nloglik", "gamma-deviance", "tweedie-nloglik"])
+    def eval_metric_range_validator(SUPPORTED_METRIC, metric):
+        if "<function" in metric:
+            raise exc.UserError("User defined evaluation metric {} is not supported yet.".format(metric))
 
-        def __str__(self):
-            return str(self.SUPPORTED_METRIC)
+        if "@" in metric:
+            metric_name = metric.split('@')[0].strip()
+            metric_threshold = metric.split('@')[1].strip()
+            if metric_name not in ["error", "ndcg", "map"]:
+                raise exc.UserError(
+                    "Metric '{}' is not supported. Parameter 'eval_metric' with customized threshold should "
+                    "be one of these options: 'error', 'ndcg', 'map'.".format(metric))
+            try:
+                float(metric_threshold)
+            except ValueError:
+                raise exc.UserError("Threshold value 't' in '{}@t' expects float input.".format(metric_name))
+            return True
 
-        def __contains__(self, metric):
-            if "<function" in metric:
-                raise exc.UserError("User defined evaluation metric {} is not supported yet.".format(metric))
+        return metric in SUPPORTED_METRIC
 
-            if "@" in metric:
-                metric_name = metric.split('@')[0].strip()
-                metric_threshold = metric.split('@')[1].strip()
-                if metric_name not in ["error", "ndcg", "map"]:
-                    raise exc.UserError(
-                        "Metric '{}' is not supported. Parameter 'eval_metric' with customized threshold should "
-                        "be one of these options: 'error', 'ndcg', 'map'.".format(metric))
-                try:
-                    float(metric_threshold)
-                except ValueError:
-                    raise exc.UserError("Threshold value 't' in '{}@t' expects float input.".format(metric_name))
-                return True
-            else:
-                return metric in self.SUPPORTED_METRIC
-
+    @hpv.dependencies_validator(["objective"])
     def eval_metric_dep_validator(value, dependencies):
         if "auc" in value:
             if (dependencies["objective"] not in
@@ -97,17 +85,17 @@ def initialize(metrics):
                 raise exc.UserError("Metric 'auc' can only be applied for classification and ranking problem.")
 
     hyperparameters = hpv.Hyperparameters(
-        hpv.IntegralHyperparameter(name="num_round", required=True,
-                                   range=hpv.Interval(min_closed=1),
-                                   tunable=True, tunable_recommended_range=hpv.Interval(
-                                       min_closed=1,
-                                       max_closed=4000,
-                                       scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.IntegralHyperparameter(name="csv_weights", range=hpv.Interval(min_closed=0, max_closed=1), default=0),
-        hpv.IntegralHyperparameter(name="early_stopping_rounds", range=hpv.Interval(min_closed=1), required=False),
+        hpv.IntegerHyperparameter(name="num_round", required=True,
+                                  range=hpv.Interval(min_closed=1),
+                                  tunable=True, tunable_recommended_range=hpv.Interval(
+                                      min_closed=1,
+                                      max_closed=4000,
+                                      scale=hpv.Interval.LINEAR_SCALE)),
+        hpv.IntegerHyperparameter(name="csv_weights", range=hpv.Interval(min_closed=0, max_closed=1), default=0),
+        hpv.IntegerHyperparameter(name="early_stopping_rounds", range=hpv.Interval(min_closed=1), required=False),
         hpv.CategoricalHyperparameter(name="booster", range=["gbtree", "gblinear", "dart"], default="gbtree"),
-        hpv.IntegralHyperparameter(name="silent", range=hpv.Interval(min_closed=0, max_closed=1), default=1),
-        hpv.IntegralHyperparameter(name="nthread", range=hpv.Interval(min_closed=1), required=False),
+        hpv.IntegerHyperparameter(name="silent", range=hpv.Interval(min_closed=0, max_closed=1), default=1),
+        hpv.IntegerHyperparameter(name="nthread", range=hpv.Interval(min_closed=1), required=False),
         hpv.ContinuousHyperparameter(name="eta", range=hpv.Interval(min_closed=0, max_closed=1), default=0.3,
                                      tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0.1, max_closed=0.5,
@@ -116,10 +104,10 @@ def initialize(metrics):
                                      tunable=True, tunable_recommended_range=hpv.Interval(
                                          min_closed=0, max_closed=5,
                                          scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.IntegralHyperparameter(name="max_depth", range=hpv.Interval(min_closed=0), default=6,
-                                   tunable=True, tunable_recommended_range=hpv.Interval(
-                                       min_closed=0, max_closed=10,
-                                       scale=hpv.Interval.LINEAR_SCALE)),
+        hpv.IntegerHyperparameter(name="max_depth", range=hpv.Interval(min_closed=0), default=6,
+                                  tunable=True, tunable_recommended_range=hpv.Interval(
+                                      min_closed=0, max_closed=10,
+                                      scale=hpv.Interval.LINEAR_SCALE)),
         hpv.ContinuousHyperparameter(name="min_child_weight", range=hpv.Interval(min_closed=0), default=1,
                                      tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0, max_closed=120,
@@ -148,7 +136,7 @@ def initialize(metrics):
                                      tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0, max_closed=1000,
                                                                             scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.CategoricalHyperparameter(name="tree_method", range=tree_method_range_validator(), default="auto"),
+        hpv.CategoricalHyperparameter(name="tree_method", range=tree_method_range_validator, default="auto"),
         hpv.ContinuousHyperparameter(name="sketch_eps", range=hpv.Interval(min_open=0, max_open=1), default=0.03),
         hpv.ContinuousHyperparameter(name="scale_pos_weight", range=hpv.Interval(min_open=0), default=1),
         hpv.CommaSeparatedListHyperparameter(name="updater",
@@ -159,21 +147,20 @@ def initialize(metrics):
                                                     'grow_local_histmaker', 'grow_colmaker',
                                                     'shotgun', 'coord_descent',
                                                     'refresh', 'prune'],
-                                             dependencies=["booster", "process_type"],
-                                             dependencies_validator=updater_validator,
+                                             dependencies=updater_validator,
                                              default="grow_colmaker,prune"),
         hpv.CategoricalHyperparameter(name="dsplit", range=["row", "col"], default="row"),
-        hpv.IntegralHyperparameter(name="refresh_leaf", range=hpv.Interval(min_closed=0, max_closed=1), default=1),
+        hpv.IntegerHyperparameter(name="refresh_leaf", range=hpv.Interval(min_closed=0, max_closed=1), default=1),
         hpv.CategoricalHyperparameter(name="process_type", range=["default", "update"],
                                       default="default"),
         hpv.CategoricalHyperparameter(name="grow_policy", range=["depthwise", "lossguide"], default="depthwise"),
-        hpv.IntegralHyperparameter(name="max_leaves", range=hpv.Interval(min_closed=0), default=0),
-        hpv.IntegralHyperparameter(name="max_bin", range=hpv.Interval(min_closed=0), default=256),
-        hpv.CategoricalHyperparameter(name="predictor", range=predictor_validator(), default="cpu_predictor"),
+        hpv.IntegerHyperparameter(name="max_leaves", range=hpv.Interval(min_closed=0), default=0),
+        hpv.IntegerHyperparameter(name="max_bin", range=hpv.Interval(min_closed=0), default=256),
+        hpv.CategoricalHyperparameter(name="predictor", range=predictor_validator, default="cpu_predictor"),
         hpv.CategoricalHyperparameter(name="sample_type", range=["uniform", "weighted"], default="uniform"),
         hpv.CategoricalHyperparameter(name="normalize_type", range=["tree", "forest"], default="tree"),
         hpv.ContinuousHyperparameter(name="rate_drop", range=hpv.Interval(min_closed=0, max_closed=1), default=0.0),
-        hpv.IntegralHyperparameter(name="one_drop", range=hpv.Interval(min_closed=0, max_closed=1), default=0),
+        hpv.IntegerHyperparameter(name="one_drop", range=hpv.Interval(min_closed=0, max_closed=1), default=0),
         hpv.ContinuousHyperparameter(name="skip_drop", range=hpv.Interval(min_closed=0, max_closed=1), default=0.0),
         hpv.ContinuousHyperparameter(name="lambda_bias", range=hpv.Interval(min_closed=0, max_closed=1), default=0.0),
         hpv.ContinuousHyperparameter(name="tweedie_variance_power", range=hpv.Interval(min_open=1, max_open=2),
@@ -182,20 +169,18 @@ def initialize(metrics):
                                       range=["reg:linear", "reg:logistic", "binary:logistic", "binary:logitraw",
                                              "count:poisson", "multi:softmax", "multi:softprob", "rank:pairwise",
                                              "reg:gamma", "reg:tweedie"],
-                                      dependencies=["num_class"],
-                                      dependencies_validator=objective_validator,
+                                      dependencies=objective_validator,
                                       default="reg:linear"),
-        hpv.IntegralHyperparameter(name="num_class",
-                                   range=hpv.Interval(min_closed=2),
-                                   required=False),
+        hpv.IntegerHyperparameter(name="num_class",
+                                  range=hpv.Interval(min_closed=2),
+                                  required=False),
         hpv.ContinuousHyperparameter(name="base_score", range=hpv.Interval(min_closed=0), default=0.5),
         hpv.CategoricalHyperparameter(name="_tuning_objective_metric", range=metrics.names, required=False),
         hpv.CommaSeparatedListHyperparameter(name="eval_metric",
-                                             range=eval_metric_range_validator(),
-                                             dependencies=["objective"],
-                                             dependencies_validator=eval_metric_dep_validator,
+                                             range=eval_metric_range_validator,
+                                             dependencies=eval_metric_dep_validator,
                                              required=False),
-        hpv.IntegralHyperparameter(name="seed", range=hpv.Interval(min_open=-2**31, max_open=2**31-1),
-                                   default=0),
+        hpv.IntegerHyperparameter(name="seed", range=hpv.Interval(min_open=-2**31, max_open=2**31-1),
+                                  default=0),
         )
     return hyperparameters

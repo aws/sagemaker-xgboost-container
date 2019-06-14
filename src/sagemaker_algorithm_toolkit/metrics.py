@@ -10,6 +10,8 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+from sagemaker_algorithm_toolkit import exceptions as exc
+
 import logging
 
 
@@ -17,17 +19,19 @@ class Metric(object):
     MAXIMIZE = "Maximize"
     MINIMIZE = "Minimize"
 
-    def __init__(self, name, direction, regex, format_string=None, tunable=True):
+    def __init__(self, name, regex, format_string=None, tunable=True, direction=None):
         self.name = name
         self.format_string = format_string
         self.direction = direction
         self.regex = regex
         self.tunable = tunable
+        if self.tunable and direction is None:
+            raise exc.AlgorithmError("direction must be specified if tunable is True.")
 
     def log(self, value):
         logging.info(self.format_string.format(value))
 
-    def format(self):
+    def format_tunable(self):
         return {"MetricName": self.name,
                 "Type": self.direction}
 
@@ -51,7 +55,7 @@ class Metrics(object):
         metrics = []
         for name, metric in self.metrics.items():
             if metric.tunable:
-                metrics.append(metric.format())
+                metrics.append(metric.format_tunable())
         return metrics
 
     def format_definitions(self):
