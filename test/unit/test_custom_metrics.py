@@ -19,8 +19,10 @@ def test_accuracy():
 def test_f1():
     f1_score_name, f1_score_result = f1(preds, dtrain)
     assert f1_score_name == 'f1'
+    assert f1_score_result == 2/3
 
 
 def test_mse():
     mse_score_name, mse_score_result = mse(preds, dtrain)
     assert mse_score_name == 'mse'
+    assert mse_score_result == .5

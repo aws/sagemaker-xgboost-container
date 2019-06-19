@@ -226,23 +226,23 @@ def get_union_metrics(metric_a, metric_b):
     else:
         metric_list = list(set(metric_a).union(metric_b))
         return metric_list
-
-
-def remove_intersection(all_metrics, metrics_to_remove):
-    """
-    Remove intersection of all_metrics, metrics_to_remove.
-
-    This is used to remove feval metrics from the list of XGBoost supported metrics.
-
-    :param all_metrics: list
-    :param metrics_to_remove: list
-    :return: all_metrics with intersection removed.
-    """
-    cleaned_metric = list()
-    for metric in all_metrics:
-        if metric not in metrics_to_remove:
-            cleaned_metric.append(metric)
-    return cleaned_metric
+#
+#
+# def remove_intersection(all_metrics, metrics_to_remove):
+#     """
+#     Remove intersection of all_metrics, metrics_to_remove.
+#
+#     This is used to remove feval metrics from the list of XGBoost supported metrics.
+#
+#     :param all_metrics: list
+#     :param metrics_to_remove: list
+#     :return: all_metrics with intersection removed.
+#     """
+#     cleaned_metric = list()
+#     for metric in all_metrics:
+#         if metric not in metrics_to_remove:
+#             cleaned_metric.append(metric)
+#     return cleaned_metric
 
 
 def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
@@ -257,7 +257,7 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
     :return: cleaned list of xgb supported evaluation metrics, method configured with container defined metrics.
     """
     tuning_objective_metric = None
-    configued_eval = None
+    configured_eval = None
     cleaned_eval_metrics = None
 
     if tuning_objective_metric_param is not None:
@@ -267,19 +267,15 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
 
     union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
 
-    logging.info("All metrics to evaluate: {}".format(union_metrics))
-
     if union_metrics is not None:
         feval_metrics = get_custom_metrics(union_metrics)
         if feval_metrics:
-            configued_eval = configure_feval(feval_metrics)
-            cleaned_eval_metrics = remove_intersection(union_metrics, feval_metrics)
-            logging.info("Running container defined metrics: {}".format(feval_metrics))
+            configured_eval = configure_feval(feval_metrics)
+            cleaned_eval_metrics = list(set(union_metrics) - set(feval_metrics))
         else:
             cleaned_eval_metrics = union_metrics
 
-    logging.info("Running xgb supported metrics: {}".format(cleaned_eval_metrics))
-    return cleaned_eval_metrics, configued_eval
+    return cleaned_eval_metrics, configured_eval
 
 
 class MetricNameComponents(object):

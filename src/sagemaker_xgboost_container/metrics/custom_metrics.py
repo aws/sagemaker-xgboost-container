@@ -1,4 +1,4 @@
-from sklearn.metrics import f1_score, mean_squared_error
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 
 
 # TODO: Rename both according to AutoML standards
@@ -10,7 +10,8 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    return 'accuracy', float(sum(labels == (preds > 0.0))) / len(labels)
+    y_bin = [1. if preds_cont > 0.5 else 0. for preds_cont in preds]  # binaryzing output
+    return 'accuracy', accuracy_score(labels, y_bin)
 
 
 def f1(preds, dtrain):
