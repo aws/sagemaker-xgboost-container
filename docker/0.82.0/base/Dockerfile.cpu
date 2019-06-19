@@ -14,6 +14,30 @@ RUN cd /tmp && \
 # Python won’t try to write .pyc or .pyo files on the import of source modules
 # Force stdin, stdout and stderr to be totally unbuffered. Good for logging
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING='utf-8'
+RUN export PYTHONIOENCODING
+
+# Install Hadoop 2.7.3 and remove tar file
+RUN wget http://www-eu.apache.org/dist/hadoop/common/hadoop-2.7.6/hadoop-2.7.6.tar.gz
+RUN tar -xvzf hadoop-2.7.6.tar.gz
+RUN mv hadoop-2.7.6 /opt/hadoop
+RUN rm hadoop-2.7.6.tar.gz
+
+# Install OpenJDK-8
+RUN apt-get update && \
+    apt-get install -y openjdk-8-jdk && \
+    apt-get install -y ant && \
+    apt-get clean;
+
+# Fix certificate issues
+RUN apt-get update && \
+    apt-get install ca-certificates-java && \
+    apt-get clean && \
+    update-ca-certificates -f;
+
+# Setup JAVA_HOME -- useful for docker commandline
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+RUN export JAVA_HOME
 
 # Install latest version of XGBoost
-RUN pip install --no-cache -I xgboost==0.82
+RUN pip install --no-cache -I xgboost==0.90

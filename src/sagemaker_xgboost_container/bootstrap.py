@@ -24,11 +24,6 @@ HADOOP_PREFIX = os.environ['HADOOP_PREFIX']
 
 
 def file_prepare():
-    # in order to make hadoop work with brazil, copy around files to resolve dependencies
-    src = '/opt/amazon/lib/slf4j-log4j12-1.7.10.jar'
-    dst = HADOOP_PREFIX + '/share/hadoop/common/lib/slf4j-log4j12-1.7.10.jar'
-    copyfile(src, dst)
-
     # src = '/tmp/hdfs-site.xml'
     src = os.path.join(os.path.dirname(os.path.realpath(__file__)), "hdfs-site.xml")
     dst = HADOOP_PREFIX + '/etc/hadoop/hdfs-site.xml'
