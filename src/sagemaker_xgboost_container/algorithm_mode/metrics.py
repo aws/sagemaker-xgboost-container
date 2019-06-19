@@ -4,12 +4,18 @@ from sagemaker_algorithm_toolkit import metrics as m
 # https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost-tuning.html
 def initialize():
     return m.Metrics(
+        m.Metric(name="validation:accuracy",
+                 direction=m.Metric.MAXIMIZE,
+                 regex=".*\\[[0-9]+\\].*#011validation-accuracy:(\\S+)"),
         m.Metric(name="validation:auc",
                  direction=m.Metric.MAXIMIZE,
                  regex=".*\\[[0-9]+\\].*#011validation-auc:(\\S+)"),
         m.Metric(name="validation:error",
                  direction=m.Metric.MINIMIZE,
                  regex=".*\\[[0-9]+\\].*#011validation-error:(\\S+)"),
+        m.Metric(name="validation:f1",
+                 direction=m.Metric.MAXIMIZE,
+                 regex=".*\\[[0-9]+\\].*#011validation-f1:(\\S+)"),
         m.Metric(name="validation:logloss",
                  direction=m.Metric.MINIMIZE,
                  regex=".*\\[[0-9]+\\].*#011validation-logloss:(\\S+)"),
@@ -25,6 +31,9 @@ def initialize():
         m.Metric(name="validation:mlogloss",
                  direction=m.Metric.MINIMIZE,
                  regex=".*\\[[0-9]+\\].*#011validation-mlogloss:(\\S+)"),
+        m.Metric(name="validation:mse",
+                 direction=m.Metric.MINIMIZE,
+                 regex=".*\\[[0-9]+\\].*#011validation-mse:(\\S+)"),
         m.Metric(name="validation:ndcg",
                  direction=m.Metric.MAXIMIZE,
                  regex=".*\\[[0-9]+\\].*#011validation-ndcg:(\\S+)"),
