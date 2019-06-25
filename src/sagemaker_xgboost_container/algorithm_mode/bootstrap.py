@@ -25,23 +25,23 @@ HADOOP_PREFIX = os.environ['HADOOP_PREFIX']
 
 def file_prepare():
     # src = '/tmp/hdfs-site.xml'
-    src = os.path.join(os.path.dirname(os.path.realpath(__file__)), "hdfs-site.xml")
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hdfs-site.xml")
     dst = HADOOP_PREFIX + '/etc/hadoop/hdfs-site.xml'
     copyfile(src, dst)
 
     # src= '/tmp/core-site.xml'
-    src = os.path.join(os.path.dirname(os.path.realpath(__file__)), "core-site.xml")
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "core-site.xml")
     dst = HADOOP_PREFIX + '/etc/hadoop/core-site.xml'
     copyfile(src, dst)
 
     # src= '/tmp/yarn-site.xml'
-    src = os.path.join(os.path.dirname(os.path.realpath(__file__)), "yarn-site.xml")
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "yarn-site.xml")
     dst = HADOOP_PREFIX + '/etc/hadoop/yarn-site.xml'
     copyfile(src, dst)
 
 
 def cluster_config(num_hosts, current_host, master_host, master_ip):
-    # hdfs_site_file_path = HADOOP_PREFIX + "/etc/hadoop/hdfs-site.xml"
+    hdfs_site_file_path = HADOOP_PREFIX + "/etc/hadoop/hdfs-site.xml"
     core_site_file_path = HADOOP_PREFIX + "/etc/hadoop/core-site.xml"
     yarn_site_file_path = HADOOP_PREFIX + "/etc/hadoop/yarn-site.xml"
 
@@ -61,7 +61,7 @@ def cluster_config(num_hosts, current_host, master_host, master_ip):
         yarn_file.write(file_data)
 
     # configure yarn resource limitation
-    mem = psutil.virtual_memory().total/(1024*1024)             # total physical memory in mb
+    mem = int(psutil.virtual_memory().total/(1024*1024))        # total physical memory in mb
     cores = psutil.cpu_count(logical=False)                     # total physical cores
 
     minimum_allocation_mb = '1'
@@ -88,6 +88,9 @@ def cluster_config(num_hosts, current_host, master_host, master_ip):
 
 
 def start_daemons(master_host, current_host):
+    logging.info("Current host: {}".format(current_host))
+    logging.info("Master host: {}".format(master_host))
+
     cmd_namenode_format = HADOOP_PREFIX + '/bin/hdfs namenode -format'
     cmd_start_namenode = HADOOP_PREFIX + '/sbin/hadoop-daemon.sh start namenode'
     cmd_start_resourcemanager = HADOOP_PREFIX + '/sbin/yarn-daemon.sh start resourcemanager'

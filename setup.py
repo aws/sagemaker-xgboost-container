@@ -1,14 +1,19 @@
 from __future__ import absolute_import
 import os
 from glob import glob
-from os.path import basename
-from os.path import splitext
-
-from setuptools import setup, find_packages
+from os.path import basename, splitext
+from setuptools import setup, find_packages, Extension
 
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
+
+module = Extension('sagemaker_xgboost_container/signals_lib', sources=['cpp/signals.cpp'],
+                   extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
+
+module_test = Extension('sagemaker_xgboost_container/signals_test_lib', sources=['cpp/signals_test.cpp'],
+                        extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
 
 
 setup(
@@ -18,7 +23,16 @@ setup(
 
     packages=find_packages(where='src', exclude=('test',)),
     package_dir={'': 'src'},
-    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
+    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py') or glob('*.so')],
+
+    # Need for hadoop xml files
+    include_package_data=True,
+    data_files=[('core-site', ['src/sagemaker_xgboost_container/algorithm_mode/core-site.xml',
+                               'src/sagemaker_xgboost_container/algorithm_mode/core-site.xml']),
+                ('hdfs-site', ['src/sagemaker_xgboost_container/algorithm_mode/hdfs-site.xml',
+                               'src/sagemaker_xgboost_container/algorithm_mode/hdfs-site.xml']),
+                ('yarn-site', ['src/sagemaker_xgboost_container/algorithm_mode/yarn-site.xml',
+                               'src/sagemaker_xgboost_container/algorithm_mode/yarn-site.xml'])],
 
     long_description=read('README.rst'),
     author='Amazon Web Services',
@@ -38,6 +52,8 @@ setup(
     extras_require={
         'test': read("test-requirements.txt")
     },
+
+    ext_modules=[module, module_test],
 
     python_requires='>=3.5',
 )

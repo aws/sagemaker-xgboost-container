@@ -13,6 +13,26 @@
 import warnings
 
 
+def convert_to_algorithm_error(exception):
+    """Converts the most recent exception to an AlgorithmError if not already
+    a BaseSdkError.
+
+    Returns:
+         A BaseSdkError that represents the reason the algorithm failed.
+    """
+    if isinstance(exception, BaseToolkitError):
+        return exception
+    elif "Platform Error" in str(exception):
+        return PlatformError("An unexpected error has occurred. Please try again. "
+                             "If the problem persists, contact AWS support.", caused_by=exception)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # Suppress deprecation warning
+        message = getattr(exception, 'message', str(exception))
+
+    return AlgorithmError(message, exception)
+
+
 class BaseToolkitError(Exception):
     """Abstract base for all errors that may cause an algorithm to exit/terminate
     unsuccessfully. All direct sub-classes should be kept/maintained in this file.

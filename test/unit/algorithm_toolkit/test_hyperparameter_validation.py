@@ -64,6 +64,12 @@ class TestHyperparameters(unittest.TestCase):
         self.assertEqual(result["a"], "5")
         self.assertEqual(result["b"], "lol")
 
+    def test_default(self):
+        hps = hpv.Hyperparameters(hpv.Hyperparameter(name="a", default=True))
+
+        result = hps.validate({})
+        self.assertTrue(result['a'])
+
     def test_simple_integral(self):
         hps = hpv.Hyperparameters(hpv.IntegerHyperparameter(name="a", range=hpv.Interval(min_open=0, max_closed=1),
                                                             required=False))

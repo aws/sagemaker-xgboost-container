@@ -25,7 +25,7 @@ import xgboost as xgb
 
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.bootstrap import file_prepare, cluster_config, start_daemons
+from sagemaker_xgboost_container.algorithm_mode.bootstrap import cluster_config, file_prepare, start_daemons
 from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
@@ -34,9 +34,10 @@ from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metric
 
 MODEL_DIR = os.getenv("ALGO_MODEL_DIR")
 INPUT_DATA_PATH = os.getenv("ALGO_INPUT_DATA_DIR")
-ALGORITHM_HOME_DIR = os.getenv("ALGORITHM_HOME_DIR")
 HADOOP_PREFIX = os.environ['HADOOP_PREFIX']
 OUTPUT_FAILED_FILE = os.getenv("ALGO_OUTPUT_FAILED_FILE")
+
+ALGORITHM_HOME_DIR = os.path.dirname(os.path.abspath(__file__))
 
 EASE_MEMORY = 5120 * 1024 * 1024
 YARN_MASTER_MEMORY = 1024 * 1024 * 1024
@@ -398,7 +399,7 @@ def get_yarn_config(train_cfg, num_hosts):
         num_workers = int(num_workers)
 
     workers_per_host = num_workers / num_hosts
-    cores = cores_count if cores is None else cores  # each worker use up all the cores to gurantee cpu utilization
+    cores = cores_count if cores is None else cores  # each worker use up all the cores to guarantee cpu utilization
     mem = str(round((psutil.virtual_memory().total / (1024 * 1024 * 1024)) / workers_per_host,
                     2)) + 'g' if mem is None else mem  # divide memory among workers in a node
     return num_workers, cores, mem
@@ -412,12 +413,15 @@ def get_app_status():
     while app_list == []:
         time.sleep(1)
         app_list = os.listdir(yarn_app_logs_path)
+
     app_id = max(app_list)
     yarn_cmd = '{}/bin/yarn application -status {}'.format(HADOOP_PREFIX, app_id)
+
     yarn_status, yarn_final_status = 'RUNNING', None
     while yarn_status == 'RUNNING':
+        logging.info("YARN status: {}".format(yarn_status))
         time.sleep(60)
-        yarn_status_report = subprocess.check_output(yarn_cmd, shell=True, stderr=FNULL).split('\n')
+        yarn_status_report = subprocess.check_output(yarn_cmd, shell=True, stderr=FNULL).decode().split('\n')
         yarn_status_lines = [line for line in yarn_status_report if 'State' in line]
         yarn_status = yarn_status_lines[0].split(':')[1].strip()
         yarn_final_status = yarn_status_lines[1].split(':')[1].strip()
@@ -435,13 +439,17 @@ def submit_yarn_job(train_cfg, host_ip, num_hosts):
                  "physical cores per worker: {}, "
                  "physical memory per worker: {}.".format(num_workers, cores, mem))
 
-    python_path = 'PYTHONPATH=/xgboost/python-package'
+    xgboost_path = os.path.abspath(xgb.__file__)
 
-    cmd_submit = "{} /xgboost/dmlc-core/tracker/dmlc-submit \
-                {} python {}/yarnjob.py".format(python_path, args, ALGORITHM_HOME_DIR)
+    if os.path.isfile(xgboost_path):  # This returns the __init__.py location; remove this to create path to dmlc-submit
+        xgboost_path = os.path.dirname(xgboost_path)
+
+    cmd_submit = "python3 {}/dmlc-core/tracker/dmlc-submit \
+                  {} python3 {}/yarnjob.py".format(xgboost_path, args, ALGORITHM_HOME_DIR)
 
     subprocess.Popen(cmd_submit, shell=True, stdout=FNULL)
-    logging.info("Yarn job submitted successfully.")
+    logging.info("Yarn job submitted.")
+
     yarn_status, yarn_final_status = get_app_status()
 
     if not (yarn_status == 'FINISHED' and yarn_final_status == 'SUCCEEDED'):
@@ -489,3 +497,20 @@ def get_ip_from_host(host_name):
         raise exc.PlatformError("Network issue happened. Cannot retrieve ip address in past 10 minutes")
 
     return ip
+
+
+def get_all_sizes():
+    TRAIN_CHANNEL = 'train'
+    VAL_CHANNEL = 'validation'
+    train_path = INPUT_DATA_PATH + '/' + TRAIN_CHANNEL
+    val_path = INPUT_DATA_PATH + '/' + VAL_CHANNEL
+
+    train_files_size = convert_to_mb(get_size(train_path))
+    val_files_size = convert_to_mb(get_size(val_path))
+    mem_size = convert_to_mb(psutil.virtual_memory().available)
+
+    return train_files_size, val_files_size, mem_size
+
+
+def convert_to_mb(size):
+    return str(round(size / (1024 * 1024), 2)) + 'mb'
