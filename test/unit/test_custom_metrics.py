@@ -41,6 +41,6 @@ def test_multiclass_accuracy():
 
 
 def test_multiclass_f1():
-    f1_score_name, f1_score_result = f1(binary_preds, binary_dtrain)
+    f1_score_name, f1_score_result = f1(multiclass_preds, multiclass_dtrain)
     assert f1_score_name == 'f1'
-    assert f1_score_result == 1/3
+    assert f1_score_result == 2/9
