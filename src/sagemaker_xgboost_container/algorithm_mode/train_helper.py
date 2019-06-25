@@ -29,7 +29,7 @@ from sagemaker_xgboost_container.bootstrap import file_prepare, cluster_config, 
 from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
-from sagemaker_xgboost_container.metrics.custom_metrics import CUSTOM_METRICS, get_custom_metrics, configure_feval
+from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
 
 
 MODEL_DIR = os.getenv("ALGO_MODEL_DIR")

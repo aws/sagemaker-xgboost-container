@@ -11,11 +11,13 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
-
 import logging
+
 from sagemaker_containers.beta.framework import (
     encoders, env, modules, transformer, worker)
+
 from sagemaker_xgboost_container import encoder as xgb_encoders
+from sagemaker_xgboost_container.algorithm_mode import serve
 
 logging.basicConfig(format='%(asctime)s %(levelname)s - %(name)s - %(message)s', level=logging.INFO)
 
@@ -95,13 +97,16 @@ def main(environ, start_response):
     global app
     if app is None:
         serving_env = env.ServingEnv()
-        user_module = modules.import_module(serving_env.module_dir, serving_env.module_name)
+        if serving_env.module_name is None:
+            app = serve.ScoringService.csdk_start()
+        else:
+            user_module = modules.import_module(serving_env.module_dir, serving_env.module_name)
 
-        user_module_transformer = _user_module_transformer(user_module)
+            user_module_transformer = _user_module_transformer(user_module)
 
-        user_module_transformer.initialize()
+            user_module_transformer.initialize()
 
-        app = worker.Worker(transform_fn=user_module_transformer.transform,
-                            module_name=serving_env.module_name)
+            app = worker.Worker(transform_fn=user_module_transformer.transform,
+                                module_name=serving_env.module_name)
 
     return app(environ, start_response)

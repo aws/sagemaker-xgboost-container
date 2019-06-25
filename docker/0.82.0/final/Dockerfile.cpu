@@ -35,6 +35,9 @@ ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_container.serving:main
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt && rm /requirements.txt
 
+# TODO: Remove after sagemaker-containers is released with https://github.com/aws/sagemaker-containers/pull/201
+RUN sed -i 's/invocations/invocations|execution-parameters/' $(find / -name nginx.conf.template)
+
 COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
 RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
     rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
