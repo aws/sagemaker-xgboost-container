@@ -29,6 +29,7 @@ from sagemaker_xgboost_container.bootstrap import file_prepare, cluster_config, 
 from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
+from sagemaker_xgboost_container.metrics.custom_metrics import CUSTOM_METRICS, get_custom_metrics, configure_feval
 
 
 MODEL_DIR = os.getenv("ALGO_MODEL_DIR")
@@ -227,6 +228,39 @@ def get_union_metrics(metric_a, metric_b):
         return metric_list
 
 
+def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
+    """Return list of default xgb evaluation metrics and list of container defined metrics.
+
+    XGB uses the 'eval_metric' parameter for the evaluation metrics supported by default, and 'feval' as an argument
+    during training to validate using custom evaluation metrics. The argument 'feval' takes a function as value; the
+    method returned here will be configured to run for only the metrics the user specifies.
+
+    :param tuning_objective_metric_param: HPO metric
+    :param eval_metric: list of xgb metrics to output
+    :return: cleaned list of xgb supported evaluation metrics, method configured with container defined metrics.
+    """
+    tuning_objective_metric = None
+    configured_eval = None
+    cleaned_eval_metrics = None
+
+    if tuning_objective_metric_param is not None:
+        tuning_objective_metric_tuple = MetricNameComponents.decode(tuning_objective_metric_param)
+        tuning_objective_metric = tuning_objective_metric_tuple.metric_name.split(',')
+        logging.info('Setting up HPO optimized metric to be : {}'.format(tuning_objective_metric_tuple.metric_name))
+
+    union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
+
+    if union_metrics is not None:
+        feval_metrics = get_custom_metrics(union_metrics)
+        if feval_metrics:
+            configured_eval = configure_feval(feval_metrics)
+            cleaned_eval_metrics = list(set(union_metrics) - set(feval_metrics))
+        else:
+            cleaned_eval_metrics = union_metrics
+
+    return cleaned_eval_metrics, configured_eval
+
+
 class MetricNameComponents(object):
     def __init__(self, data_segment, metric_name, emission_frequency=None):
         self.data_segment = data_segment
@@ -240,26 +274,20 @@ class MetricNameComponents(object):
 
 
 def train_job(resource_config, train_cfg, data_cfg):
-    param = train_cfg
-    if param.get("updater"):
-        param["updater"] = ",".join(param["updater"])
+    if train_cfg.get("updater"):
+        train_cfg["updater"] = ",".join(train_cfg["updater"])
 
-    early_stopping_rounds = train_cfg["early_stopping_rounds"]
+    early_stopping_rounds = train_cfg.get('early_stopping_rounds')
     num_round = train_cfg["num_round"]
     csv_weights = train_cfg["csv_weights"]
 
-    # union 'eval_metric' with '_tuning_objective_metric' to support HPO
-    tuning_objective_metric = None
-    if param.get("_tuning_objective_metric") is not None:
-        tuning_objective_metric_tuple = MetricNameComponents.decode(
-            param.get("_tuning_objective_metric"))
-        tuning_objective_metric = tuning_objective_metric_tuple.metric_name.split(',')
-        logging.info('Setting up HPO optimized metric to be : {}'.format(tuning_objective_metric_tuple.metric_name))
-
-    eval_metric = param.get("eval_metric")
-    union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
-    if union_metrics is not None:
-        param["eval_metric"] = union_metrics
+    tuning_objective_metric_param = train_cfg.get("_tuning_objective_metric")
+    eval_metric = train_cfg.get("eval_metric")
+    cleaned_eval_metric, configured_feval = get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric)
+    if cleaned_eval_metric:
+        train_cfg['eval_metric'] = cleaned_eval_metric
+    else:
+        train_cfg.pop('eval_metric', None)
 
     num_hosts = len(resource_config["hosts"])
     # Set default content type as libsvm
@@ -295,7 +323,7 @@ def train_job(resource_config, train_cfg, data_cfg):
     dval = get_dmatrix(val_path, file_type, exceed_memory)
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
     try:
-        bst = xgb.train(param, dtrain, num_boost_round=num_round, evals=watchlist,
+        bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)
     except Exception as e:
         exception_prefix = "XGB train call failed with exception"

@@ -19,7 +19,7 @@ class Channel(object):
     PIPE_MODE = "Pipe"
     AUGMENTED_MODE = "Augmented"
 
-    SHARDED = "Sharded"
+    SHARDED = "ShardedByS3Key"
     REPLICATED = "FullyReplicated"
 
     def __init__(self, name, required):
