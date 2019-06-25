@@ -278,7 +278,8 @@ def train_job(resource_config, train_cfg, data_cfg):
     if param.get("updater"):
         param["updater"] = ",".join(param["updater"])
 
-    early_stopping_rounds = train_cfg["early_stopping_rounds"]
+    early_stopping_rounds = int(train_cfg.get("early_stopping_rounds"), "early_stopping_rounds") if train_cfg.get(
+        "early_stopping_rounds") is not None else None
     num_round = train_cfg["num_round"]
     csv_weights = train_cfg["csv_weights"]
 

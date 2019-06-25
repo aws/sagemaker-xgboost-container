@@ -10,8 +10,7 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    y_bin = [1. if preds_cont > 0.5 else 0. for preds_cont in preds]  # binaryzing output
-    return 'accuracy', accuracy_score(labels, y_bin)
+    return 'accuracy', accuracy_score(labels, preds)
 
 
 def f1(preds, dtrain):
@@ -24,8 +23,7 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    y_bin = [1. if preds_cont > 0.5 else 0. for preds_cont in preds]  # binaryzing output
-    return 'f1', f1_score(labels, y_bin)
+    return 'f1', f1_score(labels, preds, average='macro')
 
 
 def mse(preds, dtrain):
