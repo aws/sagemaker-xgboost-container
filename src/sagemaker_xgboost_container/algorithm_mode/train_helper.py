@@ -274,22 +274,20 @@ class MetricNameComponents(object):
 
 
 def train_job(resource_config, train_cfg, data_cfg):
-    param = train_cfg
-    if param.get("updater"):
-        param["updater"] = ",".join(param["updater"])
+    if train_cfg.get("updater"):
+        train_cfg["updater"] = ",".join(train_cfg["updater"])
 
-    early_stopping_rounds = int(train_cfg.get("early_stopping_rounds"), "early_stopping_rounds") if train_cfg.get(
-        "early_stopping_rounds") is not None else None
+    early_stopping_rounds = train_cfg.get('early_stopping_rounds')
     num_round = train_cfg["num_round"]
     csv_weights = train_cfg["csv_weights"]
 
-    tuning_objective_metric_param = param.get("_tuning_objective_metric")
-    eval_metric = param.get("eval_metric")
+    tuning_objective_metric_param = train_cfg.get("_tuning_objective_metric")
+    eval_metric = train_cfg.get("eval_metric")
     cleaned_eval_metric, configured_feval = get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric)
     if cleaned_eval_metric:
-        param['eval_metric'] = cleaned_eval_metric
+        train_cfg['eval_metric'] = cleaned_eval_metric
     else:
-        param.pop('eval_metric', None)
+        train_cfg.pop('eval_metric', None)
 
     num_hosts = len(resource_config["hosts"])
     # Set default content type as libsvm
@@ -325,7 +323,7 @@ def train_job(resource_config, train_cfg, data_cfg):
     dval = get_dmatrix(val_path, file_type, exceed_memory)
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
     try:
-        bst = xgb.train(param, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
+        bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)
     except Exception as e:
         exception_prefix = "XGB train call failed with exception"
