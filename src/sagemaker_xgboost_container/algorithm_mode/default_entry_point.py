@@ -63,12 +63,11 @@ def algorithm_mode_train():
 
 
 def distributed_train(resource_config, train_config, data_config):
+    start = time.time()
+
     current_host = resource_config["current_host"]
     master_host = min(resource_config["hosts"])
     num_hosts = len(resource_config["hosts"])
-
-    if num_hosts == 1:
-        raise exceptions.PlatformError("Distributed training should run with more than one host")
 
     master_ip = get_ip_from_host(master_host)
     logging.info("Master IP: {}".format(master_ip))
@@ -138,6 +137,10 @@ def distributed_train(resource_config, train_config, data_config):
         submit_yarn_job(train_config, host_ip, num_hosts)
 
         server.terminate()  # End HTTP server
+
+        end = time.time()
+        runtime = end - start
+        logging.info("MASTER NODE: Finished training job in {} seconds.".format(runtime))
     else:
         # alive check for master node, if master node exit, all slave nodes exit
         time.sleep(30)

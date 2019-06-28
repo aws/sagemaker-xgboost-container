@@ -25,7 +25,7 @@ logging.info("DOHYEONG starting rabit")
 
 try:
     # Install termiante/signal handlers
-    signals.install_terminate_and_signal_handlers()
+    # signals.install_terminate_and_signal_handlers()
 
     with open(INPUT_RESOURCE_CONFIG_PATH, "r") as f:
         resource_config = json.load(f)

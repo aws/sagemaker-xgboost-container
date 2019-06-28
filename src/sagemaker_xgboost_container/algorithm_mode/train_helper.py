@@ -315,14 +315,13 @@ def train_job(resource_config, train_cfg, data_cfg):
         str(round((real_train_mem_size + real_val_mem_size) / (1024 * 1024), 2)) + 'mb',
         str(round(real_mem_size / (1024 * 1024), 2)) + 'mb'))
 
-    # remove redundant format checking for distributed XGB
-    if num_hosts == 1:
-        validate_file_format(train_path, file_type)
-        validate_file_format(val_path, file_type)
+    validate_file_format(train_path, file_type)
+    validate_file_format(val_path, file_type)
 
     dtrain = get_dmatrix(train_path, file_type, exceed_memory, csv_weights=csv_weights)
     dval = get_dmatrix(val_path, file_type, exceed_memory)
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
+
     try:
         bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)

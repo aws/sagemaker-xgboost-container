@@ -9,11 +9,11 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-module = Extension('sagemaker_xgboost_container/signals_lib', sources=['cpp/signals.cpp'],
-                   extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
-
-module_test = Extension('sagemaker_xgboost_container/signals_test_lib', sources=['cpp/signals_test.cpp'],
-                        extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
+# module = Extension('sagemaker_xgboost_container/signals_lib', sources=['cpp/signals.cpp'],
+#                    extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
+#
+# module_test = Extension('sagemaker_xgboost_container/signals_test_lib', sources=['cpp/signals_test.cpp'],
+#                         extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
 
 
 setup(
@@ -53,7 +53,7 @@ setup(
         'test': read("test-requirements.txt")
     },
 
-    ext_modules=[module, module_test],
+    # ext_modules=[module, module_test],
 
     python_requires='>=3.5',
 )

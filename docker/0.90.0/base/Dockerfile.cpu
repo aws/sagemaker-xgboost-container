@@ -11,6 +11,9 @@ RUN cd /tmp && \
      python3 get-pip.py && \
      rm get-pip.py
 
+# Upgrade pip
+python -m pip install --upgrade pip
+
 # Python won’t try to write .pyc or .pyo files on the import of source modules
 # Force stdin, stdout and stderr to be totally unbuffered. Good for logging
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1

@@ -34,12 +34,16 @@ ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_container.serving:main
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt && rm /requirements.txt
 
-COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
-RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
-    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
-
+# DMLC patches
 COPY src/sagemaker_xgboost_container/yarn_patch/yarn.py \
     /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/yarn.py
 
 COPY src/sagemaker_xgboost_container/yarn_patch/launcher.py \
     /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/launcher.py
+
+COPY src/sagemaker_xgboost_container/yarn_patch/tracker.py \
+    /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
+
+COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
+    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
