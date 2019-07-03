@@ -28,7 +28,7 @@ def test_csv_to_dmatrix(target):
     assert type(actual) is xgb.DMatrix
 
 
-@pytest.mark.parametrize('target', ('0 0:1 5:1', '0:1 5:1'))
+@pytest.mark.parametrize('target', (b'0 0:1 5:1', b'0:1 5:1'))
 def test_libsvm_to_dmatrix(target):
     temp_libsvm_file = tempfile.NamedTemporaryFile(delete=False)
     temp_libsvm_file_name = temp_libsvm_file.name
