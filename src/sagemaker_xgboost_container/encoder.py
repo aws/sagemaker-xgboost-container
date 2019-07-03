@@ -47,10 +47,10 @@ def csv_to_dmatrix(string_like, dtype=None):  # type: (str) -> xgb.DMatrix
     return xgb.DMatrix(np_payload)
 
 
-def libsvm_to_dmatrix(string_like):  # type: (str) -> xgb.DMatrix
+def libsvm_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
     """Convert a LIBSVM string representation to a DMatrix object.
     Args:
-        string_like (str): LIBSVM string.
+        string_like (bytes): LIBSVM string.
     Returns:
         (xgb.DMatrix): XGBoost DataMatrix
     """
@@ -58,7 +58,7 @@ def libsvm_to_dmatrix(string_like):  # type: (str) -> xgb.DMatrix
     try:
         with tempfile.NamedTemporaryFile(delete=False) as libsvm_file:
             temp_file_location = libsvm_file.name
-            libsvm_file.write(string_like.encode())
+            libsvm_file.write(string_like)
 
         dmatrix = xgb.DMatrix(temp_file_location)
     finally:
