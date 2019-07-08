@@ -2,18 +2,11 @@ from __future__ import absolute_import
 import os
 from glob import glob
 from os.path import basename, splitext
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, find_packages
 
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
-
-
-# module = Extension('sagemaker_xgboost_container/signals_lib', sources=['cpp/signals.cpp'],
-#                    extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
-#
-# module_test = Extension('sagemaker_xgboost_container/signals_test_lib', sources=['cpp/signals_test.cpp'],
-#                         extra_compile_args=['-std=c++11', '-D__USE_XOPEN2K8', '-Wall'])
 
 
 setup(

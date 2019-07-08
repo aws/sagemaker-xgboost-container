@@ -41,11 +41,11 @@ class RabitHelper(object):
         results = []
         for i in range(rabit.get_world_size()):
             if self.rank == i:
-                logger.debug("Broadcasting data from self (%s) to others", self.rank)
+                logger.debug("Broadcasting data from self ({}) to others".format(self.rank))
                 rabit.broadcast(data, i)
                 results.append(data)
             else:
-                logger.debug("Receiving data from %s", i)
+                logger.debug("Receiving data from {}".format(i))
                 message = rabit.broadcast(None, i)
                 results.append(message)
         return results
@@ -75,7 +75,7 @@ class Rabit(object):
         # it blocks whilst waiting for those hosts to process the data).
         self.hosts = sorted(hosts)
         self.n_workers = len(self.hosts)
-        logger.debug("Found hosts: %s [%s]", self.hosts, self.n_workers)
+        logger.debug("Found hosts: {} [{}]".format(self.hosts, self.n_workers))
 
         if not current_host:
             logger.debug("Setting current host as local.", current_host)
@@ -88,17 +88,17 @@ class Rabit(object):
         self.master_host = master_host
         self.is_master_host = self.current_host == self.master_host
 
-        logger.debug("Is Master: %s", self.is_master_host)
-        logger.debug("Master: %s", self.master_host)
+        logger.debug("Is Master: {}".format(self.is_master_host))
+        logger.debug("Master: {}".format(self.master_host))
 
         # We start the RabitTracker on a known port on the first host. We can
         # do this since SageMaker Training instances are single tenent and we
         # don't need to worry about port contention.
         if port is None:
             port = 9099
-            logger.debug("No port specified using: %s", port)
+            logger.debug("No port specified using: {}".format(port))
         else:
-            logger.debug("Using provided port: %s", port)
+            logger.debug("Using provided port: {}".format(port))
         self.port = port
 
         self.max_connect_attempts = max_connect_attempts
@@ -169,9 +169,9 @@ class Rabit(object):
                     successful_connection = True
                     logger.debug("Successfully connected to RabitTracker.")
                 except OSError as err:
-                    logger.info("Failed to connect to RabitTracker on attempt %s", attempt)
+                    logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
                     attempt += 1
-                    logger.info("Sleeping for %s sec before retrying", self.connect_retry_timeout)
+                    logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
                     time.sleep(self.connect_retry_timeout)
 
         if not successful_connection:
@@ -187,7 +187,7 @@ class Rabit(object):
         # We can check that the Rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).
         # This should be unique for each instance.
-        logger.debug("Rabit started - Rank %d", rabit.get_rank())
+        logger.debug("Rabit started - Rank {}".format(rabit.get_rank()))
 
         logger.debug("Executing user code")
         # We can now run user-code. Since XGBoost runs in the same process space
