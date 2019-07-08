@@ -5,44 +5,34 @@ LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
 # Copied from AIApplicationsBaseDockerCPUImage
 LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
 
-ENV ALGO_INPUT_DIR /opt/ml/input
-ENV ALGO_INPUT_DATA_DIR $ALGO_INPUT_DIR/data
-ENV ALGO_INPUT_TRAINING_CONFIG_FILE $ALGO_INPUT_DIR/config/hyperparameters.json
-ENV ALGO_INPUT_DATA_CONFIG_FILE $ALGO_INPUT_DIR/config/inputdataconfig.json
-ENV ALGO_INPUT_RESOURCE_CONFIG_FILE $ALGO_INPUT_DIR/config/resourceconfig.json
+# Set SageMaker environment variables
+ENV SM_INPUT /opt/ml/input
+ENV SM_INPUT_DATA $SM_INPUT/data
 
-ENV ALGO_ERROR_FILE /opt/ml/errors/errors.log
-ENV ALGO_MODEL_DIR /opt/ml/model
-ENV ALGO_OUTPUT_DIR /opt/ml/output
-ENV ALGO_OUTPUT_FAILED_FILE $ALGO_OUTPUT_DIR/failure
+ENV SM_INPUT_TRAINING_CONFIG_FILE $SM_INPUT/config/hyperparameters.json
+ENV SM_INPUT_DATA_CONFIG_FILE $SM_INPUT/config/inputdataconfig.json
+ENV SM_INPUT_RESOURCE_CONFIG_FILE $SM_INPUT/config/resourceconfig.json
 
-# setup ENV for hadoop and java
-ENV HADOOP_PREFIX=/opt/hadoop
-ENV HADOOP_HOME=$HADOOP_PREFIX
-ENV HADOOP_COMMON_HOME=$HADOOP_PREFIX
-ENV HADOOP_CONF_DIR=$HADOOP_PREFIX/etc/hadoop
-ENV HADOOP_HDFS_HOME=$HADOOP_PREFIX
-ENV HADOOP_MAPRED_HOME=$HADOOP_PREFIX
-ENV HADOOP_YARN_HOME=$HADOOP_PREFIX
+ENV SM_CHANNEL_TRAIN $SM_INPUT_DATA/train
+ENV SM_CHANNEL_TEST $SM_INPUT_DATA/test
 
-ENV SAGEMAKER_HTTP_PORT=8080
-EXPOSE $SAGEMAKER_HTTP_PORT
+ENV SM_ERROR_FILE /opt/ml/errors/errors.log
+ENV SM_MODEL_DIR /opt/ml/model
+ENV SM_OUTPUT_DIR /opt/ml/output
+ENV SM_OUTPUT_FAILED_FILE $SM_OUTPUT_DIR/failure
 
 ENV SAGEMAKER_TRAINING_MODULE sagemaker_xgboost_container.training:main
 ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_container.serving:main
 
+# Include DMLC python code in PYTHONPATH to use RabitTracker
+ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker
+
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt && rm /requirements.txt
 
-# DMLC patches
-COPY src/sagemaker_xgboost_container/yarn_patch/yarn.py \
-    /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/yarn.py
-
-COPY src/sagemaker_xgboost_container/yarn_patch/launcher.py \
-    /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/launcher.py
-
-COPY src/sagemaker_xgboost_container/yarn_patch/tracker.py \
-    /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
+# DMLC patches; TODO: remove after making contributions back to xgboost for tracker.py
+COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
+   /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
 
 COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
 RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \

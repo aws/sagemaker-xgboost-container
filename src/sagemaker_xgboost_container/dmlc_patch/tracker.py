@@ -1,7 +1,10 @@
 """
 Copied from: https://raw.githubusercontent.com/dmlc/dmlc-core/master/tracker/dmlc_tracker/tracker.py
-This has been slightly modified to fix a bug where there is no timeout on sockets.
-In general this entire file should be re-written and has a lot of issues.
+This has been slightly modified and is used to override the same file in XGBoost dmlc-core until
+upstream controbution is approved and merged.
+* Add timeout on sockets
+* Reduce the thread.join() timeout to 1
+* Add logs of debug statements to understand the node communication.
 
 Tracker script for DMLC
 Implements the tracker control protocol
@@ -72,9 +75,17 @@ class SlaveEntry(object):
         assert magic == kMagic, 'invalid magic number=%d from %s' % (magic, self.host)
         slave.sendint(kMagic)
         self.rank = slave.recvint()
+        logging.debug("Rank {}".format(self.rank))
+
         self.world_size = slave.recvint()
+        logging.debug("world_size {}".format(self.world_size))
+
         self.jobid = slave.recvstr()
+        logging.debug("jobid {}".format(self.jobid))
+
         self.cmd = slave.recvstr()
+        logging.debug("cmd {}".format(self.cmd))
+
         self.wait_accept = 0
         self.port = None
 
@@ -158,7 +169,7 @@ class RabitTracker(object):
                     continue
                 else:
                     raise
-        sock.listen(256)
+        sock.listen()
         self.sock = sock
         self.hostIP = hostIP
         self.thread = None
@@ -271,13 +282,19 @@ class RabitTracker(object):
         # lazy initialize tree_map
         tree_map = None
 
+        logging.debug("Looking for {} connections.".format(nslave))
         while len(shutdown) != nslave:
             fd, s_addr = self.sock.accept()
+            logging.debug("Accepted connection")
+            logging.debug(fd)
+            logging.debug(s_addr)
             try:
                 s = SlaveEntry(fd, s_addr)
             except socket.timeout as ex:
-                logging.debug("No data received from connection. Closing.")
+                logging.info("No data received from connection. Closing.")
                 continue
+
+            logging.debug("Slave command is: {}".format(s.cmd))
             if s.cmd == 'print':
                 msg = s.sock.recvstr()
                 logging.info(msg.strip())
@@ -307,7 +324,12 @@ class RabitTracker(object):
             if rank == -1:
                 assert len(todo_nodes) != 0
                 pending.append(s)
+
+                logging.debug("Pending slaves: {}".format(pending))
+                logging.debug("TO-do slaves: {}".format(todo_nodes))
+
                 if len(pending) == len(todo_nodes):
+
                     pending.sort(key=lambda x: x.host)
                     for s in pending:
                         rank = todo_nodes.pop(0)
@@ -316,7 +338,7 @@ class RabitTracker(object):
                         s.assign_rank(rank, wait_conn, tree_map, parent_map, ring_map)
                         if s.wait_accept > 0:
                             wait_conn[rank] = s
-                        logging.debug('Recieve %s signal from %s; assign rank %d',
+                        logging.info('Recieve %s signal from %s; assign rank %d',
                                       s.cmd, s.host, s.rank)
                 if len(todo_nodes) == 0:
                     logging.info('@tracker All of %d nodes getting started', nslave)
@@ -340,7 +362,7 @@ class RabitTracker(object):
 
     def join(self):
         while self.thread.isAlive():
-            self.thread.join(100)
+            self.thread.join(1)
 
     def alive(self):
         return self.thread.isAlive()

@@ -23,24 +23,23 @@ import time
 
 import xgboost as xgb
 
+from sagemaker_containers import _content_types
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.algorithm_mode.bootstrap import cluster_config, file_prepare, start_daemons
 from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
-from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
+from sagemaker_xgboost_container.constants.xgb_content_types import LIBSVM, X_LIBSVM
+from sagemaker_xgboost_container.metrics.custom_metrics import CUSTOM_METRICS, get_custom_metrics, configure_feval
 
 
-MODEL_DIR = os.getenv("ALGO_MODEL_DIR")
-INPUT_DATA_PATH = os.getenv("ALGO_INPUT_DATA_DIR")
-HADOOP_PREFIX = os.environ['HADOOP_PREFIX']
-OUTPUT_FAILED_FILE = os.getenv("ALGO_OUTPUT_FAILED_FILE")
+MODEL_DIR = os.getenv("SM_MODEL_DIR")
+INPUT_DATA_PATH = os.getenv("SM_INPUT_DATA")
+OUTPUT_FAILED_FILE = os.getenv("SM_OUTPUT_FAILED_FILE")
 
 ALGORITHM_HOME_DIR = os.path.dirname(os.path.abspath(__file__))
 
 EASE_MEMORY = 5120 * 1024 * 1024
-YARN_MASTER_MEMORY = 1024 * 1024 * 1024
 THRESHOLD_MEMORY = 1024 * 1024 * 1024
 TRAIN_CHANNEL = 'train'
 VAL_CHANNEL = 'validation'
@@ -201,19 +200,19 @@ def get_size(dir_path):
 
 def get_content_type(data_cfg):
     tmp = data_cfg[TRAIN_CHANNEL].get("ContentType")
-    file_type = None
-    if tmp is None or tmp.lower() == 'libsvm' or tmp.lower() == 'text/libsvm':
-        file_type = 'libsvm'
-    elif tmp.lower() == 'csv' or tmp.lower() == 'text/csv':
-        file_type = 'csv'
+
+    if tmp is None or tmp.lower() in ['libsvm', LIBSVM, X_LIBSVM]:
+        return 'libsvm'
+    elif tmp.lower() in ['csv', _content_types.CSV]:
+        return 'csv'
     else:
-        raise exc.UserError("ContentType should be one of these options: 'text/libsvm', 'text/csv'.")
-    return file_type
+        raise exc.UserError("ContentType should be one of these options: '{}', '{}', '{}'.".format(
+             _content_types.CSV, LIBSVM, X_LIBSVM))
 
 
 def get_union_metrics(metric_a, metric_b):
-    """
-    Return metric list after union metric_a and metric_b
+    """Return metric list after union metric_a and metric_b
+
     :param metric_a: list
     :param metric_b: list
     :return: union metrics list from metric a and b
@@ -274,7 +273,17 @@ class MetricNameComponents(object):
         return MetricNameComponents(*result)
 
 
-def train_job(resource_config, train_cfg, data_cfg):
+def train_job(resource_config, train_cfg, data_cfg, is_master):
+    """Train XGBoost model using data on current node.
+
+    Model is only saved if 'is_master' is True.
+
+    :param resource_config: Resource configurations
+    :param train_cfg: Training hyperparameter configurations
+    :param data_cfg: Data channel configurations
+    :param is_master: True if single node training, or the current node is the master node in distributed training.
+    :return:
+    """
     if train_cfg.get("updater"):
         train_cfg["updater"] = ",".join(train_cfg["updater"])
 
@@ -282,6 +291,7 @@ def train_job(resource_config, train_cfg, data_cfg):
     num_round = train_cfg["num_round"]
     csv_weights = train_cfg["csv_weights"]
 
+    # Parse evaluation metrics to use during training
     tuning_objective_metric_param = train_cfg.get("_tuning_objective_metric")
     eval_metric = train_cfg.get("eval_metric")
     cleaned_eval_metric, configured_feval = get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric)
@@ -290,29 +300,22 @@ def train_job(resource_config, train_cfg, data_cfg):
     else:
         train_cfg.pop('eval_metric', None)
 
-    num_hosts = len(resource_config["hosts"])
     # Set default content type as libsvm
     file_type = get_content_type(data_cfg)
 
     train_path = INPUT_DATA_PATH + '/' + TRAIN_CHANNEL
     val_path = INPUT_DATA_PATH + '/' + VAL_CHANNEL
 
-    s3_dist_type_train = data_cfg[TRAIN_CHANNEL].get("S3DistributionType")
-    s3_dist_type_val = data_cfg[VAL_CHANNEL].get("S3DistributionType") if data_cfg.get(
-        VAL_CHANNEL) is not None else None
-
     train_files_size = get_size(train_path)
     val_files_size = get_size(val_path)
-    real_train_mem_size = train_files_size / num_hosts if s3_dist_type_train == "FullyReplicated" else train_files_size
-    real_val_mem_size = val_files_size / num_hosts if s3_dist_type_val == "FullyReplicated" else val_files_size
 
-    # Keep 1GB memory as thredshold to avoid drain out all the memory
+    # Keep 1GB memory as threshold to avoid draining out all the memory
     mem_size = psutil.virtual_memory().available
     real_mem_size = mem_size - EASE_MEMORY - THRESHOLD_MEMORY
 
-    exceed_memory = (real_train_mem_size + real_val_mem_size) > real_mem_size
+    exceed_memory = (train_files_size + val_files_size) > real_mem_size
     logging.info("File size need to be processed in the node: {}. Available memory size in the node: {}".format(
-        str(round((real_train_mem_size + real_val_mem_size) / (1024 * 1024), 2)) + 'mb',
+        str(round((train_files_size + val_files_size) / (1024 * 1024), 2)) + 'mb',
         str(round(real_mem_size / (1024 * 1024), 2)) + 'mb'))
 
     validate_file_format(train_path, file_type)
@@ -358,144 +361,10 @@ def train_job(resource_config, train_cfg, data_cfg):
         else:
             raise exc.AlgorithmError("{}:\n {}".format(exception_prefix, e.message))
 
-    if not os.path.exists(MODEL_DIR):
-        os.makedirs(MODEL_DIR)
-    pkl.dump(bst, open(MODEL_DIR + '/xgboost-model', 'wb'))
-
-
-#######################################################################
-#    Helper functions for distributed training
-########################################################################
-
-def get_yarn_config(train_cfg, num_hosts):
-    # Adding yarn parameters configurations
-    # Get paramters from user if given
-    num_workers = train_cfg.get("num_workers", None)
-    cores = train_cfg.get("worker_cores", None)
-    mem = train_cfg.get("worker_memory", None)
-
-    # Auto config for yarn parameters if not given
-    mem_size = psutil.virtual_memory().total / (1024 * 1024 * 1024)
-    cores_count = psutil.cpu_count(logical=False)
-    logging.info("Memory/core ratio is {}".format(round(mem_size / cores_count, 2)))
-    mem_bound = mem_size / cores_count <= 4
-
-    if num_workers is None:
-        if mem_bound:
-            if num_hosts <= 5:
-                num_workers = num_hosts * 16
-            elif 5 < num_hosts <= 10:
-                num_workers = num_hosts * 8
-            elif 10 < num_hosts <= 15:
-                num_workers = num_hosts * 4
-            elif 15 < num_hosts <= 60:
-                num_workers = num_hosts * 2
-            else:
-                num_workers = num_hosts
-        else:
-            num_workers = num_hosts
-    else:
-        num_workers = int(num_workers)
-
-    workers_per_host = num_workers / num_hosts
-    cores = cores_count if cores is None else cores  # each worker use up all the cores to guarantee cpu utilization
-    mem = str(round((psutil.virtual_memory().total / (1024 * 1024 * 1024)) / workers_per_host,
-                    2)) + 'g' if mem is None else mem  # divide memory among workers in a node
-    return num_workers, cores, mem
-
-
-def get_app_status():
-    app_list = []
-    yarn_app_logs_path = os.path.join(HADOOP_PREFIX, 'logs/userlogs')
-    while not os.path.exists(yarn_app_logs_path):
-        time.sleep(1)
-    while app_list == []:
-        time.sleep(1)
-        app_list = os.listdir(yarn_app_logs_path)
-
-    app_id = max(app_list)
-    yarn_cmd = '{}/bin/yarn application -status {}'.format(HADOOP_PREFIX, app_id)
-
-    yarn_status, yarn_final_status = 'RUNNING', None
-    while yarn_status == 'RUNNING':
-        logging.info("YARN status: {}".format(yarn_status))
-        time.sleep(60)
-        yarn_status_report = subprocess.check_output(yarn_cmd, shell=True, stderr=FNULL).decode().split('\n')
-        yarn_status_lines = [line for line in yarn_status_report if 'State' in line]
-        yarn_status = yarn_status_lines[0].split(':')[1].strip()
-        yarn_final_status = yarn_status_lines[1].split(':')[1].strip()
-    return yarn_status, yarn_final_status
-
-
-def submit_yarn_job(train_cfg, host_ip, num_hosts):
-    # populate workers to expose certain amount of parallelism
-    num_workers, cores, mem = get_yarn_config(train_cfg, num_hosts)
-    args = '--cluster=yarn --num-workers={} --host-ip={} --worker-cores={} --worker-memory={}'.format(num_workers,
-                                                                                                      host_ip, cores,
-                                                                                                      mem)
-
-    logging.info("Yarn setup: number of workers: {}, "
-                 "physical cores per worker: {}, "
-                 "physical memory per worker: {}.".format(num_workers, cores, mem))
-
-    xgboost_path = os.path.abspath(xgb.__file__)
-
-    if os.path.isfile(xgboost_path):  # This returns the __init__.py location; remove this to create path to dmlc-submit
-        xgboost_path = os.path.dirname(xgboost_path)
-
-    cmd_submit = "python3 {}/dmlc-core/tracker/dmlc-submit \
-                  {} python3 {}/yarnjob.py".format(xgboost_path, args, ALGORITHM_HOME_DIR)
-
-    subprocess.Popen(cmd_submit, shell=True, stdout=FNULL)
-    logging.info("Yarn job submitted.")
-
-    yarn_status, yarn_final_status = get_app_status()
-
-    if not (yarn_status == 'FINISHED' and yarn_final_status == 'SUCCEEDED'):
-        logging.error("Yarn tasks failed! Report logs from worker.")
-        try:
-            yarn_app_logs_path = os.path.join(HADOOP_PREFIX, 'logs/userlogs')
-            app_id = os.listdir(yarn_app_logs_path)[-1]
-            container_ids = os.listdir(os.path.join(yarn_app_logs_path, app_id))
-            for container_id in container_ids:
-                log_file_path = os.path.join(yarn_app_logs_path, app_id, container_id, 'stderr')
-                with open(log_file_path, 'r') as f:
-                    first_line = f.readline()
-                    if 'dmlc.ApplicationMaster' not in first_line:
-                        logging.error(f.read())
-            if not os.path.exists(OUTPUT_FAILED_FILE):
-                with open(OUTPUT_FAILED_FILE, "w") as f:
-                    f.write("User Error: Out of Memory. Please use a larger "
-                            "instance and/or reduce the values of other parameters "
-                            "(e.g. num_classes.) if applicable")
-            sys.exit(1)
-        except Exception as e:
-            logging.exception(e)
-
-
-def start_yarn_daemons(num_hosts, current_host, master_host, master_ip):
-    file_prepare()
-    cluster_config(num_hosts, current_host, master_host, master_ip)
-    start_daemons(master_host, current_host)
-
-
-def get_ip_from_host(host_name):
-    IP_WAIT_TIME = 300
-    counter = 0
-    ip = ''
-
-    while counter < IP_WAIT_TIME and ip == '':
-        try:
-            ip = socket.gethostbyname(host_name)
-            break
-        except:  # noqa: E722
-            counter += 1
-            time.sleep(1)
-
-    if counter == IP_WAIT_TIME and ip == '':
-        raise exc.PlatformError("Network issue happened. Cannot retrieve ip address in past 10 minutes")
-
-    return ip
+    if is_master:
+        if not os.path.exists(MODEL_DIR):
+            os.makedirs(MODEL_DIR)
+        pkl.dump(bst, open(MODEL_DIR + '/xgboost-model', 'wb'))
 
 
 def get_all_sizes():

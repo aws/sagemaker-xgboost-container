@@ -23,16 +23,7 @@ setup(
 
     packages=find_packages(where='src', exclude=('test',)),
     package_dir={'': 'src'},
-    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py') or glob('*.so')],
-
-    # Need for hadoop xml files
-    include_package_data=True,
-    data_files=[('core-site', ['src/sagemaker_xgboost_container/algorithm_mode/core-site.xml',
-                               'src/sagemaker_xgboost_container/algorithm_mode/core-site.xml']),
-                ('hdfs-site', ['src/sagemaker_xgboost_container/algorithm_mode/hdfs-site.xml',
-                               'src/sagemaker_xgboost_container/algorithm_mode/hdfs-site.xml']),
-                ('yarn-site', ['src/sagemaker_xgboost_container/algorithm_mode/yarn-site.xml',
-                               'src/sagemaker_xgboost_container/algorithm_mode/yarn-site.xml'])],
+    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
 
     long_description=read('README.rst'),
     author='Amazon Web Services',
