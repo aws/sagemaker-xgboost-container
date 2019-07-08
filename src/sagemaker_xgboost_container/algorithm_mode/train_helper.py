@@ -16,10 +16,6 @@ import os
 import pickle as pkl
 import psutil
 import re
-import socket
-import subprocess
-import sys
-import time
 
 import xgboost as xgb
 
@@ -28,9 +24,9 @@ from sagemaker_containers import _content_types
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
-    BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, FNULL, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
+    BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
 from sagemaker_xgboost_container.constants.xgb_content_types import LIBSVM, X_LIBSVM
-from sagemaker_xgboost_container.metrics.custom_metrics import CUSTOM_METRICS, get_custom_metrics, configure_feval
+from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
 
 
 MODEL_DIR = os.getenv("SM_MODEL_DIR")

@@ -121,17 +121,19 @@ def setup_rabit_and_train(training_env, sm_hosts, sm_current_host):
 def main():
     training_env = framework.training_env()
 
-    # Wait for hosts to find each other
-    entry_point._wait_hostname_resolution()
-
     # Obtain information about training resources to determine whether to set up Rabit or not
     sm_hosts = training_env.hosts
     sm_current_host = training_env.resource_config['current_host']
     num_hosts = len(sm_hosts)
 
     if num_hosts > 1:
+        # Wait for hosts to find each other
+        logging.info("Distributed node training!")
+        entry_point._wait_hostname_resolution()
+
         setup_rabit_and_train(training_env, sm_hosts, sm_current_host)
     elif num_hosts == 1:
+        logging.info("Single node training!")
         train(training_env, True)
     else:
         raise exceptions.PlatformError("Number of hosts should be greater or equal to 1")

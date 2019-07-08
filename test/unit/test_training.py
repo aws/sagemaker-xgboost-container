@@ -77,7 +77,7 @@ class TestMapReader(unittest.TestCase):
                                     current_host_train_files,
                                     other_host_messages):
         with patch('os.listdir') as mock_os_listdir, \
-                patch.dict('os.environ', {'SM_CHANNEL_TRAIN': 'train_path'}) as mock_os_environ, \
+                patch.dict('os.environ', {'SM_CHANNEL_TRAIN': 'train_path'}), \
                 patch('sagemaker_xgboost_container.distributed.Rabit') as mock_rabit, \
                 patch('sagemaker_xgboost_container.training.train') as mock_train:
 

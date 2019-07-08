@@ -168,7 +168,7 @@ class Rabit(object):
                     s.connect((self.master_host, self.port))
                     successful_connection = True
                     logger.debug("Successfully connected to RabitTracker.")
-                except OSError as err:
+                except OSError:
                     logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
                     attempt += 1
                     logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
@@ -223,7 +223,7 @@ class Rabit(object):
                         s.connect((self.master_host, self.port))
                         s.close()
                         time.sleep(1)
-                except OSError as err:
+                except OSError:
                     break
         logger.debug("Rabit finalized")
 

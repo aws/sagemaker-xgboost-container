@@ -1,6 +1,7 @@
 tox
 flake8
 coverage
+PyYAML<4.3
 pytest
 pytest-cov
 pytest-xdist

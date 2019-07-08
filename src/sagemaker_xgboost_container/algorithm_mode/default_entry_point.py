@@ -17,8 +17,7 @@ import os
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
-from sagemaker_xgboost_container.algorithm_mode.train_helper import train_job, get_size, \
-    validate_file_format, EASE_MEMORY
+from sagemaker_xgboost_container.algorithm_mode.train_helper import train_job
 
 
 INPUT_DATA_PATH = os.getenv("ALGO_INPUT_DATA_DIR")

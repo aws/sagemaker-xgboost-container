@@ -10,16 +10,9 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-import logging
 import mock
-import os
-import pytest
-import tempfile
-
-from xgboost import rabit
 
 from sagemaker_xgboost_container import distributed
-from sagemaker_xgboost_container.dmlc_patch import tracker
 
 test_master = 'test_host_1'
 test_slave = 'test_host_2'
@@ -116,11 +109,12 @@ def test_slave_stop(mock_socket, mock_xgb_rabit_finalize):
 
     mock_socket.return_value = MockSocket(raise_exception=True)
     test_cluster.stop()
+    mock_xgb_rabit_finalize.assert_called_once()
 
 
 @mock.patch('xgboost.rabit.finalize')
 @mock.patch('socket.socket')
-def test_master_start(mock_socket, mock_xgb_rabit_finalize):
+def test_master_stop(mock_socket, mock_xgb_rabit_finalize):
     test_cluster = distributed.Rabit(hosts=test_hosts, current_host=test_master)
     assert test_cluster.is_master_host
 
@@ -131,3 +125,4 @@ def test_master_start(mock_socket, mock_xgb_rabit_finalize):
     test_cluster.stop()
 
     mock_rabit_context.join.assert_called_once_with()
+    mock_xgb_rabit_finalize.assert_called_once()

@@ -10,7 +10,8 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    return 'accuracy', accuracy_score(labels, preds)
+    rounded_preds = [round(value) for value in preds]
+    return 'accuracy', accuracy_score(labels, rounded_preds)
 
 
 def f1(preds, dtrain):
@@ -23,7 +24,8 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    return 'f1', f1_score(labels, preds, average='macro')
+    rounded_preds = [round(value) for value in preds]
+    return 'f1', f1_score(labels, rounded_preds, average='macro')
 
 
 def mse(preds, dtrain):
