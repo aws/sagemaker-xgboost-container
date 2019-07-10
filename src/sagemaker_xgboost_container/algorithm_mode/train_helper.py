@@ -16,6 +16,7 @@ import os
 import pickle as pkl
 import psutil
 import re
+import time
 
 import xgboost as xgb
 
@@ -317,9 +318,15 @@ def train_job(resource_config, train_cfg, data_cfg, is_master):
     validate_file_format(train_path, file_type)
     validate_file_format(val_path, file_type)
 
+    logging.info("Loading training dmatrix")
     dtrain = get_dmatrix(train_path, file_type, exceed_memory, csv_weights=csv_weights)
+
+    logging.info("Loading validation dmatrix")
     dval = get_dmatrix(val_path, file_type, exceed_memory)
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
+
+    logging.info("TRAIN DMATRIX HAS {} ROWS".format(dtrain.num_row()))
+    logging.info("VAL DMATRIX HAS {} ROWS".format(dval.num_row()))
 
     try:
         bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
@@ -357,10 +364,14 @@ def train_job(resource_config, train_cfg, data_cfg, is_master):
         else:
             raise exc.AlgorithmError("{}:\n {}".format(exception_prefix, e.message))
 
+    if not os.path.exists(MODEL_DIR):
+        os.makedirs(MODEL_DIR)
     if is_master:
-        if not os.path.exists(MODEL_DIR):
-            os.makedirs(MODEL_DIR)
-        pkl.dump(bst, open(MODEL_DIR + '/xgboost-model', 'wb'))
+        pkl.dump(bst, open(MODEL_DIR + '/xgboost-model_master', 'wb'))
+        logging.info("Stored master model at {}".format(MODEL_DIR + '/xgboost-model_master'))
+    else:
+        pkl.dump(bst, open(MODEL_DIR + '/xgboost-model_slave', 'wb'))
+        logging.info("Stored slave model at {}".format(MODEL_DIR + '/xgboost-model_slave'))
 
 
 def get_all_sizes():

@@ -25,6 +25,7 @@ from xgboost import rabit
 from sagemaker_xgboost_container.dmlc_patch import tracker
 
 logger = logging.getLogger('SageMakerRabit')
+logging.basicConfig(level=logging.DEBUG)
 LOCAL_HOSTNAME = '127.0.0.1'
 
 
@@ -58,7 +59,7 @@ class Rabit(object):
                  master_host=None,
                  port=None,
                  max_connect_attempts=10,
-                 connect_retry_timeout=10):
+                 connect_retry_timeout=3):
         """Set up rabit initialize.
 
         :param hosts: List of hostnames
@@ -214,18 +215,18 @@ class Rabit(object):
         rabit.finalize()
         if self.is_master_host:
             self.rabit_context.join()
-        else:
-            # Keep trying to connect to the master node so that the process knows when the server is not available
-            # TODO: Remove when rabit.finalize synchronizes the slave and master shutdowns
-            while True:
-                try:
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        s.connect((self.master_host, self.port))
-                        s.close()
-                        time.sleep(1)
-                except OSError:
-                    break
-        logger.debug("Rabit finalized")
+        # else:
+        # Keep trying to connect to the master node so that the process knows when the server is not available
+        # TODO: Remove when rabit.finalize synchronizes the slave and master shutdowns
+        # while True:
+        #     try:
+        #         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        #             s.connect((self.master_host, self.port))
+        #             s.close()
+        #             time.sleep(1)
+        #     except OSError:
+        #         break
+        # logger.debug("Rabit finalized")
 
     def __enter__(self):
         return self.start()

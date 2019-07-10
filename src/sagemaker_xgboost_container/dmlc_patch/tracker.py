@@ -28,13 +28,15 @@ import time
 import logging
 from threading import Thread
 
+logger = logging.getLogger('RabitTracker')
+
 class ExSocket(object):
     """
     Extension of socket to handle recv and send of special data
     """
-    def __init__(self, sock, timeout=5.0):
+    def __init__(self, sock, timeout=30.0):
         self.sock = sock
-        sock.settimeout(timeout)
+        self.sock.settimeout(timeout)
 
     def recvall(self, nbytes):
         res = []
@@ -75,16 +77,16 @@ class SlaveEntry(object):
         assert magic == kMagic, 'invalid magic number=%d from %s' % (magic, self.host)
         slave.sendint(kMagic)
         self.rank = slave.recvint()
-        logging.debug("Rank {}".format(self.rank))
+        logger.debug("{}:{} Rank {}".format(self.sock, s_addr, self.rank))
 
         self.world_size = slave.recvint()
-        logging.debug("world_size {}".format(self.world_size))
+        logger.debug("{}:{} world_size {}".format(self.sock, s_addr, self.world_size))
 
         self.jobid = slave.recvstr()
-        logging.debug("jobid {}".format(self.jobid))
+        logger.debug("{}:{} jobid {}".format(self.sock, s_addr, self.jobid))
 
         self.cmd = slave.recvstr()
-        logging.debug("cmd {}".format(self.cmd))
+        logger.debug("{}:{} cmd {}".format(self.sock, s_addr, self.cmd))
 
         self.wait_accept = 0
         self.port = None
@@ -176,7 +178,7 @@ class RabitTracker(object):
         self.start_time = None
         self.end_time = None
         self.nslave = nslave
-        logging.info('start listen on %s:%d', hostIP, self.port)
+        logger.info('start listen on %s:%d', hostIP, self.port)
 
     def __del__(self):
         self.sock.close()
@@ -282,28 +284,29 @@ class RabitTracker(object):
         # lazy initialize tree_map
         tree_map = None
 
-        logging.debug("Looking for {} connections.".format(nslave))
+        logger.debug("Looking for {} connections.".format(nslave))
         while len(shutdown) != nslave:
             fd, s_addr = self.sock.accept()
-            logging.debug("Accepted connection")
-            logging.debug(fd)
-            logging.debug(s_addr)
+            logger.debug("Accepted connection")
+            logger.debug(fd)
+            logger.debug(s_addr)
             try:
                 s = SlaveEntry(fd, s_addr)
             except socket.timeout as ex:
-                logging.info("No data received from connection. Closing.")
+                logger.info("No data received from connection {}:{}. Closing.".format(fd, s_addr))
                 continue
 
-            logging.debug("Slave command is: {}".format(s.cmd))
+            logger.debug("Slave command is: {}".format(s.cmd))
             if s.cmd == 'print':
                 msg = s.sock.recvstr()
-                logging.info(msg.strip())
+                logger.debug("PRINTING FROM {}:{}".format(fd, s_addr))
+                logger.info(msg.strip())
                 continue
             if s.cmd == 'shutdown':
                 assert s.rank >= 0 and s.rank not in shutdown
                 assert s.rank not in wait_conn
                 shutdown[s.rank] = s
-                logging.debug('Recieve %s signal from %d', s.cmd, s.rank)
+                logger.debug('Recieve %s signal from %d', s.cmd, s.rank)
                 continue
             assert s.cmd == 'start' or s.cmd == 'recover'
             # lazily initialize the slaves
@@ -325,8 +328,8 @@ class RabitTracker(object):
                 assert len(todo_nodes) != 0
                 pending.append(s)
 
-                logging.debug("Pending slaves: {}".format(pending))
-                logging.debug("TO-do slaves: {}".format(todo_nodes))
+                logger.debug("Pending slaves: {}".format(pending))
+                logger.debug("TO-do slaves: {}".format(todo_nodes))
 
                 if len(pending) == len(todo_nodes):
 
@@ -338,19 +341,19 @@ class RabitTracker(object):
                         s.assign_rank(rank, wait_conn, tree_map, parent_map, ring_map)
                         if s.wait_accept > 0:
                             wait_conn[rank] = s
-                        logging.info('Recieve %s signal from %s; assign rank %d',
+                        logger.info('Recieve %s signal from %s; assign rank %d',
                                       s.cmd, s.host, s.rank)
                 if len(todo_nodes) == 0:
-                    logging.info('@tracker All of %d nodes getting started', nslave)
+                    logger.info('@tracker All of %d nodes getting started', nslave)
                     self.start_time = time.time()
             else:
                 s.assign_rank(rank, wait_conn, tree_map, parent_map, ring_map)
-                logging.debug('Recieve %s signal from %d', s.cmd, s.rank)
+                logger.debug('Recieve %s signal from %d', s.cmd, s.rank)
                 if s.wait_accept > 0:
                     wait_conn[rank] = s
-        logging.info('@tracker All nodes finishes job')
+        logger.info('@tracker All nodes finishes job')
         self.end_time = time.time()
-        logging.info('@tracker %s secs between node start and job finish',
+        logger.info('@tracker %s secs between node start and job finish',
                      str(self.end_time - self.start_time))
 
     def start(self, nslave):
@@ -431,7 +434,7 @@ def get_host_ip(hostIP=None):
         try:
             hostIP = socket.gethostbyname(socket.getfqdn())
         except gaierror:
-            logging.warn('gethostbyname(socket.getfqdn()) failed... trying on hostname()')
+            logger.warn('gethostbyname(socket.getfqdn()) failed... trying on hostname()')
             hostIP = socket.gethostbyname(socket.gethostname())
         if hostIP.startswith("127."):
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
