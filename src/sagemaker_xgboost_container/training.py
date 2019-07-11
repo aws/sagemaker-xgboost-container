@@ -24,6 +24,7 @@ from sagemaker_xgboost_container.algorithm_mode import default_entry_point
 
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 
 HOSTS = 'SM_HOSTS'
@@ -39,7 +40,7 @@ def _has_train_data(train_path=None):
     return len(train_files) > 0
 
 
-def train(training_environment, is_master=True):
+def train(training_environment, is_distributed=False, is_master=True):
     """ Runs XGBoost training on a user supplied module in local SageMaker environment.
     The user supplied module and its dependencies are downloaded from S3.
     Training is invoked by calling a "train" function in the user supplied module.
@@ -47,6 +48,7 @@ def train(training_environment, is_master=True):
     Args:
         training_environment: training environment object containing environment variables,
                                training arguments and hyperparameters
+        is_distributed: True if running distributed training, False if not
         is_master: True if training using a single node, or master host in distributed training.
                    To use in algorithm mode; in script mode, user entry point must parse environment var
                    'SM_RABIT_MASTER'
@@ -60,7 +62,7 @@ def train(training_environment, is_master=True):
         # Write environment variables for algorithm mode
         logging.info(training_environment.to_env_vars())
         _env.write_env_vars(training_environment.to_env_vars())
-        default_entry_point.algorithm_mode_train(is_master)
+        default_entry_point.algorithm_mode_train(is_distributed, is_master)
 
 
 def setup_rabit_and_train(training_env, sm_hosts, sm_current_host):
@@ -107,12 +109,12 @@ def setup_rabit_and_train(training_env, sm_hosts, sm_current_host):
             else:
                 os.environ['SM_IS_RABIT_MASTER'] = 'False'
 
-            train(training_env, cluster.is_master)
+            train(training_env, is_distributed=True, is_master=cluster.is_master)
 
     elif len(hosts_with_data) == 1:
         logging.debug("Only 1 host with training data, "
                       "starting single node training job from: {}".format(sm_current_host))
-        train(training_env, True)
+        train(training_env, is_distributed=False, is_master=True)
 
     else:
         raise exceptions.PlatformError("No hosts received training data.")

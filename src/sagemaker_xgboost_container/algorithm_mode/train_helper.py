@@ -16,7 +16,10 @@ import os
 import pickle as pkl
 import psutil
 import re
-import time
+
+import numpy as np
+from scipy.sparse import vstack
+from sklearn.datasets import load_svmlight_files
 
 import xgboost as xgb
 
@@ -26,6 +29,7 @@ from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
+from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container.constants.xgb_content_types import LIBSVM, X_LIBSVM
 from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
 
@@ -36,8 +40,7 @@ OUTPUT_FAILED_FILE = os.getenv("SM_OUTPUT_FAILED_FILE")
 
 ALGORITHM_HOME_DIR = os.path.dirname(os.path.abspath(__file__))
 
-EASE_MEMORY = 5120 * 1024 * 1024
-THRESHOLD_MEMORY = 1024 * 1024 * 1024
+THRESHOLD_MEMORY = 1024 * 1024 * 1024 + 5120 * 1024 * 1024
 TRAIN_CHANNEL = 'train'
 VAL_CHANNEL = 'validation'
 HPO_SEPARATOR = ':'
@@ -122,32 +125,63 @@ def get_csv_dmatrix(files_path, csv_weights):
         raise exc.UserError("Could not determine delimiter on line {}:\n{}".format(sample_text[:50], e))
 
     try:
-        if csv_weights == 1:
-            dmatrix = xgb.DMatrix(
-                '{}?format=csv&label_column=0&delimiter={}&weight_column=1'.format(files_path, delimiter))
-        else:
-            dmatrix = xgb.DMatrix('{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter))
+        parsed_arrays = np.array([])
+        data_files = [os.path.join(files_path, f) for f in os.listdir(files_path)]
+        for data_file in data_files:
+            if csv_weights == 1:
+                current_np_arrays = np.genfromtxt(data_file, delimiter=delimiter, skip_header=csv_weights)
+            else:
+                current_np_arrays = np.genfromtxt(data_file, delimiter=delimiter)
+
+            parsed_arrays = np.vstack([parsed_arrays, current_np_arrays]) if parsed_arrays.size else current_np_arrays
+
+        label_array = parsed_arrays[:,0]
+        data_array = np.delete(parsed_arrays, 1, axis=1)
+        dmatrix = xgb.DMatrix(data=data_array, label=label_array)
+
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
     return dmatrix
 
 
-def get_libsvm_dmatrix(files_path, exceed_memory):
-    if exceed_memory:
-        logging.info("Insufficient memory available in the instance. Using external memory for libsvm input.\
-                      Switch to larger instance with more RAM/distributed mode for better performance and lower cost.")
-        if 'train' in files_path:
-            files_path = files_path + '#' + files_path + '/dtrain.cache'
-        else:
-            files_path = files_path + '#' + files_path + '/dval.cache'
+def get_libsvm_dmatrix(files_path, exceed_memory, is_pre_sharded=True):
+    # if exceed_memory:
+    #     logging.info("There may be performance loss due to insufficient memory available in the instance. "
+    #                  "This will result in using external memory for libsvm input."
+    #                  "Switch to larger instance with more RAM for better performance and lower cost.")
+    #     if 'train' in files_path:
+    #         files_path = files_path + '#' + files_path + '/dtrain.cache'
+    #     else:
+    #         files_path = files_path + '#' + files_path + '/dval.cache'
+
     try:
-        dmatrix = xgb.DMatrix(files_path)
+        if is_pre_sharded:
+            files_to_load = [os.path.join(files_path, file_name) for file_name in os.listdir(files_path)]
+            csr_matrix_list = load_svmlight_files(files_to_load, zero_based=True)
+
+            labels = []
+            data_matrices = []
+
+            sparse_matrix_iter = iter(csr_matrix_list)
+            for next_sparse_matrix in sparse_matrix_iter:
+                next_labels = next(sparse_matrix_iter)
+
+                data_matrices.append(next_sparse_matrix)
+                labels.append(next_labels)
+
+            combined_matrix = vstack(data_matrices)
+            flattened_labels = [item for sublist in labels for item in sublist]
+
+            dmatrix = xgb.DMatrix(data=combined_matrix, label=flattened_labels)
+        else:
+            dmatrix = xgb.DMatrix(files_path)
     except Exception as e:
-        raise exc.UserError("Failed to load libsvm data with exception:\n{}".format(e))
+            raise exc.UserError("Failed to load libsvm data with exception:\n{}".format(e))
+
     return dmatrix
 
 
-def get_dmatrix(dir_path, file_type, exceed_memory, csv_weights=0):
+def get_dmatrix(dir_path, file_type, exceed_memory, data_dist_type, csv_weights=0):
     if not os.path.exists(dir_path):
         return None
     else:
@@ -157,10 +191,6 @@ def get_dmatrix(dir_path, file_type, exceed_memory, csv_weights=0):
                 files_path = root
                 break
         if file_type.lower() == 'csv':
-            if exceed_memory:
-                raise exc.UserError("Insufficient memory available in the instance. External memory for csv input not "
-                                    "supported.\
-                                 Switch to larger instance with more RAM/distributed mode for training.")
             dmatrix = get_csv_dmatrix(files_path, csv_weights)
         elif file_type.lower() == 'libsvm':
             dmatrix = get_libsvm_dmatrix(files_path, exceed_memory)
@@ -270,25 +300,68 @@ class MetricNameComponents(object):
         return MetricNameComponents(*result)
 
 
-def train_job(resource_config, train_cfg, data_cfg, is_master):
-    """Train XGBoost model using data on current node.
+def _get_size_in_mb(num_bytes):
+    return round(num_bytes / (1024 * 1024), 2)
+
+
+def _get_size_validated_dmatrix(train_path, validate_path, data_cfg, file_type, csv_weights):
+    train_files_size = get_size(validate_path)
+    val_files_size = get_size(validate_path)
+
+    # Keep 1GB memory as threshold to avoid draining out all the memory
+    mem_size = psutil.virtual_memory().available
+    real_mem_size = mem_size - THRESHOLD_MEMORY
+
+    exceed_memory = (train_files_size + val_files_size) > real_mem_size
+    logging.debug("File size need to be processed in the node: {}mb. Available memory size in the node: {}mb".format(
+        _get_size_in_mb(train_files_size + val_files_size),
+        _get_size_in_mb(real_mem_size)))
+
+    s3_dist_type_train = data_cfg[TRAIN_CHANNEL].get("S3DistributionType")
+    s3_dist_type_val = data_cfg[VAL_CHANNEL].get("S3DistributionType") if data_cfg.get(
+        VAL_CHANNEL) is not None else None
+
+
+    logging.debug("Loading training dmatrix")
+    validate_file_format(train_path, file_type)
+    dtrain = get_dmatrix(train_path, file_type, exceed_memory, csv_weights=csv_weights, s3_dist_type_train)
+
+    logging.debug("Loading validation dmatrix")
+    validate_file_format(validate_path, file_type)
+    dval = get_dmatrix(validate_path, file_type, exceed_memory, csv_weights=csv_weights, s3_dist_type_val)
+
+    if dtrain:
+        logging.debug("Training matrix has {} rows".format(dtrain.num_row()))
+        _debug_print_file(train_path)
+    if dval:
+        logging.debug("Validation matrix has {} rows".format(dval.num_row()))
+        _debug_print_file(validate_path)
+
+    return dtrain, dval
+
+
+def _debug_print_file(dir_path):
+    for file_name in os.listdir(dir_path):
+        with open("{}/{}".format(dir_path, file_name), 'r') as fin:
+            logging.debug(fin.read())
+
+
+def train_job(resource_config, train_cfg, data_cfg, is_distributed, is_master):
+    """Train and save XGBoost model using data on current node.
 
     Model is only saved if 'is_master' is True.
 
     :param resource_config: Resource configurations
     :param train_cfg: Training hyperparameter configurations
     :param data_cfg: Data channel configurations
+    :param is_distributed
     :param is_master: True if single node training, or the current node is the master node in distributed training.
-    :return:
     """
-    if train_cfg.get("updater"):
-        train_cfg["updater"] = ",".join(train_cfg["updater"])
-
+    # Parse arguments for train() API
     early_stopping_rounds = train_cfg.get('early_stopping_rounds')
     num_round = train_cfg["num_round"]
-    csv_weights = train_cfg["csv_weights"]
 
-    # Parse evaluation metrics to use during training
+    # Evaluation metrics to use with train() API
     tuning_objective_metric_param = train_cfg.get("_tuning_objective_metric")
     eval_metric = train_cfg.get("eval_metric")
     cleaned_eval_metric, configured_feval = get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric)
@@ -297,40 +370,26 @@ def train_job(resource_config, train_cfg, data_cfg, is_master):
     else:
         train_cfg.pop('eval_metric', None)
 
-    # Set default content type as libsvm
-    file_type = get_content_type(data_cfg)
-
+    # Get Training and Validation Matrices
     train_path = INPUT_DATA_PATH + '/' + TRAIN_CHANNEL
     val_path = INPUT_DATA_PATH + '/' + VAL_CHANNEL
+    file_type = get_content_type(data_cfg)
+    csv_weights = train_cfg["csv_weights"]
 
-    train_files_size = get_size(train_path)
-    val_files_size = get_size(val_path)
+    dtrain, dval = _get_size_validated_dmatrix(train_path, val_path, data_cfg, file_type, csv_weights)
 
-    # Keep 1GB memory as threshold to avoid draining out all the memory
-    mem_size = psutil.virtual_memory().available
-    real_mem_size = mem_size - EASE_MEMORY - THRESHOLD_MEMORY
-
-    exceed_memory = (train_files_size + val_files_size) > real_mem_size
-    logging.info("File size need to be processed in the node: {}. Available memory size in the node: {}".format(
-        str(round((train_files_size + val_files_size) / (1024 * 1024), 2)) + 'mb',
-        str(round(real_mem_size / (1024 * 1024), 2)) + 'mb'))
-
-    validate_file_format(train_path, file_type)
-    validate_file_format(val_path, file_type)
-
-    logging.info("Loading training dmatrix")
-    dtrain = get_dmatrix(train_path, file_type, exceed_memory, csv_weights=csv_weights)
-
-    logging.info("Loading validation dmatrix")
-    dval = get_dmatrix(val_path, file_type, exceed_memory)
+    # Set callback evals
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
-
-    logging.info("TRAIN DMATRIX HAS {} ROWS".format(dtrain.num_row()))
-    logging.info("VAL DMATRIX HAS {} ROWS".format(dval.num_row()))
 
     try:
         bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)
+        # if not is_distributed:
+        #     bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
+        #                     early_stopping_rounds=early_stopping_rounds)
+        # else:
+        #     bst = distributed.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist,
+        #                             feval=configured_feval, early_stopping_rounds=early_stopping_rounds)
     except Exception as e:
         exception_prefix = "XGB train call failed with exception"
         if LOGISTIC_REGRESSION_LABEL_RANGE_ERROR in e.message:
@@ -366,26 +425,13 @@ def train_job(resource_config, train_cfg, data_cfg, is_master):
 
     if not os.path.exists(MODEL_DIR):
         os.makedirs(MODEL_DIR)
-    if is_master:
-        pkl.dump(bst, open(MODEL_DIR + '/xgboost-model_master', 'wb'))
-        logging.info("Stored master model at {}".format(MODEL_DIR + '/xgboost-model_master'))
-    else:
-        pkl.dump(bst, open(MODEL_DIR + '/xgboost-model_slave', 'wb'))
-        logging.info("Stored slave model at {}".format(MODEL_DIR + '/xgboost-model_slave'))
 
-
-def get_all_sizes():
-    TRAIN_CHANNEL = 'train'
-    VAL_CHANNEL = 'validation'
-    train_path = INPUT_DATA_PATH + '/' + TRAIN_CHANNEL
-    val_path = INPUT_DATA_PATH + '/' + VAL_CHANNEL
-
-    train_files_size = convert_to_mb(get_size(train_path))
-    val_files_size = convert_to_mb(get_size(val_path))
-    mem_size = convert_to_mb(psutil.virtual_memory().available)
-
-    return train_files_size, val_files_size, mem_size
-
-
-def convert_to_mb(size):
-    return str(round(size / (1024 * 1024), 2)) + 'mb'
+    # if is_master:
+    model_location = MODEL_DIR + '/xgboost-model'
+    pkl.dump(bst, open(model_location, 'wb'))
+    logging.debug("Stored trained model at {}".format(model_location))
+    # else:
+    #     model_location = MODEL_DIR + '/xgboost-model_slave'
+    #     pkl.dump(bst, open(model_location, 'wb'))
+    #     logging.debug("Stored trained model at {}".format(model_location))
+    #     logging.debug("Slave host; not saving model.")

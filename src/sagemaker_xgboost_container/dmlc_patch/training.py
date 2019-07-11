@@ -84,6 +84,8 @@ def _train_internal(params, dtrain,
                            evaluation_result_list=None))
         # Distributed code: need to resume to this point.
         # Skip the first update if it is a recovery step.
+        logger.info("DOHYEONG CURRENT BOOSTER")
+        logger.info(bst.get_dump())
         if version % 2 == 0:
             bst.update(dtrain, i, obj)
             bst.save_rabit_checkpoint()
@@ -95,6 +97,9 @@ def _train_internal(params, dtrain,
         logger.info("DOHYEONG CUSTOM PRINT WORLD SIZE: {}".format(rabit.get_world_size()))
         logger.info("DOHYEONG CUSTOM PRINT RABIT RANK: {}".format(rabit.get_rank()))
 
+        logger.info("DOHYEONG NEXT BOOSTER")
+        logger.info(bst.get_dump())
+
         nboost += 1
         evaluation_result_list = []
         # check evaluation result.
@@ -104,6 +109,7 @@ def _train_internal(params, dtrain,
                 msg = bst_eval_set
             else:
                 msg = bst_eval_set.decode()
+            logging.debug("DOHYEONG CUSTOM PRINT MSG: {}".format(msg))
             res = [x.split(':') for x in msg.split()]
             evaluation_result_list = [(k, float(v)) for k, v in res[1:]]
             logger.debug(evaluation_result_list)

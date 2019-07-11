@@ -24,13 +24,14 @@ INPUT_DATA_PATH = os.getenv("ALGO_INPUT_DATA_DIR")
 HTTP_SERVER_PORT = "8000"
 
 
-def algorithm_mode_train(is_master):
+def algorithm_mode_train(is_distributed, is_master):
     """Train XGBoost single node or distributed mode.
 
     Note that in algorithm mode, the is_master boolean is used to determine which node stores the trained model to S3.
     In script mode the booleana can be computed by comparing the current host name with the host name
     stored in the env var 'SM_MASTER'.
 
+    :param is_distributed
     :param is_master: True if single node training, or if the current host is the master node described in the env
                       var 'SM_MASTER'. The master host should be the host to save the trained model to S3.
     """
@@ -46,12 +47,14 @@ def algorithm_mode_train(is_master):
     metrics = metrics_mod.initialize()
 
     hyperparameters = hpv.initialize(metrics)
-    final_train_config = hyperparameters.validate(train_config)
+    validated_train_config = hyperparameters.validate(train_config)
+    if validated_train_config.get("updater"):
+        validated_train_config["updater"] = ",".join(validated_train_config["updater"])
 
     channels = cv.initialize()
-    final_data_config = channels.validate(data_config)
+    validated_data_config = channels.validate(data_config)
 
-    logging.info("hyperparameters {}".format(final_train_config))
-    logging.info("channels {}".format(final_data_config))
+    logging.debug("hyperparameters {}".format(validated_train_config))
+    logging.debug("channels {}".format(validated_data_config))
 
-    train_job(resource_config, final_train_config, final_data_config, is_master)
+    train_job(resource_config, validated_train_config, validated_data_config, is_distributed, is_master)

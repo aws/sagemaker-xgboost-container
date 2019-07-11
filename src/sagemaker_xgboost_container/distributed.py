@@ -11,15 +11,17 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 """
-Contains most of the wrapping code for XGBoost distributed and Rabit support.
-This is heavily inspired by the Dask version of XGBoost. Some of this code should be made simpler once the XGBoost
-library is improved.
+Contains most of the wrapping code for XGBoost distributed training and Rabit support.
+This is heavily inspired by the Dask version of XGBoost.
+Some of this code should be made simpler once the XGBoost library is improved.
 """
 import logging
+import os
 import socket
 import time
 
 from xgboost import rabit
+import xgboost as xgb
 
 # TODO: Point this to xgboost dmlc-core when merged upstream
 from sagemaker_xgboost_container.dmlc_patch import tracker
@@ -105,6 +107,25 @@ class Rabit(object):
         self.max_connect_attempts = max_connect_attempts
         self.connect_retry_timeout = connect_retry_timeout
 
+        self.stored_dmlc_env_vars = None
+
+    def _write_dmlc_env_vars(self, env_vars, store_previous=False):
+        previous_env_vars = {}
+        for k, v in env_vars.items():
+            if store_previous:
+                if previous_env_vars.get(k):
+                    logger.debug("Replacing env var {}={}".format(k, previous_env_vars[k]))
+                    previous_env_vars[k] = os.environ[k]
+                else:
+                    previous_env_vars[k] = None
+            if v:
+                os.environ[k] = str(v)
+            else:
+                del os.environ[k]
+
+        if store_previous:
+            self.stored_dmlc_env_vars = previous_env_vars
+
     def start(self):
         """Start the rabit process.
 
@@ -181,9 +202,15 @@ class Rabit(object):
         else:
             logger.info("Rabit Tracker is available for connections.")
 
-        rabit.init(['DMLC_NUM_WORKER={}'.format(self.n_workers).encode(),
-                    'DMLC_TRACKER_URI={}'.format(self.master_host).encode(),
-                    'DMLC_TRACKER_PORT={}'.format(self.port).encode()])
+        dmlc_env_vars = {
+            'DMLC_NUM_WORKER': self.n_workers,
+            'DMLC_TRACKER_URI': self.master_host,
+            'DMLC_TRACKER_PORT': self.port,
+            'DMLC_NUM_SERVER': '0'  # This starts RabitTracker instead of PSTracker in DMLC
+        }
+
+        self._write_dmlc_env_vars(dmlc_env_vars, store_previous=True)
+        rabit.init()
 
         # We can check that the Rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).
@@ -205,7 +232,6 @@ class Rabit(object):
         """Shutdown parameter server.
 
         If current host is master host, also join the background thread that is running the master host.
-        If slave, continue establishing connections to master until connections can't be made.
         """
         logger.debug("Shutting down parameter server.")
 
@@ -215,21 +241,21 @@ class Rabit(object):
         rabit.finalize()
         if self.is_master_host:
             self.rabit_context.join()
-        # else:
-        # Keep trying to connect to the master node so that the process knows when the server is not available
-        # TODO: Remove when rabit.finalize synchronizes the slave and master shutdowns
-        # while True:
-        #     try:
-        #         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        #             s.connect((self.master_host, self.port))
-        #             s.close()
-        #             time.sleep(1)
-        #     except OSError:
-        #         break
-        # logger.debug("Rabit finalized")
+
+        if self.stored_dmlc_env_vars:
+            self._write_dmlc_env_vars(self.stored_dmlc_env_vars)
 
     def __enter__(self):
         return self.start()
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         return self.stop()
+
+
+def train(train_cfg, dtrain, num_boost_round, evals, feval, early_stopping_rounds):
+    bst = None
+    current_boost_round = 0
+    while current_boost_round < num_boost_round:
+        bst = xgb.train(train_cfg, dtrain, num_boost_round=current_boost_round + 1, evals=evals,
+                        feval=feval, early_stopping_rounds=early_stopping_rounds, xgb_model=bst)
+    return bst

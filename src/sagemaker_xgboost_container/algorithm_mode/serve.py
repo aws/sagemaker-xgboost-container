@@ -47,7 +47,7 @@ class ScoringService(object):
     # NOTE: 6 MB max content length
     MAX_CONTENT_LENGTH = os.getenv("MAX_CONTENT_LENGTH", 6 * 1024 * 1024)
 
-    MODEL_PATH = os.getenv("ALGO_MODEL_DIR")
+    MODEL_PATH = os.getenv("SM_MODEL_DIR")
     app = flask.Flask(__name__)
     booster = None
     format = None
