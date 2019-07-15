@@ -37,7 +37,5 @@ setup(
         'test': read("test-requirements.txt")
     },
 
-    # ext_modules=[module, module_test],
-
     python_requires='>=3.5',
 )

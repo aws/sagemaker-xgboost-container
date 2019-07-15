@@ -137,7 +137,7 @@ def initialize(metrics):
                                      tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0, max_closed=1000,
                                                                             scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.CategoricalHyperparameter(name="tree_method", range=tree_method_range_validator, default="auto"),
+        hpv.CategoricalHyperparameter(name="tree_method", range=tree_method_range_validator, required=False),
         hpv.ContinuousHyperparameter(name="sketch_eps", range=hpv.Interval(min_open=0, max_open=1), default=0.03),
         hpv.ContinuousHyperparameter(name="scale_pos_weight", range=hpv.Interval(min_open=0), default=1),
         hpv.CommaSeparatedListHyperparameter(name="updater",
@@ -149,7 +149,7 @@ def initialize(metrics):
                                                     'shotgun', 'coord_descent',
                                                     'refresh', 'prune'],
                                              dependencies=updater_validator,
-                                             default="grow_colmaker,prune"),
+                                             required=False),
         hpv.CategoricalHyperparameter(name="dsplit", range=["row", "col"], default="row"),
         hpv.IntegerHyperparameter(name="refresh_leaf", range=hpv.Interval(min_closed=0, max_closed=1), default=1),
         hpv.CategoricalHyperparameter(name="process_type", range=["default", "update"],
@@ -166,9 +166,12 @@ def initialize(metrics):
         hpv.ContinuousHyperparameter(name="lambda_bias", range=hpv.Interval(min_closed=0, max_closed=1), default=0.0),
         hpv.ContinuousHyperparameter(name="tweedie_variance_power", range=hpv.Interval(min_open=1, max_open=2),
                                      default=1.5),
+
+        # TODO: 0.90.0 supports more metrics, these should be added
         hpv.CategoricalHyperparameter(name="objective",
                                       range=["reg:linear", "reg:logistic", "binary:logistic", "binary:logitraw",
-                                             "count:poisson", "multi:softmax", "multi:softprob", "rank:pairwise",
+                                             "binary:hinge", "count:poisson", "survival:cox", "multi:softmax",
+                                             "multi:softprob", "rank:pairwise", "rank:ndcg", "rank:map"
                                              "reg:gamma", "reg:tweedie"],
                                       dependencies=objective_validator,
                                       default="reg:linear"),

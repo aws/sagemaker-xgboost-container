@@ -16,18 +16,14 @@ This is heavily inspired by the Dask version of XGBoost.
 Some of this code should be made simpler once the XGBoost library is improved.
 """
 import logging
-import os
 import socket
 import time
 
 from xgboost import rabit
-import xgboost as xgb
 
-# TODO: Point this to xgboost dmlc-core when merged upstream
-from sagemaker_xgboost_container.dmlc_patch import tracker
+# NOTE: This points to the file used to patch xgb, pythonpath set in Dockerfile
+from dmlc_tracker import tracker
 
-logger = logging.getLogger('SageMakerRabit')
-logging.basicConfig(level=logging.DEBUG)
 LOCAL_HOSTNAME = '127.0.0.1'
 
 
@@ -44,17 +40,23 @@ class RabitHelper(object):
         results = []
         for i in range(rabit.get_world_size()):
             if self.rank == i:
-                logger.debug("Broadcasting data from self ({}) to others".format(self.rank))
+                logging.debug("Broadcasting data from self ({}) to others".format(self.rank))
                 rabit.broadcast(data, i)
                 results.append(data)
             else:
-                logger.debug("Receiving data from {}".format(i))
+                logging.debug("Receiving data from {}".format(i))
                 message = rabit.broadcast(None, i)
                 results.append(message)
         return results
 
 
 class Rabit(object):
+
+    @staticmethod
+    def _get_logger(current_host):
+        logging.basicConfig(format='%(name) [{}]: %(message)s'.format(current_host))
+        return logging.getLogger('SageMakerRabit')
+
     def __init__(self,
                  hosts,
                  current_host=None,
@@ -76,14 +78,15 @@ class Rabit(object):
         # that will run the RabitTracker and also to work out how many clients/slaves
         # exist (this will ensure that all-reduce is set up correctly and that
         # it blocks whilst waiting for those hosts to process the data).
-        self.hosts = sorted(hosts)
-        self.n_workers = len(self.hosts)
-        logger.debug("Found hosts: {} [{}]".format(self.hosts, self.n_workers))
-
         if not current_host:
-            logger.debug("Setting current host as local.", current_host)
             current_host = LOCAL_HOSTNAME
         self.current_host = current_host
+        self.logger = self._get_logger(self.current_host)
+        self.logger.debug("Found current host.")
+
+        self.hosts = sorted(hosts)
+        self.n_workers = len(self.hosts)
+        self.logger.debug("Found hosts: {} [{}]".format(self.hosts, self.n_workers))
 
         # We use the first lexicographically named host as the master if not indicated otherwise
         if not master_host:
@@ -91,40 +94,21 @@ class Rabit(object):
         self.master_host = master_host
         self.is_master_host = self.current_host == self.master_host
 
-        logger.debug("Is Master: {}".format(self.is_master_host))
-        logger.debug("Master: {}".format(self.master_host))
+        self.logger.debug("Is Master: {}".format(self.is_master_host))
+        self.logger.debug("Master: {}".format(self.master_host))
 
         # We start the RabitTracker on a known port on the first host. We can
         # do this since SageMaker Training instances are single tenent and we
         # don't need to worry about port contention.
         if port is None:
             port = 9099
-            logger.debug("No port specified using: {}".format(port))
+            self.logger.debug("No port specified using: {}".format(port))
         else:
-            logger.debug("Using provided port: {}".format(port))
+            self.logger.debug("Using provided port: {}".format(port))
         self.port = port
 
         self.max_connect_attempts = max_connect_attempts
         self.connect_retry_timeout = connect_retry_timeout
-
-        self.stored_dmlc_env_vars = None
-
-    def _write_dmlc_env_vars(self, env_vars, store_previous=False):
-        previous_env_vars = {}
-        for k, v in env_vars.items():
-            if store_previous:
-                if previous_env_vars.get(k):
-                    logger.debug("Replacing env var {}={}".format(k, previous_env_vars[k]))
-                    previous_env_vars[k] = os.environ[k]
-                else:
-                    previous_env_vars[k] = None
-            if v:
-                os.environ[k] = str(v)
-            else:
-                del os.environ[k]
-
-        if store_previous:
-            self.stored_dmlc_env_vars = previous_env_vars
 
     def start(self):
         """Start the rabit process.
@@ -136,13 +120,7 @@ class Rabit(object):
         """
         self.rabit_context = None
         if self.is_master_host:
-            # TODO: the Tracker script is very hacky and has a few bugs in it.
-            # It really should be refactored and improved. Specifically it doesn't
-            # make it easy to shutdown or reuse an existing tracker. This means
-            # that two consecutive calls to Rabit() or the RabitTracker can
-            # fail if the port is already in use.
-            logger.debug("Master host. Starting Rabit Tracker.")
-
+            self.logger.debug("Master host. Starting Rabit Tracker.")
             # The Rabit Tracker is a Python script that is responsible for
             # allowing each instance of Rabit to find its peers and organize
             # itself in to a ring for all-reduce. It supports primitive failure
@@ -163,14 +141,14 @@ class Rabit(object):
             # that each slave will calculate the exact same config as the server.
             #
             # TODO: should probably check that these match up what we pass below.
-            logger.info(self.rabit_context.slave_envs())
+            self.logger.info(self.rabit_context.slave_envs())
 
             # This actually starts the RabitTracker in a background/daemon thread
             # that will automatically exit when the main process has finished.
             self.rabit_context.start(self.n_workers)
 
         # Start each parameter server that connects to the master.
-        logger.debug("Starting parameter server.")
+        self.logger.debug("Starting parameter server.")
 
         # Rabit runs as an in-process singleton library that can be configured once.
         # Calling this multiple times will cause a seg-fault (without calling finalize).
@@ -186,38 +164,32 @@ class Rabit(object):
         while attempt < self.max_connect_attempts and not successful_connection:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
-                    logger.debug("Checking if RabitTracker is available.")
+                    self.logger.debug("Checking if RabitTracker is available.")
                     s.connect((self.master_host, self.port))
                     successful_connection = True
-                    logger.debug("Successfully connected to RabitTracker.")
+                    self.logger.debug("Successfully connected to RabitTracker.")
                 except OSError:
-                    logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
+                    self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
                     attempt += 1
-                    logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
+                    self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
                     time.sleep(self.connect_retry_timeout)
 
         if not successful_connection:
-            logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
+            self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
             raise Exception("Failed to connect to Rabit Tracker")
         else:
-            logger.info("Rabit Tracker is available for connections.")
+            self.logger.info("Connected to RabitTracker.")
 
-        dmlc_env_vars = {
-            'DMLC_NUM_WORKER': self.n_workers,
-            'DMLC_TRACKER_URI': self.master_host,
-            'DMLC_TRACKER_PORT': self.port,
-            'DMLC_NUM_SERVER': '0'  # This starts RabitTracker instead of PSTracker in DMLC
-        }
-
-        self._write_dmlc_env_vars(dmlc_env_vars, store_previous=True)
-        rabit.init()
+        rabit.init(['DMLC_NUM_WORKER={}'.format(self.n_workers).encode(),
+                    'DMLC_TRACKER_URI={}'.format(self.master_host).encode(),
+                    'DMLC_TRACKER_PORT={}'.format(self.port).encode()])
 
         # We can check that the Rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).
         # This should be unique for each instance.
-        logger.debug("Rabit started - Rank {}".format(rabit.get_rank()))
+        self.logger.debug("Rabit started - Rank {}".format(rabit.get_rank()))
+        self.logger.debug("Executing user code")
 
-        logger.debug("Executing user code")
         # We can now run user-code. Since XGBoost runs in the same process space
         # it will use the same instance of Rabit that we have configured. It has
         # a number of checks throughout the learning process to see if it is running
@@ -233,7 +205,7 @@ class Rabit(object):
 
         If current host is master host, also join the background thread that is running the master host.
         """
-        logger.debug("Shutting down parameter server.")
+        self.logger.debug("Shutting down parameter server.")
 
         # This is the call that actually shuts down the Rabit server; and when
         # all of the slaves have been shut down then the RabitTracker will close
@@ -242,20 +214,8 @@ class Rabit(object):
         if self.is_master_host:
             self.rabit_context.join()
 
-        if self.stored_dmlc_env_vars:
-            self._write_dmlc_env_vars(self.stored_dmlc_env_vars)
-
     def __enter__(self):
         return self.start()
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         return self.stop()
-
-
-def train(train_cfg, dtrain, num_boost_round, evals, feval, early_stopping_rounds):
-    bst = None
-    current_boost_round = 0
-    while current_boost_round < num_boost_round:
-        bst = xgb.train(train_cfg, dtrain, num_boost_round=current_boost_round + 1, evals=evals,
-                        feval=feval, early_stopping_rounds=early_stopping_rounds, xgb_model=bst)
-    return bst

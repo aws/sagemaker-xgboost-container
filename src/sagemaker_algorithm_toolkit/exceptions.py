@@ -15,7 +15,7 @@ import warnings
 
 def convert_to_algorithm_error(exception):
     """Converts the most recent exception to an AlgorithmError if not already
-    a BaseSdkError.
+    a BaseToolkitError.
 
     Returns:
          A BaseSdkError that represents the reason the algorithm failed.

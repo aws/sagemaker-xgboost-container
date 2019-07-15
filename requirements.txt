@@ -1,4 +1,3 @@
-kubernetes
 matplotlib
 numpy
 pandas

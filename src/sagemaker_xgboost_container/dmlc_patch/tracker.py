@@ -1,7 +1,7 @@
 """
 Copied from: https://raw.githubusercontent.com/dmlc/dmlc-core/master/tracker/dmlc_tracker/tracker.py
 This has been slightly modified and is used to override the same file in XGBoost dmlc-core until
-upstream controbution is approved and merged.
+upstream contribution is approved and merged.
 * Add timeout on sockets
 * Reduce the thread.join() timeout to 1
 * Add logs of debug statements to understand the node communication.
@@ -99,7 +99,7 @@ class SlaveEntry(object):
         return -1
 
     def assign_rank(self, rank, wait_conn, tree_map, parent_map, ring_map):
-        logging.debug("Assigning rank: {}".format(rank))
+        logger.debug("Assigning rank: {}".format(rank))
         self.rank = rank
         nnset = set(tree_map[rank])
         rprev, rnext = ring_map[rank]
@@ -308,7 +308,7 @@ class RabitTracker(object):
             try:
                 s = SlaveEntry(fd, s_addr)
             except socket.timeout as ex:
-                logger.info("No data received from connection {}:{}. Closing.".format(fd, s_addr))
+                logger.info("No data received from connection {}. Closing.".format(s_addr))
                 continue
 
             logger.debug("Slave command is: {}".format(s.cmd))

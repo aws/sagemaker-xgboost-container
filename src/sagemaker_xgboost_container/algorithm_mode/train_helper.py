@@ -13,8 +13,8 @@
 import csv
 import logging
 import os
+import pandas as pd
 import pickle as pkl
-import psutil
 import re
 
 import numpy as np
@@ -25,33 +25,25 @@ import xgboost as xgb
 
 from sagemaker_containers import _content_types
 
+from sagemaker_xgboost_container.constants import sm_env_constants
+
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
     MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
     BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
-from sagemaker_xgboost_container import distributed
-from sagemaker_xgboost_container.constants.xgb_content_types import LIBSVM, X_LIBSVM
+from sagemaker_xgboost_container.constants import xgb_content_types
 from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
 
-
-MODEL_DIR = os.getenv("SM_MODEL_DIR")
-INPUT_DATA_PATH = os.getenv("SM_INPUT_DATA")
-OUTPUT_FAILED_FILE = os.getenv("SM_OUTPUT_FAILED_FILE")
-
-ALGORITHM_HOME_DIR = os.path.dirname(os.path.abspath(__file__))
-
-THRESHOLD_MEMORY = 1024 * 1024 * 1024 + 5120 * 1024 * 1024
-TRAIN_CHANNEL = 'train'
-VAL_CHANNEL = 'validation'
 HPO_SEPARATOR = ':'
 
+CSV = 'csv'
+LIBSVM = 'libsvm'
 
-#######################################################################
-#    Helper functions for standalone training
-########################################################################
 
+# These are helper functions for parsing data
 def _valid_file(file_path, file_name):
-    """Return if the file is a valid data file.
+    """Validate data file.
+
     :param file_path: str
     :param file_name: str
     :return: bool
@@ -68,6 +60,7 @@ def _valid_file(file_path, file_name):
 
 
 def validate_file_format(dir_path, file_type):
+    """Validate file format by its contents"""
     if not os.path.exists(dir_path):
         return
     else:
@@ -77,15 +70,15 @@ def validate_file_format(dir_path, file_type):
                 files_path = root
                 break
         data_files = [f for f in os.listdir(files_path) if _valid_file(files_path, f)]
-        if file_type.lower() == 'csv':
+        if file_type.lower() == CSV:
             for data_file in data_files:
-                validate_csv_format(os.path.join(files_path, data_file))
-        elif file_type.lower() == 'libsvm':
+                _validate_csv_format(os.path.join(files_path, data_file))
+        elif file_type.lower() == LIBSVM:
             for data_file in data_files:
-                validate_libsvm_format(os.path.join(files_path, data_file))
+                _validate_libsvm_format(os.path.join(files_path, data_file))
 
 
-def validate_csv_format(file_path):
+def _validate_csv_format(file_path):
     with open(file_path, 'r', errors='ignore') as f:
         first_line = f.readline()
         # validate it's not libsvm
@@ -103,7 +96,7 @@ def validate_csv_format(file_path):
                                     match_object.group(0), first_line[:50], file_path.split('/')[-1]))
 
 
-def validate_libsvm_format(file_path):
+def _validate_libsvm_format(file_path):
     with open(file_path, 'r', errors='ignore') as f:
         first_line = f.readline()
         # validate it's not csv
@@ -113,7 +106,73 @@ def validate_libsvm_format(file_path):
                                     first_line[:50], file_path.split('/')[-1]))
 
 
-def get_csv_dmatrix(files_path, csv_weights):
+def get_dmatrix(dir_path, file_type, is_distributed, csv_weights=0):
+    """Create DataMatrix from csv or libsvm file.
+
+    :param dir_path:
+    :param file_type:
+    :param is_distributed:
+    :param csv_weights: If true, set weights from files
+    :return: xgb.DMatrix
+    """
+    if not os.path.exists(dir_path):
+        return None
+    else:
+        files_path = None
+        for root, dirs, files in os.walk(dir_path):
+            if dirs == []:
+                files_path = root
+                break
+        if file_type.lower() == CSV:
+            dmatrix = get_csv_dmatrix(files_path, is_distributed, csv_weights)
+        elif file_type.lower() == LIBSVM:
+            dmatrix = get_libsvm_dmatrix(files_path, is_distributed)
+
+        if dmatrix.get_label().size == 0:
+            raise exc.UserError(
+                "Got input data without labels. Please check the input data set. "
+                "If training job is running on multiple instances, please switch "
+                "to using single instance if number of records in the data set "
+                "is less than number of workers (16 * number of instance) in the cluster.")
+
+    return dmatrix
+
+
+def _csv_file_pop_first_line(file_path):
+    with open(file_path, 'r') as fin:
+        data = fin.read().splitlines(True)
+    with open(file_path, 'w') as fout:
+        pop_line = data[:1]
+        fout.writelines(data[1:])
+    return pop_line
+
+
+def _get_formatted_csv_file_path(files_path, delimiter, weights=None):
+    base_path_str = '{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter)
+    if weights:
+        return '{}&weight_column=1'.format(base_path_str)
+    else:
+        return base_path_str
+
+
+def get_csv_dmatrix(files_path, is_distributed, csv_weights):
+    """Get Data Matrix from CSV files.
+
+    If not distributed, use naive DMatrix initialize.
+
+    Note: If distributed, read CSV files into pandas DataFrame. Also manually parse first line in CSV
+    files to initialize DMatrix with weights. This is to avoid the sharding DMatrix does
+    when loading from file in xgboost=0.90.0:
+
+        https://github.com/dmlc/xgboost/blob/a22368d2100d8f964c1c47fe8c04bfbe17b65060/src/c_api/c_api.cc#L239
+
+    TODO: Just use native DMatrix file load when it supports ability to turn off sharding in distributed mode
+
+    :param files_path: Data filepath
+    :param is_distributed: Boolean to indicate distributed training
+    :param csv_weights: Determines how many rows the header column is
+    :return: xgb.DMatrix
+    """
     # infer delimiter of CSV input
     csv_file = [f for f in os.listdir(files_path) if os.path.isfile(os.path.join(files_path, f))][0]
     with open(os.path.join(files_path, csv_file), errors='ignore') as f:
@@ -125,47 +184,55 @@ def get_csv_dmatrix(files_path, csv_weights):
         raise exc.UserError("Could not determine delimiter on line {}:\n{}".format(sample_text[:50], e))
 
     try:
-        parsed_arrays = np.array([])
-        data_files = [os.path.join(files_path, f) for f in os.listdir(files_path)]
-        for data_file in data_files:
-            if csv_weights == 1:
-                current_np_arrays = np.genfromtxt(data_file, delimiter=delimiter, skip_header=csv_weights)
-            else:
-                current_np_arrays = np.genfromtxt(data_file, delimiter=delimiter)
+        data_files = sorted([os.path.join(files_path, f) for f in os.listdir(files_path)])
+        parsed_csv_weights = None
 
-            parsed_arrays = np.vstack([parsed_arrays, current_np_arrays]) if parsed_arrays.size else current_np_arrays
+        if is_distributed:
+            if csv_weights:
+                # Assume weights are in first alphabetically sorted file in path
+                weights_str = _csv_file_pop_first_line(data_files[0])
+                parsed_csv_weights = np.fromstring(weights_str)
 
-        label_array = parsed_arrays[:,0]
-        data_array = np.delete(parsed_arrays, 1, axis=1)
-        dmatrix = xgb.DMatrix(data=data_array, label=label_array)
+            train_data = pd.concat([pd.read_csv(data_file, header=csv_weights,
+                                                sep=delimiter) for data_file in data_files])
+            dmatrix = xgb.DMatrix(data=train_data.ix[:,1:], label=train_data.ix[:,0], weights=parsed_csv_weights)
+        else:
+            dmatrix = xgb.DMatrix(_get_formatted_csv_file_path(files_path, delimiter, csv_weights))
 
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
     return dmatrix
 
 
-def get_libsvm_dmatrix(files_path, exceed_memory, is_pre_sharded=True):
-    # if exceed_memory:
-    #     logging.info("There may be performance loss due to insufficient memory available in the instance. "
-    #                  "This will result in using external memory for libsvm input."
-    #                  "Switch to larger instance with more RAM for better performance and lower cost.")
-    #     if 'train' in files_path:
-    #         files_path = files_path + '#' + files_path + '/dtrain.cache'
-    #     else:
-    #         files_path = files_path + '#' + files_path + '/dval.cache'
+def get_libsvm_dmatrix(files_path, is_distributed):
+    """Get DMatrix from libsvm file path.
 
+    NOTE: In distributed mode, the data is first parsed into CSR matrix. This is to avoid the sharding DMatrix does
+    when loading from file in xgboost=0.90.0:
+
+        https://github.com/dmlc/xgboost/blob/a22368d2100d8f964c1c47fe8c04bfbe17b65060/src/c_api/c_api.cc#L239
+
+    TODO: Just use native DMatrix file load when it supports ability to turn off sharding in distributed mode
+
+    :param files_path: File path where training data resides
+    :param is_distributed: True if distributed training.
+            If true, this will cause libsvm file to be read into scipy.sparse.csr_matrix before initializing DMatrix.
+            If false, DMatrix will get the {rabit.get_rank()}th of (rabit.get_world_size()) partitions
+                of the data in files_path
+    :return: xgb.DMatrix
+    """
     try:
-        if is_pre_sharded:
+        if is_distributed:
             files_to_load = [os.path.join(files_path, file_name) for file_name in os.listdir(files_path)]
             csr_matrix_list = load_svmlight_files(files_to_load, zero_based=True)
 
             labels = []
             data_matrices = []
 
+            # sklearn.datasets.load_svmlight_files() will return [X1, y1, X2, y2...], so iterate items two at a time
             sparse_matrix_iter = iter(csr_matrix_list)
             for next_sparse_matrix in sparse_matrix_iter:
                 next_labels = next(sparse_matrix_iter)
-
                 data_matrices.append(next_sparse_matrix)
                 labels.append(next_labels)
 
@@ -177,30 +244,6 @@ def get_libsvm_dmatrix(files_path, exceed_memory, is_pre_sharded=True):
             dmatrix = xgb.DMatrix(files_path)
     except Exception as e:
             raise exc.UserError("Failed to load libsvm data with exception:\n{}".format(e))
-
-    return dmatrix
-
-
-def get_dmatrix(dir_path, file_type, exceed_memory, data_dist_type, csv_weights=0):
-    if not os.path.exists(dir_path):
-        return None
-    else:
-        files_path = None
-        for root, dirs, files in os.walk(dir_path):
-            if dirs == []:
-                files_path = root
-                break
-        if file_type.lower() == 'csv':
-            dmatrix = get_csv_dmatrix(files_path, csv_weights)
-        elif file_type.lower() == 'libsvm':
-            dmatrix = get_libsvm_dmatrix(files_path, exceed_memory)
-
-        if dmatrix.get_label().size == 0:
-            raise exc.UserError(
-                "Got input data without labels. Please check the input data set. "
-                "If training job is running on multiple instances, please switch "
-                "to using single instance if number of records in the data set "
-                "is less than number of workers (16 * number of instance) in the cluster.")
 
     return dmatrix
 
@@ -226,23 +269,26 @@ def get_size(dir_path):
 
 
 def get_content_type(data_cfg):
-    tmp = data_cfg[TRAIN_CHANNEL].get("ContentType")
+    content_type = data_cfg['train'].get("ContentType")
 
-    if tmp is None or tmp.lower() in ['libsvm', LIBSVM, X_LIBSVM]:
-        return 'libsvm'
-    elif tmp.lower() in ['csv', _content_types.CSV]:
-        return 'csv'
+    if content_type is None:
+        logging.info("Content-type is not set, defaulting to: txt/libsvm")
+    if content_type.lower() in [LIBSVM, xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]:
+        return LIBSVM
+    elif content_type.lower() in [CSV, _content_types.CSV]:
+        return CSV
     else:
         raise exc.UserError("ContentType should be one of these options: '{}', '{}', '{}'.".format(
-             _content_types.CSV, LIBSVM, X_LIBSVM))
+             _content_types.CSV, LIBSVM, xgb_content_types.X_LIBSVM))
 
 
+# These are helper functions for parsing the list of metrics to be outputted
 def get_union_metrics(metric_a, metric_b):
-    """Return metric list after union metric_a and metric_b
+    """Union metric_a and metric_b
 
     :param metric_a: list
     :param metric_b: list
-    :return: union metrics list from metric a and b
+    :return: union metrics list from metric_a and metric_b
     """
     if metric_a is None and metric_b is None:
         return None
@@ -300,58 +346,36 @@ class MetricNameComponents(object):
         return MetricNameComponents(*result)
 
 
-def _get_size_in_mb(num_bytes):
+def _get_bytes_to_mb(num_bytes):
     return round(num_bytes / (1024 * 1024), 2)
 
 
-def _get_size_validated_dmatrix(train_path, validate_path, data_cfg, file_type, csv_weights):
+def _get_size_validated_dmatrix(train_path, validate_path, file_type, is_distributed, csv_weights):
     train_files_size = get_size(validate_path)
     val_files_size = get_size(validate_path)
 
-    # Keep 1GB memory as threshold to avoid draining out all the memory
-    mem_size = psutil.virtual_memory().available
-    real_mem_size = mem_size - THRESHOLD_MEMORY
+    logging.debug("File size need to be processed in the node: {}mb.".format(
+        round((train_files_size + val_files_size) / (1024 * 1024), 2)))
 
-    exceed_memory = (train_files_size + val_files_size) > real_mem_size
-    logging.debug("File size need to be processed in the node: {}mb. Available memory size in the node: {}mb".format(
-        _get_size_in_mb(train_files_size + val_files_size),
-        _get_size_in_mb(real_mem_size)))
-
-    s3_dist_type_train = data_cfg[TRAIN_CHANNEL].get("S3DistributionType")
-    s3_dist_type_val = data_cfg[VAL_CHANNEL].get("S3DistributionType") if data_cfg.get(
-        VAL_CHANNEL) is not None else None
-
-
-    logging.debug("Loading training dmatrix")
     validate_file_format(train_path, file_type)
-    dtrain = get_dmatrix(train_path, file_type, exceed_memory, csv_weights=csv_weights, s3_dist_type_train)
+    dtrain = get_dmatrix(train_path, file_type,
+                         is_distributed=is_distributed,
+                         csv_weights=csv_weights)
 
-    logging.debug("Loading validation dmatrix")
     validate_file_format(validate_path, file_type)
-    dval = get_dmatrix(validate_path, file_type, exceed_memory, csv_weights=csv_weights, s3_dist_type_val)
-
-    if dtrain:
-        logging.debug("Training matrix has {} rows".format(dtrain.num_row()))
-        _debug_print_file(train_path)
-    if dval:
-        logging.debug("Validation matrix has {} rows".format(dval.num_row()))
-        _debug_print_file(validate_path)
+    dval = get_dmatrix(validate_path, file_type,
+                       is_distributed=is_distributed,
+                       csv_weights=csv_weights)
 
     return dtrain, dval
 
 
-def _debug_print_file(dir_path):
-    for file_name in os.listdir(dir_path):
-        with open("{}/{}".format(dir_path, file_name), 'r') as fin:
-            logging.debug(fin.read())
-
-
-def train_job(resource_config, train_cfg, data_cfg, is_distributed, is_master):
+def train_job(train_cfg, data_cfg, is_distributed, is_master):
     """Train and save XGBoost model using data on current node.
 
-    Model is only saved if 'is_master' is True.
+    If doing distributed training, XGBoost will use rabit to sync the trained model between each boosting iteration.
+    Trained model is only saved if 'is_master' is True.
 
-    :param resource_config: Resource configurations
     :param train_cfg: Training hyperparameter configurations
     :param data_cfg: Data channel configurations
     :param is_distributed
@@ -371,25 +395,20 @@ def train_job(resource_config, train_cfg, data_cfg, is_distributed, is_master):
         train_cfg.pop('eval_metric', None)
 
     # Get Training and Validation Matrices
-    train_path = INPUT_DATA_PATH + '/' + TRAIN_CHANNEL
-    val_path = INPUT_DATA_PATH + '/' + VAL_CHANNEL
+    train_path = os.environ[sm_env_constants.SM_CHANNEL_TRAIN]
+    val_path = os.environ[sm_env_constants.SM_CHANNEL_VALIDATION]
     file_type = get_content_type(data_cfg)
     csv_weights = train_cfg["csv_weights"]
 
-    dtrain, dval = _get_size_validated_dmatrix(train_path, val_path, data_cfg, file_type, csv_weights)
+    dtrain, dval = _get_size_validated_dmatrix(train_path, val_path, file_type, is_distributed, csv_weights)
 
     # Set callback evals
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
 
     try:
+        logging.debug(train_cfg)
         bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)
-        # if not is_distributed:
-        #     bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
-        #                     early_stopping_rounds=early_stopping_rounds)
-        # else:
-        #     bst = distributed.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist,
-        #                             feval=configured_feval, early_stopping_rounds=early_stopping_rounds)
     except Exception as e:
         exception_prefix = "XGB train call failed with exception"
         if LOGISTIC_REGRESSION_LABEL_RANGE_ERROR in e.message:
@@ -423,15 +442,11 @@ def train_job(resource_config, train_cfg, data_cfg, is_distributed, is_master):
         else:
             raise exc.AlgorithmError("{}:\n {}".format(exception_prefix, e.message))
 
-    if not os.path.exists(MODEL_DIR):
-        os.makedirs(MODEL_DIR)
+    model_dir = os.getenv(sm_env_constants.SM_MODEL_DIR)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
 
-    # if is_master:
-    model_location = MODEL_DIR + '/xgboost-model'
-    pkl.dump(bst, open(model_location, 'wb'))
-    logging.debug("Stored trained model at {}".format(model_location))
-    # else:
-    #     model_location = MODEL_DIR + '/xgboost-model_slave'
-    #     pkl.dump(bst, open(model_location, 'wb'))
-    #     logging.debug("Stored trained model at {}".format(model_location))
-    #     logging.debug("Slave host; not saving model.")
+    if is_master:
+        model_location = model_dir + '/xgboost-model'
+        pkl.dump(bst, open(model_location, 'wb'))
+        logging.debug("Stored trained model at {}".format(model_location))
