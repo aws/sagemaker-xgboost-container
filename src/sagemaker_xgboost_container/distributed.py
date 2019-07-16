@@ -17,26 +17,95 @@ Some of this code should be made simpler once the XGBoost library is improved.
 """
 import logging
 import socket
+import sys
 import time
 
 from xgboost import rabit
 
-# NOTE: This points to the file used to patch xgb, pythonpath set in Dockerfile
-from dmlc_tracker import tracker
+# This should point to xgb when the tracker is updated upstream
+from sagemaker_xgboost_container.dmlc_patch import tracker
 
 LOCAL_HOSTNAME = '127.0.0.1'
 
 
+def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
+              first_port=None, second_port=None, update_rabit_args=False):
+    """Run execution function after initializing dmlc/rabit.
+
+    This method initializes rabit twice:
+        1. To broadcast to all hosts which hosts should be included in training.
+        2. Run distributed xgb train() with just the hosts from above.
+
+    :param exec_fun: Function to run while rabit is initialized. xgb.train() must run in the same process space
+                    in order to utilize rabit initialization. Note that the execution function must also take the args
+                    'is_distributed' and 'is_master'.
+    :param args: Arguments to run execution function.
+    :param include_in_training: Boolean if the current hosts should be used in training. This is done here so that
+                                all the hosts in the cluster know which hosts to include during training.
+    :param hosts:
+    :param current_host:
+    :param first_port: Port to use for the initial rabit initialization. If None, Rabit defaults this to 9099
+    :param second_port: Port to use for second rabit initialization. If None, this increments previous port by 1
+    :param update_rabit_args: Boolean to nclude rabit information to args. If True, the following is added:
+                                is_distributed
+                                is_master
+    """
+    with Rabit(hosts=hosts, current_host=current_host, port=first_port) as rabit:
+        hosts_with_data = rabit.synchronize({'host': rabit.current_host, 'include_in_training': include_in_training})
+        hosts_with_data = [record['host'] for record in hosts_with_data if record['include_in_training']]
+
+        # Keep track of port used, so that hosts trying to shutdown know when server is not available
+        previous_port = rabit.master_port
+
+    if not include_in_training:
+        logging.warning("Host {} not being used for distributed training.".format(current_host))
+        sys.exit(0)
+
+    second_rabit_port = second_port if second_port else previous_port + 1
+
+    if len(hosts_with_data) > 1:
+        # Set up Rabit with nodes that have data and an unused port so that previous slaves don't confuse it
+        # with the previous rabit configuration
+        with Rabit(hosts=hosts_with_data,
+                   current_host=current_host,
+                   port=second_rabit_port) as cluster:
+            if update_rabit_args:
+                args.update({'is_distributed': True, 'is_master': cluster.is_master})
+            exec_fun(**args)
+
+    elif len(hosts_with_data) == 1:
+        logging.debug("Only 1 host with training data, "
+                      "starting single node training job from: {}".format(current_host))
+        if update_rabit_args:
+            args.update({'is_distributed': False, 'is_master': True})
+        exec_fun(**args)
+
+    else:
+        raise RuntimeError("No hosts received training data.")
+
+
 class RabitHelper(object):
     def __init__(self, is_master, current_host, master_port):
+        """This is returned by the Rabit context manager for useful cluster information and data synchronization.
+
+        :param is_master:
+        :param current_host:
+        :param master_port:
+        """
         self.is_master = is_master
         self.rank = rabit.get_rank()
         self.current_host = current_host
         self.master_port = master_port
 
     def synchronize(self, data):
-        # This function allows every node to share state with every other node
-        # easily. This allows things like determining which nodes have data or not.
+        """Synchronize data with the cluster.
+
+        This function allows every node to share state with every other node easily.
+        This allows things like determining which nodes have data or not.
+
+        :param data: data to send to the cluster
+        :return: aggregated data from the all the nodes in the cluster
+        """
         results = []
         for i in range(rabit.get_world_size()):
             if self.rank == i:
@@ -55,7 +124,7 @@ class Rabit(object):
     @staticmethod
     def _get_logger(current_host):
         logging.basicConfig(format='%(name) [{}]: %(message)s'.format(current_host))
-        return logging.getLogger('SageMakerRabit')
+        return logging.getLogger('RabitContextManager')
 
     def __init__(self,
                  hosts,
@@ -64,13 +133,13 @@ class Rabit(object):
                  port=None,
                  max_connect_attempts=10,
                  connect_retry_timeout=3):
-        """Set up rabit initialize.
+        """Context manager for rabit initialization.
 
         :param hosts: List of hostnames
-        :param current_host: Current hostname. If not provided, use 127.0.0.1
+        :param current_host: Current hostname. If not provided, use 127.0.0.1.
         :param master_host: Master host hostname. If not provided, use alphabetically first hostname amongst hosts
-                            to ensure all hosts use the same master
-        :param port: Port to connect to master, if not specified use 9099
+                            to ensure determinism in choosing master node.
+        :param port: Port to connect to master, if not specified use 9099.
         :param max_connect_attempts:
         :param connect_retry_timeout:
         """

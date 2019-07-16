@@ -1,128 +1,97 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the 'License'). You
-# may not use this file except in compliance with the License. A copy of
-# the License is located at
-#
-#     http://aws.amazon.com/apache2.0/
-#
-# or in the 'license' file accompanying this file. This file is
-# distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
-# ANY KIND, either express or implied. See the License for the specific
-# language governing permissions and limitations under the License.
-import mock
+from __future__ import absolute_import
+
+import sys
+
+from test.utils.test_utils import find_two_open_ports
+from multiprocessing import Process, Queue
 
 from sagemaker_xgboost_container import distributed
 
-test_master = 'test_host_1'
-test_slave = 'test_host_2'
-test_hosts = [test_master, test_slave, 'test_host_3']
-test_rank = 1
+
+def synchronize_fn(host_count, port, master, idx, q):
+    hosts = ['127.0.0.1'] + ['localhost' for _ in range(host_count - 1)]
+    current_host = '127.0.0.1' if master else 'localhost'
+    with distributed.Rabit(hosts, current_host=current_host, port=port, master_host='127.0.0.1') as dr:
+        results = dr.synchronize({
+            'idx': idx
+        })
+    q.put(results)
+    sys.exit(0)
 
 
-class MockSocket():
-    def __init__(self, raise_exception=False):
-        """Helper class to mock socket connections.
+def rabit_run_fn(host_count, is_run, first_port, second_port, master, idx, q):
+    hosts = ['127.0.0.1'] + ['localhost' for _ in range(host_count - 1)]
+    current_host = '127.0.0.1' if master else 'localhost'
+    args_dict = dict(obj=idx)
 
-        :param raise_exception: Simulate OSError when server is not accepting connections
-        """
-        self.raise_exception = raise_exception
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        pass
-
-    def connect(self, address):
-        if self.raise_exception:
-            raise OSError()
-        else:
-            pass
+    distributed.rabit_run(
+        q.put, args_dict, is_run, hosts, current_host, first_port, second_port, update_rabit_args=False)
+    sys.exit(0)
 
 
-def test_rabit_tracker_initialize():
-    test_cluster = distributed.Rabit(hosts=test_hosts)
-    assert test_cluster.master_host == test_master
-    assert not test_cluster.is_master_host
-    assert test_cluster.current_host == distributed.LOCAL_HOSTNAME
+def test_integration_rabit_synchronize():
+    q = Queue()
+
+    port, _ = find_two_open_ports()
+
+    host_count = 5
+    host_list = range(host_count)
+    expected_results = [{'idx': idx} for idx in host_list]
+
+    for idx in host_list:
+        p = Process(target=synchronize_fn, args=(host_count, port, idx == 0, idx, q))
+        p.start()
+
+    num_responses = 0
+    while num_responses < host_count:
+        host_aggregated_result = q.get(timeout=5)
+        for host_individual_result in host_aggregated_result:
+            assert host_individual_result in expected_results
+        num_responses += 1
 
 
-def _get_rabit_init_message(n_workers, master_host, port):
-    return ['DMLC_NUM_WORKER={}'.format(n_workers).encode(),
-            'DMLC_TRACKER_URI={}'.format(master_host).encode(),
-            'DMLC_TRACKER_PORT={}'.format(port).encode()]
+def test_rabit_run_all_hosts_run():
+    q = Queue()
+
+    first_port, second_port = find_two_open_ports()
+
+    host_count = 5
+    host_list = range(host_count)
+    expected_results = [idx for idx in host_list]
+
+    for idx in host_list:
+        p = Process(target=rabit_run_fn, args=(host_count, True, first_port, second_port, idx == 0, idx, q))
+        p.start()
+
+    num_responses = 0
+    while num_responses < host_count:
+        response = q.get(timeout=15)
+        expected_results.remove(response)
+        num_responses += 1
+
+    assert len(expected_results) == 0
 
 
-@mock.patch('xgboost.rabit.init')
-@mock.patch('xgboost.rabit.get_rank')
-@mock.patch('socket.socket')
-def test_slave_start(mock_socket, mock_xgb_rabit_get_rank, mock_xgb_rabit_init):
-    test_cluster = distributed.Rabit(hosts=test_hosts, current_host=test_slave)
-    assert not test_cluster.is_master_host
+def test_rabit_run_exclude_one_host():
+    q = Queue()
 
-    mock_socket.return_value = MockSocket()
-    mock_xgb_rabit_get_rank.return_value = test_rank
+    first_port, second_port = find_two_open_ports()
 
-    test_rabit_helper = test_cluster.start()
-    assert not test_rabit_helper.is_master
-    assert test_rabit_helper.rank == test_rank
-    assert test_rabit_helper.current_host == test_slave
-    assert test_rabit_helper.master_port == 9099
+    idx_to_exclude = 3
 
-    mock_xgb_rabit_init.assert_called_with(_get_rabit_init_message(len(test_hosts),
-                                                                   test_master,
-                                                                   9099))
+    host_count = 5
+    host_list = range(host_count)
+    expected_results = [idx for idx in host_list if idx != idx_to_exclude]
 
+    for idx in host_list:
+        p = Process(target=rabit_run_fn, args=(
+            host_count, idx != idx_to_exclude, first_port, second_port, idx == 0, idx, q))
+        p.start()
 
-@mock.patch('sagemaker_xgboost_container.dmlc_patch.tracker.RabitTracker')
-@mock.patch('xgboost.rabit.init')
-@mock.patch('xgboost.rabit.get_rank')
-@mock.patch('socket.socket')
-def test_master_start(mock_socket, mock_xgb_rabit_get_rank, mock_xgb_rabit_init, mock_rabit_tracker):
-    test_cluster = distributed.Rabit(hosts=test_hosts, current_host=test_master)
-    assert test_cluster.is_master_host
+    num_responses = 0
+    while num_responses < host_count - 1:
+        response = q.get(timeout=15)
+        expected_results.remove(response)
+        num_responses += 1
 
-    mock_rabit_context = mock.Mock()
-
-    mock_socket.return_value = MockSocket()
-    mock_xgb_rabit_get_rank.return_value = test_rank
-    mock_rabit_tracker.return_value = mock_rabit_context
-
-    test_rabit_helper = test_cluster.start()
-    assert test_rabit_helper.is_master
-    assert test_rabit_helper.rank == test_rank
-    assert test_rabit_helper.current_host == test_master
-    assert test_rabit_helper.master_port == 9099
-
-    mock_xgb_rabit_init.assert_called_with(_get_rabit_init_message(len(test_hosts),
-                                                                   test_master,
-                                                                   9099))
-    mock_rabit_context.start.assert_called_with(len(test_hosts))
-
-
-@mock.patch('xgboost.rabit.finalize')
-@mock.patch('socket.socket')
-def test_slave_stop(mock_socket, mock_xgb_rabit_finalize):
-    test_cluster = distributed.Rabit(hosts=test_hosts, current_host=test_slave)
-    assert not test_cluster.is_master_host
-
-    mock_socket.return_value = MockSocket(raise_exception=True)
-    test_cluster.stop()
-    mock_xgb_rabit_finalize.assert_called_once()
-
-
-@mock.patch('xgboost.rabit.finalize')
-@mock.patch('socket.socket')
-def test_master_stop(mock_socket, mock_xgb_rabit_finalize):
-    test_cluster = distributed.Rabit(hosts=test_hosts, current_host=test_master)
-    assert test_cluster.is_master_host
-
-    mock_rabit_context = mock.Mock()
-    test_cluster.rabit_context = mock_rabit_context
-
-    mock_socket.return_value = MockSocket(raise_exception=True)
-    test_cluster.stop()
-
-    mock_rabit_context.join.assert_called_once_with()
-    mock_xgb_rabit_finalize.assert_called_once()
+    assert len(expected_results) == 0
