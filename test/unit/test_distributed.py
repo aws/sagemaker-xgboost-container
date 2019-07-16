@@ -44,7 +44,7 @@ def test_integration_rabit_synchronize():
 
     num_responses = 0
     while num_responses < host_count:
-        host_aggregated_result = q.get(timeout=5)
+        host_aggregated_result = q.get(timeout=10)
         for host_individual_result in host_aggregated_result:
             assert host_individual_result in expected_results
         num_responses += 1
