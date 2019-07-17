@@ -119,7 +119,7 @@ def get_dmatrix(dir_path, file_type, is_distributed, is_training, csv_weights=0)
                 files_path = root
                 break
         if file_type.lower() == CSV:
-            dmatrix = get_csv_dmatrix(files_path, is_training, csv_weights)
+            dmatrix = get_csv_dmatrix(files_path, is_training, is_distributed, csv_weights)
         elif file_type.lower() == LIBSVM:
             dmatrix = get_libsvm_dmatrix(files_path, is_distributed)
 
@@ -154,7 +154,7 @@ def _get_dmatrix_format_header(df):
     return ['f{}'.format(idx) for idx in range(len(df.columns))]
 
 
-def get_csv_dmatrix(files_path, is_training, csv_weights):
+def get_csv_dmatrix(files_path, is_training, is_distributed, csv_weights):
     """Get Data Matrix from CSV files.
 
     If not distributed, use naive DMatrix initialize.
@@ -183,26 +183,27 @@ def get_csv_dmatrix(files_path, is_training, csv_weights):
         raise exc.UserError("Could not determine delimiter on line {}:\n{}".format(sample_text[:50], e))
 
     try:
-        data_files = sorted([os.path.join(files_path, f) for f in os.listdir(files_path)])
-        parsed_csv_weights = None
+        if is_distributed:
+            data_files = sorted([os.path.join(files_path, f) for f in os.listdir(files_path)])
+            parsed_csv_weights = None
 
-        train_data = pd.concat([pd.read_csv(data_file, sep=delimiter, header=None) for data_file in data_files])
-        train_label = train_data.iloc[:, 0]
-        train_df = train_data.iloc[:, 1:]
+            train_data = pd.concat([pd.read_csv(data_file, sep=delimiter, header=None) for data_file in data_files])
+            train_label = train_data.iloc[:, 0]
+            train_df = train_data.iloc[:, 1:]
 
-        if is_training and csv_weights == 1:
-            parsed_csv_weights = train_df.iloc[:, 0]
-            train_df = train_df.iloc[:, 1:]
+            if is_training and csv_weights == 1:
+                parsed_csv_weights = train_df.iloc[:, 0]
+                train_df = train_df.iloc[:, 1:]
 
-        train_df.columns = _get_dmatrix_format_header(train_df)
+            train_df.columns = _get_dmatrix_format_header(train_df)
 
-        dmatrix = xgb.DMatrix(data=train_df, label=train_label, weight=parsed_csv_weights)
-        # else:
-        #     if csv_weights == 1:
-        #         dmatrix = xgb.DMatrix(
-        #             '{}?format=csv&label_column=0&delimiter={}&weight_column=1'.format(files_path, delimiter))
-        #     else:
-        #         dmatrix = xgb.DMatrix('{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter))
+            dmatrix = xgb.DMatrix(data=train_df, label=train_label, weight=parsed_csv_weights)
+        else:
+            if csv_weights == 1:
+                dmatrix = xgb.DMatrix(
+                    '{}?format=csv&label_column=0&delimiter={}&weight_column=1'.format(files_path, delimiter))
+            else:
+                dmatrix = xgb.DMatrix('{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter))
 
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
