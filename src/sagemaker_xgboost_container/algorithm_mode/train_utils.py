@@ -100,13 +100,14 @@ def _validate_libsvm_format(file_path):
                                     first_line[:50], file_path.split('/')[-1]))
 
 
-def get_dmatrix(dir_path, file_type, is_distributed, csv_weights=0):
+def get_dmatrix(dir_path, file_type, is_distributed, is_training, csv_weights=0):
     """Create DataMatrix from csv or libsvm file.
 
     :param dir_path:
     :param file_type:
     :param is_distributed:
-    :param csv_weights: If true, set weights from files
+    :param is_training:
+    :param csv_weights: If true, parse weights from column 1
     :return: xgb.DMatrix
     """
     if not os.path.exists(dir_path):
@@ -118,7 +119,7 @@ def get_dmatrix(dir_path, file_type, is_distributed, csv_weights=0):
                 files_path = root
                 break
         if file_type.lower() == CSV:
-            dmatrix = get_csv_dmatrix(files_path, is_distributed, csv_weights)
+            dmatrix = get_csv_dmatrix(files_path, is_training, csv_weights)
         elif file_type.lower() == LIBSVM:
             dmatrix = get_libsvm_dmatrix(files_path, is_distributed)
 
@@ -153,7 +154,7 @@ def _get_dmatrix_format_header(df):
     return ['f{}'.format(idx) for idx in range(len(df.columns))]
 
 
-def get_csv_dmatrix(files_path, is_distributed, csv_weights):
+def get_csv_dmatrix(files_path, is_training, csv_weights):
     """Get Data Matrix from CSV files.
 
     If not distributed, use naive DMatrix initialize.
@@ -167,14 +168,14 @@ def get_csv_dmatrix(files_path, is_distributed, csv_weights):
     TODO: Just use native DMatrix file load when it supports ability to turn off sharding in distributed mode
 
     :param files_path: Data filepath
-    :param is_distributed: Boolean to indicate distributed training
+    :param is_training: Boolean to indicate training
     :param csv_weights:
     :return: xgb.DMatrix
     """
     # infer delimiter of CSV input
     csv_file = [f for f in os.listdir(files_path) if os.path.isfile(os.path.join(files_path, f))][0]
     with open(os.path.join(files_path, csv_file), errors='ignore') as f:
-        sample_text = f.readline().strip()[:512]
+        sample_text = f.readline().strip()
     try:
         delimiter = csv.Sniffer().sniff(sample_text).delimiter
         logging.info("Determined delimiter of CSV input is \'{}\'".format(delimiter))
@@ -185,24 +186,63 @@ def get_csv_dmatrix(files_path, is_distributed, csv_weights):
         data_files = sorted([os.path.join(files_path, f) for f in os.listdir(files_path)])
         parsed_csv_weights = None
 
-        if is_distributed:
-            if csv_weights == 1:
-                # Assume weights are in first alphabetically sorted file in path
-                weights_str = _csv_file_pop_first_line(data_files[0])
-                parsed_csv_weights = np.fromstring(weights_str)
+        train_data = pd.concat([pd.read_csv(data_file, sep=delimiter, header=None) for data_file in data_files])
+        train_label = train_data.iloc[:, 0]
+        train_df = train_data.iloc[:, 1:]
 
-            train_data = pd.concat([pd.read_csv(data_file, sep=delimiter, header=None) for data_file in data_files])
-            train_label = train_data.iloc[:, 0]
-            train_df = train_data.iloc[:, 1:]
-            train_df.columns = _get_dmatrix_format_header(train_df)
+        if is_training and csv_weights == 1:
+            parsed_csv_weights = train_df.iloc[:, 0]
+            train_df = train_df.iloc[:, 1:]
 
-            dmatrix = xgb.DMatrix(data=train_df, label=train_label, weight=parsed_csv_weights)
-        else:
-            dmatrix = xgb.DMatrix(_get_formatted_csv_file_path(files_path, delimiter, csv_weights))
+        train_df.columns = _get_dmatrix_format_header(train_df)
+
+        dmatrix = xgb.DMatrix(data=train_df, label=train_label, weight=parsed_csv_weights)
+        # else:
+        #     if csv_weights == 1:
+        #         dmatrix = xgb.DMatrix(
+        #             '{}?format=csv&label_column=0&delimiter={}&weight_column=1'.format(files_path, delimiter))
+        #     else:
+        #         dmatrix = xgb.DMatrix('{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter))
 
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
     return dmatrix
+
+
+def _libsvm_label_has_weights(libsvm_files):
+    libsvm_file = libsvm_files[0]
+    with open(libsvm_file, errors='ignore') as f:
+        first_libsvm_line = f.readline()
+        label = first_libsvm_line.split(' ', 2)[0]
+        if ':' in label:
+            return True
+        else:
+            return False
+
+
+def _parse_weights_from_libsvm(libsvm_files):
+    weights = []
+
+    for libsvm_file in libsvm_files:
+        with open(libsvm_file, errors='ignore') as f_read:
+            libsvm_content = f_read.readlines()
+
+        with open(libsvm_file, mode='w', errors='ignore') as f_write:
+            for libsvm_line in libsvm_content:
+                parsed_line = libsvm_line.split(' ', maxsplit=1)
+                label = parsed_line[0]
+                features = parsed_line[1]
+
+                split_label = label.split(':', maxsplit=1)
+                parsed_label = split_label[0]
+                parsed_weight = split_label[1]
+
+                weights.append(float(parsed_weight))
+                new_libsvm_line = "{} {}".format(parsed_label, features)
+
+                f_write.write(new_libsvm_line)
+
+    return weights
 
 
 def get_libsvm_dmatrix(files_path, is_distributed):
@@ -225,6 +265,13 @@ def get_libsvm_dmatrix(files_path, is_distributed):
     try:
         if is_distributed:
             files_to_load = [os.path.join(files_path, file_name) for file_name in os.listdir(files_path)]
+
+            has_weights = _libsvm_label_has_weights(files_to_load)
+            if has_weights:
+                weights = _parse_weights_from_libsvm(files_to_load)
+            else:
+                weights = None
+
             csr_matrix_list = load_svmlight_files(files_to_load, zero_based=True)
 
             labels = []
@@ -240,7 +287,7 @@ def get_libsvm_dmatrix(files_path, is_distributed):
             combined_matrix = vstack(data_matrices)
             flattened_labels = [item for sublist in labels for item in sublist]
 
-            dmatrix = xgb.DMatrix(data=combined_matrix, label=flattened_labels)
+            dmatrix = xgb.DMatrix(data=combined_matrix, label=flattened_labels, weight=weights)
         else:
             dmatrix = xgb.DMatrix(files_path)
     except Exception as e:
@@ -250,21 +297,25 @@ def get_libsvm_dmatrix(files_path, is_distributed):
 
 
 def get_size_validated_dmatrix(train_path, validate_path, file_type, is_distributed, csv_weights=0):
-    train_files_size = get_size(validate_path)
-    val_files_size = get_size(validate_path)
+    train_files_size = get_size(train_path)
+    if validate_path:
+        val_files_size = get_size(validate_path)
+    else:
+        val_files_size = 0
 
     logging.debug("File size need to be processed in the node: {}mb.".format(
         round((train_files_size + val_files_size) / (1024 * 1024), 2)))
 
     validate_file_format(train_path, file_type)
-    dtrain = get_dmatrix(train_path, file_type,
-                         is_distributed=is_distributed,
-                         csv_weights=csv_weights)
+    dtrain = get_dmatrix(train_path, file_type, is_distributed=is_distributed,
+                         is_training=True, csv_weights=csv_weights)
 
-    validate_file_format(validate_path, file_type)
-    dval = get_dmatrix(validate_path, file_type,
-                       is_distributed=is_distributed,
-                       csv_weights=csv_weights)
+    if validate_path:
+        validate_file_format(validate_path, file_type)
+        dval = get_dmatrix(validate_path, file_type, is_distributed=is_distributed,
+                           is_training=False, csv_weights=csv_weights)
+    else:
+        dval = None
 
     return dtrain, dval
 
