@@ -129,7 +129,7 @@ def train_job(train_cfg, data_cfg, train_path, val_path, model_dir, is_distribut
 
     # Get Training and Validation Matrices
     file_type = train_utils.get_content_type(data_cfg)
-    csv_weights = train_cfg["csv_weights"]
+    csv_weights = train_cfg.get("csv_weights")
 
     dtrain, dval = train_utils.get_size_validated_dmatrix(train_path, val_path, file_type, is_distributed, csv_weights)
 
@@ -137,7 +137,7 @@ def train_job(train_cfg, data_cfg, train_path, val_path, model_dir, is_distribut
     watchlist = [(dtrain, 'train'), (dval, 'validation')] if dval is not None else [(dtrain, 'train')]
 
     try:
-        logging.debug(train_cfg)
+        logging.info(train_cfg)
         bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)
     except Exception as e:

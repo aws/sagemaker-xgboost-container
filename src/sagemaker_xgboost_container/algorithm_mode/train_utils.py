@@ -150,8 +150,8 @@ def _get_formatted_csv_file_path(files_path, delimiter, weights=0):
         return base_path_str
 
 
-def _get_dmatrix_format_header(df):
-    return ['f{}'.format(idx) for idx in range(len(df.columns))]
+def _get_dmatrix_format_header(np_mat):
+    return ['f{}'.format(idx) for idx in range(np_mat.shape[1])]
 
 
 def get_csv_dmatrix(files_path, is_training, is_distributed, csv_weights):
@@ -169,6 +169,7 @@ def get_csv_dmatrix(files_path, is_training, is_distributed, csv_weights):
 
     :param files_path: Data filepath
     :param is_training: Boolean to indicate training
+    :param is_distributed:
     :param csv_weights:
     :return: xgb.DMatrix
     """
@@ -187,17 +188,18 @@ def get_csv_dmatrix(files_path, is_training, is_distributed, csv_weights):
             data_files = sorted([os.path.join(files_path, f) for f in os.listdir(files_path)])
             parsed_csv_weights = None
 
-            train_data = pd.concat([pd.read_csv(data_file, sep=delimiter, header=None) for data_file in data_files])
-            train_label = train_data.iloc[:, 0]
-            train_df = train_data.iloc[:, 1:]
+            parsed_train_data = np.concatenate([np.genfromtxt(data_file, delimiter=delimiter) for data_file in data_files])
+            train_label = parsed_train_data[:, 0]
+            train_data = parsed_train_data[:, 1:]
 
             if is_training and csv_weights == 1:
-                parsed_csv_weights = train_df.iloc[:, 0]
-                train_df = train_df.iloc[:, 1:]
+                parsed_csv_weights = train_data[:, 0]
+                train_data = train_data[:, 1:]
 
-            train_df.columns = _get_dmatrix_format_header(train_df)
+            feature_names = _get_dmatrix_format_header(train_data)
 
-            dmatrix = xgb.DMatrix(data=train_df, label=train_label, weight=parsed_csv_weights)
+            dmatrix = xgb.DMatrix(
+                data=train_data, label=train_label, weight=parsed_csv_weights, feature_names=feature_names)
         else:
             if csv_weights == 1:
                 dmatrix = xgb.DMatrix(
@@ -222,6 +224,15 @@ def _libsvm_label_has_weights(libsvm_files):
 
 
 def _parse_weights_from_libsvm(libsvm_files):
+    """Remove and return the weights from libsvm files.
+
+    NOTE: This is quite slow, since we are writing back to file. This was written to use load_svmlight_file, which
+    does not support the container's weight format. Ideally, this should be removed once DMatrix does not shard
+    after rabit initialization by default.
+
+    :param libsvm_files:
+    :return: weights in order
+    """
     weights = []
 
     for libsvm_file in libsvm_files:
