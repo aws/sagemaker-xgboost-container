@@ -11,35 +11,37 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
-import unittest
-import os
+
+import numpy as np
+import xgboost as xgb
 
 
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 
 
-class TestTrainUtils(unittest.TestCase):
+def test_get_union_metrics():
+    a = ['metric_1', 'metric_2']
+    b = ['metric_1', 'metric_3']
 
-    def setUp(self):
-        path = os.path.abspath(__file__)
-        self.resource_path = os.path.join(os.path.dirname(path), 'resources')
+    union = train_utils.get_union_metrics(a, b)
+    assert len(union) == 3
+    for metric in union:
+        assert metric in ['metric_1', 'metric_2', 'metric_3']
 
-    def test_get_libsvm_dmatrix(self):
-        libsvm_path = os.path.join(self.resource_path, 'libsvm')
 
-        single_node_dmatrix = train_utils.get_libsvm_dmatrix(libsvm_path, False)
-        dist_dmatrix = train_utils.get_libsvm_dmatrix(libsvm_path, True)
+def test_get_eval_metrics_and_feval():
+    test_objective = 'validation:logloss'
+    test_evals = ['accuracy', 'rmse']
 
-        self.assertEqual(single_node_dmatrix.feature_names, dist_dmatrix.feature_names)
-        self.assertEqual(single_node_dmatrix.num_col(), dist_dmatrix.num_col())
-        self.assertEqual(single_node_dmatrix.num_row(), dist_dmatrix.num_row())
+    test_eval_metrics, test_configured_eval = train_utils.get_eval_metrics_and_feval(test_objective, test_evals)
 
-    def test_get_csv_dmatrix(self):
-        csv_path = os.path.join(self.resource_path, 'csv')
+    assert len(test_eval_metrics) == 2
+    for metric in test_eval_metrics:
+        assert metric in ['logloss', 'rmse']
 
-        single_node_dmatrix = train_utils.get_csv_dmatrix(csv_path, False, False)
-        dist_dmatrix = train_utils.get_csv_dmatrix(csv_path, True, False)
+    binary_train_data = np.random.rand(10, 2)
+    binary_train_label = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
+    binary_dtrain = xgb.DMatrix(binary_train_data, label=binary_train_label)
+    binary_preds = np.ones(10)
 
-        self.assertEqual(single_node_dmatrix.feature_names, dist_dmatrix.feature_names)
-        self.assertEqual(single_node_dmatrix.num_col(), dist_dmatrix.num_col())
-        self.assertEqual(single_node_dmatrix.num_row(), dist_dmatrix.num_row())
+    assert ('accuracy', .5) == test_configured_eval(binary_preds, binary_dtrain)[0]

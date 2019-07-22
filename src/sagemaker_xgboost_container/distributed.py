@@ -16,6 +16,7 @@ This is heavily inspired by the Dask version of XGBoost.
 Some of this code should be made simpler once the XGBoost library is improved.
 """
 import logging
+from retrying import retry
 import socket
 import sys
 import time
@@ -26,6 +27,23 @@ from xgboost import rabit
 from sagemaker_xgboost_container.dmlc_patch import tracker
 
 LOCAL_HOSTNAME = '127.0.0.1'
+
+
+@retry(stop_max_delay=1000 * 60 * 15,
+       wait_exponential_multiplier=100,
+       wait_exponential_max=30000)
+def _dns_lookup(host):
+    """ Retrying dns lookup on host """
+    return socket.gethostbyname(host)
+
+
+def wait_hostname_resolution(sm_hosts):
+    """Wait for the hostname resolution of the container. This is known behavior as the cluster
+    boots up and has been documented here:
+     https://docs.aws.amazon.com/sagemaker/latest/dg/your-algorithms-training-algo-running-container.html#your-algorithms-training-algo-running-container-dist-training
+    """
+    for host in sm_hosts:
+        _dns_lookup(host)
 
 
 def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
@@ -70,14 +88,14 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
                    current_host=current_host,
                    port=second_rabit_port) as cluster:
             if update_rabit_args:
-                args.update({'is_distributed': True, 'is_master': cluster.is_master})
+                args.update({'is_master': cluster.is_master})
             exec_fun(**args)
 
     elif len(hosts_with_data) == 1:
         logging.debug("Only 1 host with training data, "
                       "starting single node training job from: {}".format(current_host))
         if update_rabit_args:
-            args.update({'is_distributed': False, 'is_master': True})
+            args.update({'is_master': True})
         exec_fun(**args)
 
     else:
@@ -210,7 +228,7 @@ class Rabit(object):
             # that each slave will calculate the exact same config as the server.
             #
             # TODO: should probably check that these match up what we pass below.
-            self.logger.info(self.rabit_context.slave_envs())
+            self.logger.info("Rabit slave environment: {}".format(self.rabit_context.slave_envs()))
 
             # This actually starts the RabitTracker in a background/daemon thread
             # that will automatically exit when the main process has finished.
