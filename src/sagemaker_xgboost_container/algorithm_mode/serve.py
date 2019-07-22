@@ -55,12 +55,9 @@ class ScoringService(object):
 
     @classmethod
     def load_model(cls):
-        logging.info(ScoringService.MODEL_PATH)
-
         if cls.booster is None:
             try:
                 model_file = os.listdir(ScoringService.MODEL_PATH)[0]
-                logging.info(model_file)
                 cls.booster = pkl.load(open(os.path.join(ScoringService.MODEL_PATH, model_file), 'rb'))
                 cls.format = 'pkl_format'
             except Exception as exp_pkl:
