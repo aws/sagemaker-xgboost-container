@@ -1,5 +1,8 @@
 """
 Copied from: https://raw.githubusercontent.com/dmlc/dmlc-core/master/tracker/dmlc_tracker/tracker.py
+
+Git version: https://github.com/dmlc/dmlc-core/tree/c56d3c7ffb1ea7a5ba1da08910b64fcbd38f3308
+
 This has been slightly modified and is used to override the same file in XGBoost dmlc-core until
 upstream contribution is approved and merged.
 * Add timeout on sockets

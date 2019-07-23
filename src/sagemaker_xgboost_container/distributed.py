@@ -298,6 +298,8 @@ class Rabit(object):
         # all of the slaves have been shut down then the RabitTracker will close
         # /shutdown itself.
         rabit.finalize()
+        if self.is_master_host:
+            self.rabit_context.join()
 
     def __enter__(self):
         return self.start()
