@@ -1,3 +1,15 @@
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the 'License'). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the 'license' file accompanying this file. This file is
+# distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 
 
@@ -10,7 +22,8 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    return 'accuracy', accuracy_score(labels, preds)
+    rounded_preds = [round(value) for value in preds]
+    return 'accuracy', accuracy_score(labels, rounded_preds)
 
 
 def f1(preds, dtrain):
@@ -23,7 +36,8 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    return 'f1', f1_score(labels, preds, average='macro')
+    rounded_preds = [round(value) for value in preds]
+    return 'f1', f1_score(labels, rounded_preds, average='macro')
 
 
 def mse(preds, dtrain):

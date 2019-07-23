@@ -14,6 +14,7 @@ import numpy as np
 import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
+from sagemaker_xgboost_container.constants import sm_env_constants
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
 
@@ -47,7 +48,7 @@ class ScoringService(object):
     # NOTE: 6 MB max content length
     MAX_CONTENT_LENGTH = os.getenv("MAX_CONTENT_LENGTH", 6 * 1024 * 1024)
 
-    MODEL_PATH = os.getenv("ALGO_MODEL_DIR")
+    MODEL_PATH = os.getenv(sm_env_constants.SM_MODEL_DIR)
     app = flask.Flask(__name__)
     booster = None
     format = None

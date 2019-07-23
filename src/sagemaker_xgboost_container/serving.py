@@ -62,7 +62,7 @@ def default_predict_fn(input_data, model):
         model: XGBoost model loaded in memory by model_fn
     Returns: a prediction
     """
-    output = model.predict(input_data)
+    output = model.predict(input_data, validate_features=False)
     return output
 
 

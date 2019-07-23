@@ -1,9 +1,7 @@
 from __future__ import absolute_import
 import os
 from glob import glob
-from os.path import basename
-from os.path import splitext
-
+from os.path import basename, splitext
 from setuptools import setup, find_packages
 
 
