@@ -45,7 +45,7 @@ Building your image
 utilizes Docker containers to run all training jobs & inference endpoints.
 
 The Docker images are built from the Dockerfiles specified in
-`Docker/ <https://github.com/aws/sagemaker-xgboost-framework/tree/master/docker>`__.
+`Docker/ <https://github.com/aws/sagemaker-xgboost-container/tree/master/docker>`__.
 
 The Docker files are grouped based on XGboost version and separated
 based on Python version and processor type.
@@ -71,14 +71,14 @@ If you want to build your base docker image, then use:
     # All build instructions assume you're building from the root directory of the sagemaker-scikit-learn-container.
 
     # CPU
-    docker build -t xgboost-framework-base:<xgboost-version>-cpu-py3 -f docker/<xgboost-version>/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:<xgboost-version>-cpu-py3 -f docker/<xgboost-version>/base/Dockerfile.cpu .
 
 ::
 
     # Example
 
     # CPU
-    docker build -t xgboost-framework-base:v0.82-cpu-py3 -f docker/v0.82/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:0.90.0-cpu-py3 -f docker/0.90.0/base/Dockerfile.cpu .
 
 
 Final Images
@@ -89,7 +89,7 @@ The "final" Dockerfiles encompass the installation of the SageMaker specific sup
 All "final" Dockerfiles use base images for building.
 
 These "base" images are specified with the naming convention of
-xgboost-framework-base:<xgboost-version>-cpu-py3.
+xgboost-container-base:<xgboost-version>-cpu-py3.
 
 Before building "final" images:
 
@@ -99,14 +99,14 @@ Dockerfile.
 ::
 
     # Create the SageMaker Scikit-learn Container Python package.
-    cd sagemaker-xgboost-framework
+    cd sagemaker-xgboost-container
     python setup.py bdist_wheel --universal
 
 If you want to build "final" Docker images, then use:
 
 ::
 
-    # All build instructions assume you're building from the root directory of the sagemaker-xgboost-framework.
+    # All build instructions assume you're building from the root directory of the sagemaker-xgboost-container.
 
     # CPU
     docker build -t <image_name>:<tag> -f docker/<xgboost-version>/final/Dockerfile.cpu .
@@ -116,7 +116,7 @@ If you want to build "final" Docker images, then use:
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-framework:0.82-cpu-py3 -f docker/0.82/final/Dockerfile.cpu .
+    docker build -t preprod-xgboost-container:0.90.0-cpu-py3 -f docker/0.90.0/final/Dockerfile.cpu .
 
 Running the tests
 -----------------
@@ -126,12 +126,12 @@ dependencies.
 
 ::
 
-    git clone https://github.com/aws/sagemaker-xgboost-framework.git
-    cd sagemaker-xgboost-framework
+    git clone https://github.com/aws/sagemaker-xgboost-container.git
+    cd sagemaker-xgboost-container
     pip install -e .[test]
 
 Tests are defined in
-`test/ <https://github.com/aws/sagemaker-xgboost-framework/tree/master/test>`__
+`test/ <https://github.com/aws/sagemaker-xgboost-container/tree/master/test>`__
 and include unit, local integration, and SageMaker integration tests.
 
 Unit Tests
@@ -159,7 +159,7 @@ Running local integration tests require `Docker <https://www.docker.com/>`__ and
 credentials <https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/setup-credentials.html>`__,
 as the local integration tests make calls to a couple AWS services. The local integration tests and
 SageMaker integration tests require configurations specified within their respective
-`conftest.py <https://github.com/aws/sagemaker-xgboost-framework/blob/master/test/conftest.py>`__.
+`conftest.py <https://github.com/aws/sagemaker-xgboost-container/blob/master/test/conftest.py>`__.
 
 Before running local integration tests:
 
@@ -219,7 +219,7 @@ SageMaker <https://aws.amazon.com/sagemaker/>`__, then use:
 
     # Example
     pytest test/integration/sagemaker --aws-id 12345678910 \
-                           --docker-base-name preprod-xgboost-framework \
+                           --docker-base-name preprod-xgboost-container \
                            --instance-type ml.m4.xlarge \
                            --tag 1.0
 
@@ -227,7 +227,7 @@ Contributing
 ------------
 
 Please read
-`CONTRIBUTING.md <https://github.com/aws/sagemaker-xgboost-framework/blob/master/CONTRIBUTING.md>`__
+`CONTRIBUTING.md <https://github.com/aws/sagemaker-xgboost-container/blob/master/CONTRIBUTING.md>`__
 for details on our code of conduct, and the process for submitting pull
 requests to us.
 
