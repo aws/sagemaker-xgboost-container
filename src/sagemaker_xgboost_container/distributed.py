@@ -47,7 +47,8 @@ def wait_hostname_resolution(sm_hosts):
 
 
 def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
-              first_port=None, second_port=None, update_rabit_args=False):
+              first_port=None, second_port=None, max_connect_attempts=None,
+              connect_retry_timeout=3, update_rabit_args=False):
     """Run execution function after initializing dmlc/rabit.
 
     This method initializes rabit twice:
@@ -64,11 +65,18 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
     :param current_host:
     :param first_port: Port to use for the initial rabit initialization. If None, Rabit defaults this to 9099
     :param second_port: Port to use for second rabit initialization. If None, this increments previous port by 1
+    :param max_connect_attempts
+    :param connect_retry_timeout
     :param update_rabit_args: Boolean to nclude rabit information to args. If True, the following is added:
                                 is_distributed
                                 is_master
     """
-    with Rabit(hosts=hosts, current_host=current_host, port=first_port) as rabit:
+    with Rabit(
+            hosts=hosts,
+            current_host=current_host,
+            port=first_port,
+            max_connect_attempts=max_connect_attempts,
+            connect_retry_timeout=connect_retry_timeout) as rabit:
         hosts_with_data = rabit.synchronize({'host': rabit.current_host, 'include_in_training': include_in_training})
         hosts_with_data = [record['host'] for record in hosts_with_data if record['include_in_training']]
 
@@ -84,9 +92,12 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
     if len(hosts_with_data) > 1:
         # Set up Rabit with nodes that have data and an unused port so that previous slaves don't confuse it
         # with the previous rabit configuration
-        with Rabit(hosts=hosts_with_data,
-                   current_host=current_host,
-                   port=second_rabit_port) as cluster:
+        with Rabit(
+                hosts=hosts_with_data,
+                current_host=current_host,
+                port=second_rabit_port,
+                max_connect_attempts=max_connect_attempts,
+                connect_retry_timeout=connect_retry_timeout) as cluster:
             if update_rabit_args:
                 args.update({'is_master': cluster.is_master})
             exec_fun(**args)
@@ -246,9 +257,12 @@ class Rabit(object):
         # breaks (at least on Mac OS X) if the server is not running before it
         # begins to try to connect (its internal retries fail because they reuse
         # the same socket instead of creating a new one).
+        #
+        # if self.max_connect_attempts is None, this will loop indefinitely.
         attempt = 0
         successful_connection = False
-        while attempt < self.max_connect_attempts and not successful_connection:
+        while (not successful_connection and
+               (not self.max_connect_attempts or attempt < self.max_connect_attempts)):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
                     self.logger.debug("Checking if RabitTracker is available.")
