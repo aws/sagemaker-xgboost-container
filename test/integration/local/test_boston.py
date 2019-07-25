@@ -19,7 +19,8 @@ def test_xgboost_boston_single_machine(docker_image, opt_ml):
     local_mode.train(customer_script, data_dir, docker_image, opt_ml,
                      hyperparameters=hyperparameters, source_dir=boston_path)
 
-    files = ['model/xgb-boston.model', 'output/success', 'output/data/cv_results.csv',
+    files = ['model/xgb-boston.model',
+             'output/data/cv_results.csv',
              'output/data/feature-importance-plot.png']
 
     assert not local_mode.file_exists(opt_ml, 'output/failure'), 'Failure happened'
