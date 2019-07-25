@@ -78,7 +78,7 @@ If you want to build your base docker image, then use:
     # Example
 
     # CPU
-    docker build -t xgboost-container-base:0.90-1-cpu-py3 -f docker/0.90.0/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:0.90-1-cpu-py3 -f docker/0.90-1/base/Dockerfile.cpu .
 
 
 Final Images
@@ -116,7 +116,7 @@ If you want to build "final" Docker images, then use:
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-container:0.90-1-cpu-py3 -f docker/0.90.0/final/Dockerfile.cpu .
+    docker build -t preprod-xgboost-container:0.90-1-cpu-py3 -f docker/0.90-1/final/Dockerfile.cpu .
 
 Running the tests
 -----------------
@@ -181,9 +181,9 @@ If you want to run local integration tests, then use:
 
     # Example
     pytest test/integration/local --docker-base-name preprod-xgboost-framework \
-                      --tag 1.0 \
+                      --tag 0.90-1-cpu-py3 \
                       --py-version 3 \
-                      --framework-version 0.82
+                      --framework-version 0.90-1
 
 SageMaker Integration Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
