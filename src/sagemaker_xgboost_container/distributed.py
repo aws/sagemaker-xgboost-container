@@ -160,7 +160,7 @@ class Rabit(object):
                  current_host=None,
                  master_host=None,
                  port=None,
-                 max_connect_attempts=10,
+                 max_connect_attempts=None,
                  connect_retry_timeout=3):
         """Context manager for rabit initialization.
 
@@ -169,8 +169,10 @@ class Rabit(object):
         :param master_host: Master host hostname. If not provided, use alphabetically first hostname amongst hosts
                             to ensure determinism in choosing master node.
         :param port: Port to connect to master, if not specified use 9099.
-        :param max_connect_attempts:
-        :param connect_retry_timeout:
+        :param max_connect_attempts: Number of times to try connecting to RabitTracker. If this arg is set
+                            to None, try indefinitely.
+        :param connect_retry_timeout: Timeout value when attempting to connect to RabitTracker.
+                            This will be ignored if max_connect_attempt is None
         """
         # Get the host information. This is used to identify the master host
         # that will run the RabitTracker and also to work out how many clients/slaves
@@ -262,7 +264,7 @@ class Rabit(object):
         attempt = 0
         successful_connection = False
         while (not successful_connection and
-               (not self.max_connect_attempts or attempt < self.max_connect_attempts)):
+               (self.max_connect_attempts is None or attempt < self.max_connect_attempts)):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
                     self.logger.debug("Checking if RabitTracker is available.")

@@ -18,7 +18,6 @@ import re
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.constants import sm_env_constants
 
 
 CSV = 'csv'

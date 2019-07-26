@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import sys
+import time
 
 from test.utils.test_utils import find_two_open_ports
 from multiprocessing import Process, Queue
@@ -19,14 +20,37 @@ def synchronize_fn(host_count, port, master, idx, q):
     sys.exit(0)
 
 
-def rabit_run_fn(host_count, is_run, first_port, second_port, master, idx, q):
+def rabit_run_fn(host_count, is_run, first_port, second_port, master, idx, q,
+                 max_connect_attempts=None, connect_retry_timeout=3):
     hosts = ['127.0.0.1'] + ['localhost' for _ in range(host_count - 1)]
     current_host = '127.0.0.1' if master else 'localhost'
     args_dict = dict(obj=idx)
 
     distributed.rabit_run(
-        q.put, args_dict, is_run, hosts, current_host, first_port, second_port, update_rabit_args=False)
+        q.put, args_dict, is_run, hosts, current_host, first_port, second_port,
+        max_connect_attempts=max_connect_attempts, connect_retry_timeout=connect_retry_timeout,
+        update_rabit_args=False)
+
     sys.exit(0)
+
+
+def rabit_run_delay_master(host_count, is_run, first_port, second_port, master, idx, q, max_connect_attempts):
+    if master:
+        time.sleep(10)
+
+    rabit_run_fn(host_count, is_run, first_port, second_port, master, idx, q,
+                 max_connect_attempts=max_connect_attempts)
+
+
+def rabit_run_fail(test_fn, host_count, is_run, first_port, second_port, master, idx, q,
+                   max_connect_attempts=None):
+    try:
+        test_fn(host_count, is_run, first_port, second_port, master, idx, q,
+                max_connect_attempts=max_connect_attempts)
+
+        raise Exception("This rabit run should fail!")
+    except Exception as e:
+        q.put("{} {}".format(idx, str(e)))
 
 
 def test_integration_rabit_synchronize():
@@ -95,3 +119,46 @@ def test_rabit_run_exclude_one_host():
         num_responses += 1
 
     assert len(expected_results) == 0
+
+
+def test_rabit_delay_master():
+    q = Queue()
+
+    first_port, second_port = find_two_open_ports()
+
+    host_count = 5
+    host_list = range(host_count)
+    expected_results = [idx for idx in host_list]
+
+    for idx in host_list:
+        p = Process(
+            target=rabit_run_delay_master, args=(host_count, True, first_port, second_port, idx == 0, idx, q, None))
+        p.start()
+
+    num_responses = 0
+    while num_responses < host_count:
+        response = q.get(timeout=20)
+        expected_results.remove(response)
+        num_responses += 1
+
+    assert len(expected_results) == 0
+
+
+def test_rabit_run_fail_set_negative_max_retry():
+    q = Queue()
+
+    first_port, second_port = find_two_open_ports()
+
+    host_count = 5
+    host_list = range(host_count)
+
+    for idx in host_list:
+        p = Process(target=rabit_run_fail, args=(
+            rabit_run_fn, host_count, True, first_port, second_port, idx == 0, idx, q, -1))
+        p.start()
+
+    num_responses = 0
+    while num_responses < host_count:
+        host_result = q.get(timeout=10)
+        assert "Failed to connect to Rabit Tracker" in host_result
+        num_responses += 1
