@@ -207,7 +207,10 @@ class Rabit(object):
             self.logger.debug("Using provided port: {}".format(port))
         self.port = port
 
-        self.max_connect_attempts = max_connect_attempts
+        if max_connect_attempts is None or max_connect_attempts > 0:
+            self.max_connect_attempts = max_connect_attempts
+        else:
+            raise ValueError("max_connect_attempts must be None or an integer greater than 0.")
         self.connect_retry_timeout = connect_retry_timeout
 
     def start(self):

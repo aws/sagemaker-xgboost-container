@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-
+import pytest
 import sys
 import time
 
@@ -144,7 +144,8 @@ def test_rabit_delay_master():
     assert len(expected_results) == 0
 
 
-def test_rabit_run_fail_set_negative_max_retry():
+@pytest.mark.parametrize("bad_max_retry_attempts", [0, -1])
+def test_rabit_run_fail_bad_max_retry_attempts(bad_max_retry_attempts):
     q = Queue()
 
     first_port, second_port = find_two_open_ports()
@@ -154,11 +155,11 @@ def test_rabit_run_fail_set_negative_max_retry():
 
     for idx in host_list:
         p = Process(target=rabit_run_fail, args=(
-            rabit_run_fn, host_count, True, first_port, second_port, idx == 0, idx, q, -1))
+            rabit_run_fn, host_count, True, first_port, second_port, idx == 0, idx, q, bad_max_retry_attempts))
         p.start()
 
     num_responses = 0
     while num_responses < host_count:
         host_result = q.get(timeout=10)
-        assert "Failed to connect to Rabit Tracker" in host_result
+        assert "max_connect_attempts must be None or an integer greater than 0." in host_result
         num_responses += 1
