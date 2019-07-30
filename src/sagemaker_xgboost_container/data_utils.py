@@ -176,7 +176,11 @@ def get_libsvm_dmatrix(files_path):
 
 
 def get_size_validated_dmatrix(train_path, validate_path, file_type, csv_weights=0):
-    train_files_size = get_size(train_path)
+    if train_path:
+        train_files_size = get_size(train_path)
+    else:
+        train_files_size = 0
+
     if validate_path:
         val_files_size = get_size(validate_path)
     else:
@@ -191,9 +195,9 @@ def get_size_validated_dmatrix(train_path, validate_path, file_type, csv_weights
     else:
         dtrain = None
 
-    if validate_path and val_files_size > 0:
+    if val_files_size > 0:
         validate_file_format(validate_path, file_type)
-        dval = get_dmatrix(validate_path, file_type, csv_weights=csv_weights)
+        dval = get_dmatrix(validate_path, file_type)
     else:
         dval = None
 

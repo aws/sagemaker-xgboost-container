@@ -21,7 +21,7 @@ class TestTrainUtils(unittest.TestCase):
 
     def setUp(self):
         path = os.path.abspath(__file__)
-        self.resource_path = os.path.join(os.path.dirname(path), 'resources')
+        self.resource_path = os.path.join(os.path.dirname(path), '..', 'resources')
 
     def test_get_libsvm_dmatrix_no_weights(self):
         libsvm_path = os.path.join(self.resource_path, 'libsvm')
@@ -29,7 +29,7 @@ class TestTrainUtils(unittest.TestCase):
         single_node_dmatrix = data_utils.get_libsvm_dmatrix(libsvm_path)
 
         self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(40, single_node_dmatrix.num_row())
+        self.assertEqual(5, single_node_dmatrix.num_row())
 
         no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 
@@ -41,7 +41,7 @@ class TestTrainUtils(unittest.TestCase):
         single_node_dmatrix = data_utils.get_libsvm_dmatrix(libsvm_path)
 
         self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(40, single_node_dmatrix.num_row())
+        self.assertEqual(5, single_node_dmatrix.num_row())
 
         no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 
@@ -53,7 +53,7 @@ class TestTrainUtils(unittest.TestCase):
         single_node_dmatrix = data_utils.get_csv_dmatrix(csv_path, 0)
 
         self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(40, single_node_dmatrix.num_row())
+        self.assertEqual(5, single_node_dmatrix.num_row())
 
         no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 
@@ -65,7 +65,7 @@ class TestTrainUtils(unittest.TestCase):
         single_node_dmatrix = data_utils.get_csv_dmatrix(csv_path, 1)
 
         self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(40, single_node_dmatrix.num_row())
+        self.assertEqual(5, single_node_dmatrix.num_row())
 
         no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 

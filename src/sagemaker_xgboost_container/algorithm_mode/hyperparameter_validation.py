@@ -21,7 +21,9 @@ def initialize(metrics):
         if dependencies.get('booster') == 'gblinear':
             # validate only one linear updater is selected
             if not (len(value) == 1 and value[0] in valid_linear_plugins):
-                raise exc.UserError("Linear updater should be one of these options: 'shotgun', 'coor_descent'.")
+                raise exc.UserError("Linear updater should be one of these options: {}.".format(
+                    ', '.join("'{0}'".format(valid_updater for valid_updater in valid_linear_plugins))
+                ))
         elif dependencies.get('process_type') == 'update':
             if not all(x in valid_process_update_plugins for x in value):
                 raise exc.UserError("process_type 'update' can only be used with updater 'refresh' and 'prune'")
