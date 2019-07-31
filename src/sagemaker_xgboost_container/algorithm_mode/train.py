@@ -23,9 +23,7 @@ from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
-from sagemaker_xgboost_container.constants.xgb_constants import LOGISTIC_REGRESSION_LABEL_RANGE_ERROR, \
-    MULTI_CLASS_LABEL_RANGE_ERROR, FEATURE_MISMATCH_ERROR, LABEL_PREDICTION_SIZE_MISMATCH, ONLY_POS_OR_NEG_SAMPLES, \
-    BASE_SCORE_RANGE_ERROR, POISSON_REGRESSION_ERROR, TWEEDIE_REGRESSION_ERROR, REG_LAMBDA_ERROR
+from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 
 
 logger = logging.getLogger(__name__)
@@ -65,6 +63,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     csv_weights = validated_train_config.get("csv_weights", 0)
 
     dtrain, dval = get_size_validated_dmatrix(train_path, val_path, file_type, csv_weights)
+    with_validation = data_config.get('validation', None)
 
     train_args = dict(
         train_cfg=validated_train_config,
@@ -87,11 +86,14 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
                               hosts=sm_hosts, current_host=sm_current_host, update_rabit_args=True)
     elif num_hosts == 1:
         if dtrain:
+            if with_validation:
+                if not dval:
+                    raise exc.UserError("No data in validation channel path {}".format(val_path))
             logging.info("Single node training.")
             train_args.update({'is_master': True})
             train_job(**train_args)
         else:
-            exc.UserError("No data in training channel path {}".format(train_path))
+            raise exc.UserError("No data in training channel path {}".format(train_path))
     else:
         raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
@@ -134,37 +136,12 @@ def train_job(train_cfg, dtrain, dval, model_dir, is_master):
         bst = xgb.train(train_cfg, dtrain, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds)
     except Exception as e:
+        for customer_error_message in CUSTOMER_ERRORS:
+            if customer_error_message in str(e):
+                raise exc.UserError(str(e))
+
         exception_prefix = "XGB train call failed with exception"
-        if LOGISTIC_REGRESSION_LABEL_RANGE_ERROR in e.message:
-            raise exc.UserError(
-                "Label must be in [0,1] for logistic regression task. If input is in csv format, ensure the first "
-                "column is the label.")
-        elif MULTI_CLASS_LABEL_RANGE_ERROR in e.message:
-            raise exc.UserError(
-                "Label must be in [0, num_class) for multi classification task. If input is in csv format, "
-                "ensure the first column is the label.")
-        elif FEATURE_MISMATCH_ERROR in e.message:
-            raise exc.UserError(
-                "Feature names/Number of features mismatched between training and validation input. Please check "
-                "features in training and validation data.")
-        elif LABEL_PREDICTION_SIZE_MISMATCH in e.message:
-            raise exc.UserError(
-                "Given label size mismatched with prediction size. Please ensure the first column is label and the "
-                "correct metric is applied.")
-        elif ONLY_POS_OR_NEG_SAMPLES in e.message:
-            raise exc.UserError(
-                "Metric 'auc' cannot be computed with all positive or all negative samples. Please ensure labels in "
-                "the datasets contain both positive and negative samples.")
-        elif BASE_SCORE_RANGE_ERROR in e.message:
-            raise exc.UserError("Base_score must be in (0,1) for logistic objective function.")
-        elif POISSON_REGRESSION_ERROR in e.message:
-            raise exc.UserError("For Poisson Regression, label must be non-negative")
-        elif TWEEDIE_REGRESSION_ERROR in e.message:
-            raise exc.UserError("For Tweedie Regression, label must be non-negative")
-        elif REG_LAMBDA_ERROR in e.message:
-            raise exc.UserError("Parameter reg_lambda should be greater equal to 0")
-        else:
-            raise exc.AlgorithmError("{}:\n {}".format(exception_prefix, e.message))
+        raise exc.AlgorithmError("{}:\n {}".format(exception_prefix, str(e)))
 
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
