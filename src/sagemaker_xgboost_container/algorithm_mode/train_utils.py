@@ -19,11 +19,11 @@ HPO_SEPARATOR = ':'
 
 # These are helper functions for parsing the list of metrics to be outputted
 def get_union_metrics(metric_a, metric_b):
-    """Union metric_a and metric_b
+    """Union of metric_a and metric_b
 
     :param metric_a: list
     :param metric_b: list
-    :return: union metrics list from metric_a and metric_b
+    :return: Union metrics list from metric_a and metric_b
     """
     if metric_a is None and metric_b is None:
         return None

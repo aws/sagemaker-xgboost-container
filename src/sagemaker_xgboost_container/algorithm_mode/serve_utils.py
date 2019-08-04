@@ -8,6 +8,5 @@ def get_content_type(request):
     content_type = tokens[0].strip()
     if content_type not in ['text/csv', 'text/libsvm', 'text/x-libsvm']:
         raise exceptions.UserError("Content-type {} not supported. "
-                                   "Supported content-type is text/csv, text/libsvm"
-                                   .format(content_type))
+                                   "Supported content-type is text/csv, text/libsvm".format(content_type))
     return content_type

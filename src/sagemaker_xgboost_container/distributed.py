@@ -33,7 +33,7 @@ LOCAL_HOSTNAME = '127.0.0.1'
        wait_exponential_multiplier=100,
        wait_exponential_max=30000)
 def _dns_lookup(host):
-    """ Retrying dns lookup on host """
+    """Retrying dns lookup on host """
     return socket.gethostbyname(host)
 
 
@@ -67,8 +67,7 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
     :param second_port: Port to use for second rabit initialization. If None, this increments previous port by 1
     :param max_connect_attempts
     :param connect_retry_timeout
-    :param update_rabit_args: Boolean to nclude rabit information to args. If True, the following is added:
-                                is_distributed
+    :param update_rabit_args: Boolean to include rabit information to args. If True, the following is added:
                                 is_master
     """
     with Rabit(
