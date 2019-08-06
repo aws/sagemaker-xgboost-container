@@ -17,7 +17,7 @@ import os
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size
+from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path
 from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
@@ -29,7 +29,7 @@ from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 logger = logging.getLogger(__name__)
 
 
-def get_validated_dmatrices(train_path, validate_path, file_type, csv_weights=0):
+def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights=0):
     """Get training and validation Data Matrices for XGBoost training.
 
     Check size and format of both training and validation data channels, and return parsed
@@ -37,7 +37,7 @@ def get_validated_dmatrices(train_path, validate_path, file_type, csv_weights=0)
 
     :param train_path:
     :param validate_path:
-    :param file_type: Content type of data. Supports 'libsvm' or 'csv'
+    :param content_type: Content type of data. Supports 'libsvm' or 'csv'
     :param csv_weights: 1 if instance weights are in the second column of csv data files; otherwise, 0
     :return: Parsed xgb.DMatrix
     """
@@ -47,8 +47,13 @@ def get_validated_dmatrices(train_path, validate_path, file_type, csv_weights=0)
     logging.debug("File size need to be processed in the node: {}mb.".format(
         round((train_files_size + val_files_size) / (1024 * 1024), 2)))
 
-    train_dmatrix = get_dmatrix(train_path, file_type, csv_weights=csv_weights) if train_files_size > 0 else None
-    val_dmatrix = get_dmatrix(validate_path, file_type) if val_files_size > 0 else None
+    if train_files_size > 0:
+        validate_data_file_path(train_path, content_type)
+    if val_files_size > 0:
+        validate_data_file_path(validate_path, content_type)
+
+    train_dmatrix = get_dmatrix(train_path, content_type, csv_weights=csv_weights) if train_files_size > 0 else None
+    val_dmatrix = get_dmatrix(validate_path, content_type) if val_files_size > 0 else None
 
     return train_dmatrix, val_dmatrix
 
@@ -123,7 +128,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
 def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, is_master):
     """Train and save XGBoost model using data on current node.
 
-    If doing distributed training, XGBoost will use Rabit to sync the trained model between each boosting iteration.
+    If doing distributed training, XGBoost will use rabit to sync the trained model between each boosting iteration.
     Trained model is only saved if 'is_master' is True.
 
     :param train_cfg: Training hyperparameter configurations

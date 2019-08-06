@@ -27,7 +27,7 @@ LIBSVM = 'libsvm'
 
 INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType:" \
                              " 'csv', 'libsvm', 'text/csv', 'text/libsvm', 'text/x-libsvm'."
-INVALID_CONTENT_FORMAT_ERROR = "First line of data file '{line_snippet}...' of file '{file_name}' is not " \
+INVALID_CONTENT_FORMAT_ERROR = "First line '{line_snippet}...' of file '{file_name}' is not " \
                                "'{content_type}' format. Please ensure the file is in '{content_type}' format."
 
 
@@ -107,6 +107,10 @@ def _get_num_valid_libsvm_features(libsvm_line):
     split_line = libsvm_line.split(' ')
     num_sparse_features = 0
 
+    if not _is_valid_libsvm_label(split_line[0]):
+        logging.error("{} does not follow LIBSVM label format <label>(:<weight>).".format(split_line[0]))
+        return -1
+
     if len(split_line) > 1:
         for idx in range(1, len(split_line)):
             if ':' not in split_line[idx]:
@@ -120,6 +124,28 @@ def _get_num_valid_libsvm_features(libsvm_line):
         return num_sparse_features
     else:
         return 0
+
+
+def _is_valid_libsvm_label(libsvm_label):
+    """Check if LIBSVM label is formatted like so:
+
+    <label> if just label
+    <label>:<instance_weight> if label and instance weight both exist
+
+    :param libsvm_label:
+    """
+    split_label = libsvm_label.split(':')
+
+    if len(split_label) <= 2:
+        for label_part in split_label:
+            try:
+                float(label_part)
+            except ValueError:
+                return False
+    else:
+        return False
+
+    return True
 
 
 def _validate_csv_format(file_path):

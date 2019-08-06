@@ -63,7 +63,7 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
                                 all the hosts in the cluster know which hosts to include during training.
     :param hosts:
     :param current_host:
-    :param first_port: Port to use for the initial rabit initialization. If None, Rabit defaults this to 9099
+    :param first_port: Port to use for the initial rabit initialization. If None, rabit defaults this to 9099
     :param second_port: Port to use for second rabit initialization. If None, this increments previous port by 1
     :param max_connect_attempts
     :param connect_retry_timeout
@@ -89,7 +89,7 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
     second_rabit_port = second_port if second_port else previous_port + 1
 
     if len(hosts_with_data) > 1:
-        # Set up Rabit with nodes that have data and an unused port so that previous slaves don't confuse it
+        # Set up rabit with nodes that have data and an unused port so that previous slaves don't confuse it
         # with the previous rabit configuration
         with Rabit(
                 hosts=hosts_with_data,
@@ -224,7 +224,7 @@ class Rabit(object):
         if self.is_master_host:
             self.logger.debug("Master host. Starting Rabit Tracker.")
             # The Rabit Tracker is a Python script that is responsible for
-            # allowing each instance of Rabit to find its peers and organize
+            # allowing each instance of rabit to find its peers and organize
             # itself in to a ring for all-reduce. It supports primitive failure
             # recovery modes.
             #
@@ -236,7 +236,7 @@ class Rabit(object):
                                                       port_end=self.port + 1)
 
             # Useful logging to ensure that the tracker has started.
-            # These are the key-value config pairs that each of the Rabit slaves
+            # These are the key-value config pairs that each of the rabit slaves
             # should be initialized with. Since we have deterministically allocated
             # the master host, its port, and the number of workers, we don't need
             # to pass these out-of-band to each slave; but rely on the fact
@@ -289,16 +289,16 @@ class Rabit(object):
                     'DMLC_TRACKER_URI={}'.format(self.master_host).encode(),
                     'DMLC_TRACKER_PORT={}'.format(self.port).encode()])
 
-        # We can check that the Rabit instance has successfully connected to the
+        # We can check that the rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).
         # This should be unique for each instance.
         self.logger.debug("Rabit started - Rank {}".format(rabit.get_rank()))
         self.logger.debug("Executing user code")
 
         # We can now run user-code. Since XGBoost runs in the same process space
-        # it will use the same instance of Rabit that we have configured. It has
+        # it will use the same instance of rabit that we have configured. It has
         # a number of checks throughout the learning process to see if it is running
-        # in distributed mode by calling Rabit APIs. If it is it will do the
+        # in distributed mode by calling rabit APIs. If it is it will do the
         # synchronization automatically.
         #
         # Hence we can now execute any XGBoost specific training code and it
@@ -312,7 +312,7 @@ class Rabit(object):
         """
         self.logger.debug("Shutting down parameter server.")
 
-        # This is the call that actually shuts down the Rabit server; and when
+        # This is the call that actually shuts down the rabit server; and when
         # all of the slaves have been shut down then the RabitTracker will close
         # /shutdown itself.
         rabit.finalize()
