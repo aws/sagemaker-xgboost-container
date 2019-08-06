@@ -26,6 +26,9 @@ from xgboost import rabit
 # This should point to xgb when the tracker is updated upstream
 from sagemaker_xgboost_container.dmlc_patch import tracker
 
+from sagemaker_algorithm_toolkit import exceptions as exc
+from sagemaker_xgboost_container.data_utils import get_validated_dmatrices
+
 LOCAL_HOSTNAME = '127.0.0.1'
 
 
@@ -46,7 +49,70 @@ def wait_hostname_resolution(sm_hosts):
         _dns_lookup(host)
 
 
-def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
+def _get_longer_feature_names(train_dmatrix, val_dmatrix):
+    """Get the longer feature names between training and validation DMatrices.
+
+    When training on distributed LIBSVM data, hosts might have different feature_names due to the sparsity of the data.
+    Synchronizing the feature_names of all hosts to manually set the feature_names to ensure all hosts have
+    the same data format.
+    """
+    train_feature_names = [] if not train_dmatrix else train_dmatrix.feature_names
+    val_feature_names = [] if not val_dmatrix else val_dmatrix.feature_names
+
+    if len(val_feature_names) > len(train_feature_names):
+        return val_feature_names
+    else:
+        return train_feature_names
+
+
+def _reduce_feature_names(feature_names_collection):
+    """Get the longest feature_names in list of feature_names.
+
+    When training on distributed LIBSVM data, hosts might have different feature_names due to the sparsity of the data.
+    Synchronizing the feature_names of all hosts to manually set the feature_names to ensure all hosts have
+    the same data format.
+    :param feature_names_collection: list of feature_names from all hosts
+    :return: longest feature_names
+    """
+    if len(feature_names_collection) > 1:
+        longest_len = 0
+        longest_feature_names = None
+
+        for feature_names in feature_names_collection:
+            current_feature_len = len(feature_names)
+            if not longest_feature_names or current_feature_len > longest_len:
+                longest_feature_names = feature_names
+                longest_len = current_feature_len
+
+        return longest_feature_names
+    elif len(feature_names_collection) == 1:
+        return feature_names_collection[0]
+    else:
+        raise exc.AlgorithmError("No feature_names to compare.")
+
+
+def get_synchronized_dmatrix(train_path, val_path, file_type, csv_weights, hosts, current_host,
+                             port=None, max_connect_attempts=None, connect_retry_timeout=3):
+    train_dmatrix, val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type, csv_weights)
+
+    with Rabit(
+            hosts=hosts,
+            current_host=current_host,
+            port=port,
+            max_connect_attempts=max_connect_attempts,
+            connect_retry_timeout=connect_retry_timeout) as rabit:
+        feature_names = _get_longer_feature_names(train_dmatrix, val_dmatrix)
+        cluster_feature_names = rabit.synchronize({
+            'host': rabit.current_host,
+            'feature_names': feature_names})
+
+    final_feature_names = _reduce_feature_names([
+        record['feature_names'] for record in cluster_feature_names if record['feature_names']])
+
+    return get_validated_dmatrices(train_path, val_path, file_type, csv_weights, final_feature_names)
+
+
+def rabit_run(exec_fun, train_dmatrix, val_dmatrix, args, include_in_training, hosts, current_host,
               first_port=None, second_port=None, max_connect_attempts=None,
               connect_retry_timeout=3, update_rabit_args=False):
     """Run execution function after initializing dmlc/rabit.
@@ -56,8 +122,10 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
         2. Run distributed xgb train() with just the hosts from above.
 
     :param exec_fun: Function to run while rabit is initialized. xgb.train() must run in the same process space
-                    in order to utilize rabit initialization. Note that the execution function must also take the args
-                    'is_distributed' and 'is_master'.
+                    in order to utilize rabit initialization. Note that the execution function must also take the arg
+                     'is_master'.
+    :param train_dmatrix:
+    :param val_dmatrix:
     :param args: Arguments to run execution function.
     :param include_in_training: Boolean if the current hosts should be used in training. This is done here so that
                                 all the hosts in the cluster know which hosts to include during training.
@@ -97,9 +165,20 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
                 port=second_rabit_port,
                 max_connect_attempts=max_connect_attempts,
                 connect_retry_timeout=connect_retry_timeout) as cluster:
+            feature_names = _get_longer_feature_names(train_dmatrix, val_dmatrix)
+            cluster_feature_names = cluster.synchronize({'host': cluster.current_host, 'feature_names': feature_names})
+            final_feature_names = _reduce_feature_names([
+                record['feature_names'] for record in cluster_feature_names if record['feature_names']])
+
+            logging.info("Using features: {}".format(str(final_feature_names)))
+
+            train_dmatrix.feature_names = final_feature_names
+            if val_dmatrix:
+                val_dmatrix.feature_names = final_feature_names
+
             if update_rabit_args:
                 args.update({'is_master': cluster.is_master})
-            exec_fun(**args)
+            exec_fun(train_dmatrix=train_dmatrix, val_dmatrix=val_dmatrix, **args)
 
     elif len(hosts_with_data) == 1:
         logging.debug("Only 1 host with training data, "

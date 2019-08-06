@@ -202,7 +202,7 @@ def validate_data_file_path(data_path, content_type):
                 _validate_libsvm_format(data_file_path)
 
 
-def get_csv_dmatrix(files_path, csv_weights):
+def get_csv_dmatrix(files_path, csv_weights, feature_names):
     """Get Data Matrix from CSV files.
 
     Infer the delimiter of data from first line of first data file.
@@ -220,30 +220,33 @@ def get_csv_dmatrix(files_path, csv_weights):
     try:
         if csv_weights == 1:
             dmatrix = xgb.DMatrix(
-                '{}?format=csv&label_column=0&delimiter={}&weight_column=1'.format(files_path, delimiter))
+                '{}?format=csv&label_column=0&delimiter={}&weight_column=1'.format(files_path, delimiter),
+                feature_names=feature_names)
         else:
-            dmatrix = xgb.DMatrix('{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter))
+            dmatrix = xgb.DMatrix(
+                '{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter), feature_names=feature_names)
 
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
     return dmatrix
 
 
-def get_libsvm_dmatrix(files_path):
+def get_libsvm_dmatrix(files_path, feature_names):
     """Get DMatrix from libsvm file path.
 
     :param files_path: File path where LIBSVM formatted training data resides, either directory or file
+    :param feature_names: Feature names. Defaults to inferred feature names
     :return: xgb.DMatrix
     """
     try:
-        dmatrix = xgb.DMatrix(files_path)
+        dmatrix = xgb.DMatrix(files_path, feature_names=feature_names)
     except Exception as e:
         raise exc.UserError("Failed to load libsvm data with exception:\n{}".format(e))
 
     return dmatrix
 
 
-def get_dmatrix(data_path, content_type, csv_weights=0):
+def get_dmatrix(data_path, content_type, csv_weights=0, feature_names=None):
     """Create Data Matrix from CSV or LIBSVM file.
 
     Assumes that sanity validation for content type has been done.
@@ -252,6 +255,7 @@ def get_dmatrix(data_path, content_type, csv_weights=0):
     :param content_type:
     :param csv_weights: Only used if file_type is 'csv'.
                         1 if the instance weights are in the second column of csv file; otherwise, 0
+    :param feature_names: Feature names. Defaults to inferred feature names
     :return: xgb.DMatrix
     """
     if not os.path.exists(data_path):
@@ -265,9 +269,9 @@ def get_dmatrix(data_path, content_type, csv_weights=0):
                     files_path = root
                     break
         if content_type.lower() == CSV:
-            dmatrix = get_csv_dmatrix(files_path, csv_weights)
+            dmatrix = get_csv_dmatrix(files_path, csv_weights, feature_names)
         elif content_type.lower() == LIBSVM:
-            dmatrix = get_libsvm_dmatrix(files_path)
+            dmatrix = get_libsvm_dmatrix(files_path, feature_names)
 
         if dmatrix.get_label().size == 0:
             raise exc.UserError(
@@ -300,3 +304,30 @@ def get_size(data_path):
                     file_path = os.path.join(root, current_file)
                     total_size += os.path.getsize(file_path)
             return total_size
+
+
+def get_validated_dmatrices(train_path, validate_path, file_type, csv_weights=0, feature_names=None):
+    """Get training and validation Data Matrices for XGBoost training.
+
+    Check size and format of both training and validation data channels, and return parsed
+    Data Matrices.
+
+    :param train_path:
+    :param validate_path:
+    :param file_type: Content type of data. Supports 'libsvm' or 'csv'
+    :param csv_weights: 1 if instance weights are in the second column of csv data files; otherwise, 0
+    :param feature_names: Feature weights to use. Defaults to native feature generation.
+    :return: Parsed xgb.DMatrix
+    """
+    train_files_size = get_size(train_path) if train_path else 0
+    val_files_size = get_size(validate_path) if validate_path else 0
+
+    logging.debug("File size need to be processed in the node: {}mb.".format(
+        round((train_files_size + val_files_size) / (1024 * 1024), 2)))
+
+    train_dmatrix = get_dmatrix(
+        train_path, file_type, csv_weights=csv_weights, feature_names=feature_names) if train_files_size > 0 else None
+    val_dmatrix = get_dmatrix(
+        validate_path, file_type, feature_names=feature_names) if val_files_size > 0 else None
+
+    return train_dmatrix, val_dmatrix

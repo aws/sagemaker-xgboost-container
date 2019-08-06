@@ -17,7 +17,7 @@ import os
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size
+from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, get_validated_dmatrices
 from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
@@ -27,30 +27,6 @@ from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_validated_dmatrices(train_path, validate_path, file_type, csv_weights=0):
-    """Get training and validation Data Matrices for XGBoost training.
-
-    Check size and format of both training and validation data channels, and return parsed
-    Data Matrices.
-
-    :param train_path:
-    :param validate_path:
-    :param file_type: Content type of data. Supports 'libsvm' or 'csv'
-    :param csv_weights: 1 if instance weights are in the second column of csv data files; otherwise, 0
-    :return: Parsed xgb.DMatrix
-    """
-    train_files_size = get_size(train_path) if train_path else 0
-    val_files_size = get_size(validate_path) if validate_path else 0
-
-    logging.debug("File size need to be processed in the node: {}mb.".format(
-        round((train_files_size + val_files_size) / (1024 * 1024), 2)))
-
-    train_dmatrix = get_dmatrix(train_path, file_type, csv_weights=csv_weights) if train_files_size > 0 else None
-    val_dmatrix = get_dmatrix(validate_path, file_type) if val_files_size > 0 else None
-
-    return train_dmatrix, val_dmatrix
 
 
 def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, sm_hosts, sm_current_host):
@@ -89,8 +65,6 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
 
     train_args = dict(
         train_cfg=validated_train_config,
-        train_dmatrix=train_dmatrix,
-        val_dmatrix=val_dmatrix,
         model_dir=model_dir)
 
     # Obtain information about training resources to determine whether to set up Rabit or not
@@ -101,10 +75,16 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
         logging.info("Distributed node training with {} hosts: {}".format(num_hosts, sm_hosts))
         distributed.wait_hostname_resolution(sm_hosts)
 
+        train_dmatrix, val_dmatrix = distributed.get_synchronized_dmatrix(
+            train_path=train_path, val_path=val_path, file_type=file_type, csv_weights=csv_weights,
+            hosts=sm_hosts, current_host=sm_current_host)
+
         if not train_dmatrix:
             logging.warning("Host {} does not have data. Will broadcast to cluster and will not be used in distributed"
                             " training.".format(sm_current_host))
-        distributed.rabit_run(exec_fun=train_job, args=train_args, include_in_training=(train_dmatrix is not None),
+
+        distributed.rabit_run(exec_fun=train_job, train_dmatrix=train_dmatrix, val_dmatrix=val_dmatrix,
+                              args=train_args, include_in_training=(train_dmatrix is not None),
                               hosts=sm_hosts, current_host=sm_current_host, update_rabit_args=True)
     elif num_hosts == 1:
         if train_dmatrix:
@@ -112,25 +92,26 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
                 if not val_dmatrix:
                     raise exc.UserError("No data in validation channel path {}".format(val_path))
             logging.info("Single node training.")
-            train_args.update({'is_master': True})
-            train_job(**train_args)
+
+            train_job(train_dmatrix=train_dmatrix, val_dmatrix=val_dmatrix, train_cfg=validated_train_config,
+                      model_dir=model_dir, do_save_model=True)
         else:
             raise exc.UserError("No data in training channel path {}".format(train_path))
     else:
         raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
 
-def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, is_master):
+def train_job(train_dmatrix, val_dmatrix, train_cfg, model_dir, do_save_model):
     """Train and save XGBoost model using data on current node.
 
     If doing distributed training, XGBoost will use Rabit to sync the trained model between each boosting iteration.
     Trained model is only saved if 'is_master' is True.
 
-    :param train_cfg: Training hyperparameter configurations
     :param train_dmatrix: Training Data Matrix
     :param val_dmatrix: Validation Data Matrix
+    :param train_cfg: Training hyperparameter configurations
     :param model_dir: Directory where model will be saved
-    :param is_master: True if single node training, or the current node is the master node in distributed training.
+    :param do_save_model: True if single node training, or the current node is the master node in distributed training.
     """
     # Parse arguments for train() API
     early_stopping_rounds = train_cfg.get('early_stopping_rounds')
@@ -170,7 +151,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, is_master):
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
-    if is_master:
+    if do_save_model:
         model_location = model_dir + '/xgboost-model'
         pkl.dump(bst, open(model_location, 'wb'))
         logging.debug("Stored trained model at {}".format(model_location))
