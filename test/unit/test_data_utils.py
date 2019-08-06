@@ -14,6 +14,7 @@ from __future__ import absolute_import
 import unittest
 import os
 
+from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils
 
 
@@ -23,50 +24,61 @@ class TestTrainUtils(unittest.TestCase):
         path = os.path.abspath(__file__)
         self.resource_path = os.path.join(os.path.dirname(path), '..', 'resources')
 
-    def test_get_libsvm_dmatrix_no_weights(self):
-        libsvm_path = os.path.join(self.resource_path, 'libsvm')
+    def test_get_content_type(self):
+        self.assertEqual('libsvm', data_utils.get_content_type('libsvm'))
+        self.assertEqual('libsvm', data_utils.get_content_type('text/libsvm'))
+        self.assertEqual('libsvm', data_utils.get_content_type('text/x-libsvm'))
 
-        single_node_dmatrix = data_utils.get_libsvm_dmatrix(libsvm_path)
+        self.assertEqual('csv', data_utils.get_content_type('csv'))
+        self.assertEqual('csv', data_utils.get_content_type('text/csv'))
 
-        self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(5, single_node_dmatrix.num_row())
+        with self.assertRaises(exc.UserError):
+            data_utils.get_content_type('incorrect_format')
 
-        no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+    def test_validate_csv_files(self):
+        csv_file_paths = ['train.csv', 'train.csv.weights', 'csv_files']
 
-        self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+        for file_path in csv_file_paths:
+            with self.subTest(file_path=file_path):
+                csv_path = os.path.join(self.resource_path, 'csv', file_path)
+                data_utils.validate_data_file_path(csv_path, 'csv')
 
-    def test_get_libsvm_dmatrix_weights(self):
-        libsvm_path = os.path.join(self.resource_path, 'libsvm-weights')
+    def test_validate_libsvm_files(self):
+        libsvm_file_paths = ['train.libsvm', 'train.libsvm.weights', 'libsvm_files']
 
-        single_node_dmatrix = data_utils.get_libsvm_dmatrix(libsvm_path)
+        for file_path in libsvm_file_paths:
+            with self.subTest(file_path=file_path):
+                csv_path = os.path.join(self.resource_path, 'libsvm', file_path)
+                data_utils.validate_data_file_path(csv_path, 'libsvm')
 
-        self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(5, single_node_dmatrix.num_row())
+    def test_parse_csv_dmatrix(self):
+        csv_file_paths_and_weight = [('train.csv', 0), ('train.csv.weights', 1), ('csv_files', 0)]
 
-        no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+        for file_path, csv_weight in csv_file_paths_and_weight:
+            with self.subTest(file_path=file_path, csv_weight=csv_weight):
+                csv_path = os.path.join(self.resource_path, 'csv', file_path)
 
-        self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+                single_node_dmatrix = data_utils.get_csv_dmatrix(csv_path, csv_weight)
 
-    def test_get_csv_dmatrix_no_weights(self):
-        csv_path = os.path.join(self.resource_path, 'csv')
+                self.assertEqual(5, single_node_dmatrix.num_col())
+                self.assertEqual(5, single_node_dmatrix.num_row())
 
-        single_node_dmatrix = data_utils.get_csv_dmatrix(csv_path, 0)
+                no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 
-        self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(5, single_node_dmatrix.num_row())
+                self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
 
-        no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+    def test_parse_libsvm_dmatrix(self):
+        libsvm_file_paths = ['train.libsvm', 'train.libsvm.weights', 'libsvm_files']
 
-        self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+        for file_path in libsvm_file_paths:
+            with self.subTest(file_path=file_path):
+                libsvm_path = os.path.join(self.resource_path, 'libsvm', file_path)
 
-    def test_get_csv_dmatrix_weights(self):
-        csv_path = os.path.join(self.resource_path, 'csv-weights')
+                single_node_dmatrix = data_utils.get_libsvm_dmatrix(libsvm_path)
 
-        single_node_dmatrix = data_utils.get_csv_dmatrix(csv_path, 1)
+                self.assertEqual(5, single_node_dmatrix.num_col())
+                self.assertEqual(5, single_node_dmatrix.num_row())
 
-        self.assertEqual(5, single_node_dmatrix.num_col())
-        self.assertEqual(5, single_node_dmatrix.num_row())
+                no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 
-        no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
-
-        self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+                self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)

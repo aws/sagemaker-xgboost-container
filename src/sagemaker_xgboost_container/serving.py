@@ -30,7 +30,7 @@ logger.setLevel(logging.DEBUG)
 
 
 def default_model_fn(model_dir):
-    """Loads a model. For XGBoost Framework, a default function to load a model is not provided.
+    """Load a model. For XGBoost Framework, a default function to load a model is not provided.
     Users should provide customized model_fn() in script.
     Args:
         model_dir: a directory where model is saved.
@@ -40,7 +40,7 @@ def default_model_fn(model_dir):
 
 
 def default_input_fn(input_data, content_type):
-    """Takes request data and de-serializes the data into an object for prediction.
+    """Take request data and de-serializes the data into an object for prediction.
         When an InvokeEndpoint operation is made against an Endpoint running SageMaker model server,
         the model server receives two pieces of information:
             - The request Content-Type, for example "application/json"
