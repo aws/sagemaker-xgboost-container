@@ -6,3 +6,4 @@ src/sagemaker_xgboost_container.egg-info/
 .tox
 __pycache__
 .coverage*
+.mypy_cache/
