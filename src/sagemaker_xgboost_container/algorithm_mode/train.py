@@ -23,6 +23,7 @@ from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
+from sagemaker_xgboost_container.algorithm_mode import callback
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 
 
@@ -58,7 +59,8 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     return train_dmatrix, val_dmatrix
 
 
-def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, sm_hosts, sm_current_host):
+def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, sm_hosts, sm_current_host,
+                    checkpoint_config):
     """Train XGBoost in a SageMaker training environment.
 
     Validate hyperparameters and data channel using SageMaker Algorithm Toolkit to fail fast if needed.
@@ -72,6 +74,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     :param model_dir:
     :param sm_hosts:
     :param sm_current_host:
+    :param checkpoint_config:
     """
     metrics = metrics_mod.initialize()
 
@@ -92,11 +95,15 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     validation_channel = data_config.get('validation', None)
     train_dmatrix, val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type, csv_weights)
 
+    # TODO: validate config
+    checkpoint_dir = checkpoint_config.get("LocalPath", None)
+
     train_args = dict(
         train_cfg=validated_train_config,
         train_dmatrix=train_dmatrix,
         val_dmatrix=val_dmatrix,
-        model_dir=model_dir)
+        model_dir=model_dir,
+        checkpoint_dir=checkpoint_dir)
 
     # Obtain information about training resources to determine whether to set up Rabit or not
     num_hosts = len(sm_hosts)
@@ -125,7 +132,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
         raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
 
-def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, is_master):
+def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master):
     """Train and save XGBoost model using data on current node.
 
     If doing distributed training, XGBoost will use rabit to sync the trained model between each boosting iteration.
@@ -156,14 +163,28 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, is_master):
     if val_dmatrix is not None:
         watchlist.append((val_dmatrix, 'validation'))
 
+    xgb_model, iteration = train_utils.load_checkpoint(checkpoint_dir)
+    if not is_master:
+        xgb_model = None
+    num_round -= iteration
+    if xgb_model is not None:
+        logging.info("Checkpoint loaded from %s", xgb_model)
+        logging.info("Resuming from iteration %s", iteration)
+
+    callbacks = []
+    callbacks.append(callback.print_evaluation(start_iteration=iteration))
+    if checkpoint_dir:
+        save_checkpoint = callback.SaveCheckpoint(checkpoint_dir)
+        callbacks.append(save_checkpoint)
+
     logging.info("Train matrix has {} rows".format(train_dmatrix.num_row()))
     if val_dmatrix:
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
 
     try:
-        logging.info(train_cfg)
         bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
-                        early_stopping_rounds=early_stopping_rounds)
+                        early_stopping_rounds=early_stopping_rounds, callbacks=callbacks, xgb_model=xgb_model,
+                        verbose_eval=False)
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):

@@ -7,6 +7,11 @@ ENV SM_INPUT /opt/ml/input
 ENV SM_INPUT_TRAINING_CONFIG_FILE $SM_INPUT/config/hyperparameters.json
 ENV SM_INPUT_DATA_CONFIG_FILE $SM_INPUT/config/inputdataconfig.json
 
+ENV SM_OUTPUT /opt/ml/output
+ENV SM_OUTPUT_DATA_CONFIG_FILE $SM_INPUT/config/outputdataconfig.json
+
+ENV SM_CHECKPOINT_CONFIG_FILE $SM_INPUT/config/checkpointconfig.json
+
 # Set SageMaker serving environment variables
 ENV SM_MODEL_DIR /opt/ml/model
 
