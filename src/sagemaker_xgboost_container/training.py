@@ -37,11 +37,18 @@ def run_algorithm_mode():
         'SM_HOSTS'
         'SM_CURRENT_HOST'
         'SM_MODEL_DIR'
+        'SM_CHECKPOINT_CONFIG_FILE'
 
     """
     # TODO: replace with CSDK constants in sagemaker_containers._env
     train_config = json.load(open(os.getenv(sm_env_constants.SM_INPUT_TRAINING_CONFIG_FILE), "r"))
     data_config = json.load(open(os.getenv(sm_env_constants.SM_INPUT_DATA_CONFIG_FILE), "r"))
+
+    checkpoint_config_file = os.getenv(sm_env_constants.SM_CHECKPOINT_CONFIG_FILE)
+    if os.path.exists(checkpoint_config_file):
+        checkpoint_config = json.load(open(checkpoint_config_file, "r"))
+    else:
+        checkpoint_config = {}
 
     train_path = os.environ[sm_env_constants.SM_CHANNEL_TRAIN]
     val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION)
@@ -54,7 +61,9 @@ def run_algorithm_mode():
     sagemaker_train(
         train_config=train_config, data_config=data_config,
         train_path=train_path, val_path=val_path, model_dir=model_dir,
-        sm_hosts=sm_hosts, sm_current_host=sm_current_host)
+        sm_hosts=sm_hosts, sm_current_host=sm_current_host,
+        checkpoint_config=checkpoint_config
+        )
 
 
 def train(training_environment):

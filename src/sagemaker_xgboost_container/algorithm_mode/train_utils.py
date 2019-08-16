@@ -11,8 +11,13 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import logging
-
+import os
+import re
+from typing import Tuple, Optional
+import xgboost
 from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
+from sagemaker_xgboost_container.algorithm_mode.callback import CHECKPOINT_FILENAME, CHECKPOINT_NUM_DIGITS
+
 
 HPO_SEPARATOR = ':'
 
@@ -83,3 +88,36 @@ class MetricNameComponents(object):
 
 def _get_bytes_to_mb(num_bytes):
     return round(num_bytes / (1024 * 1024), 2)
+
+
+def load_checkpoint(checkpoint_dir: str, max_try=5) -> Tuple[Optional[str], int]:
+    """
+    :param checkpoint_dir: e.g., /opt/ml/checkpoints
+    :return xgb_model: file path of stored xgb model. None if no checkpoint.
+    :return iteration: iterations completed before last checkpoiint.
+    """
+    if not checkpoint_dir or not os.path.exists(checkpoint_dir):
+        return None, 0
+
+    regex = r"^{0}\.\d{{{1}}}$".format(CHECKPOINT_FILENAME, CHECKPOINT_NUM_DIGITS)
+    checkpoints = [f for f in os.listdir(checkpoint_dir) if re.match(regex, f)]
+    if not checkpoints:
+        return None, 0
+    checkpoints.sort()
+
+    xgb_model, iteration = None, 0
+
+    for _ in range(max_try):
+        try:
+            latest_checkpoint = checkpoints.pop()
+            xgb_model = os.path.join(checkpoint_dir, latest_checkpoint)
+            booster = xgboost.Booster()
+            booster.load_model(xgb_model)
+
+            filename, extension = latest_checkpoint.split('.')
+            iteration = int(extension) + 1
+            break
+        except xgboost.core.XGBoostError:
+            logging.debug("Wrong checkpoint model format %s", latest_checkpoint)
+
+    return xgb_model, iteration
