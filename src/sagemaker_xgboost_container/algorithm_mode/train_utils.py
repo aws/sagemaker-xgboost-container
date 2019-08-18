@@ -112,7 +112,7 @@ def load_checkpoint(checkpoint_dir: str, max_try=5) -> Tuple[Optional[str], int]
             booster.load_model(xgb_model)
 
             filename, extension = latest_checkpoint.split('.')
-            iteration = int(extension)
+            iteration = int(extension) + 1
             break
         except xgboost.core.XGBoostError:
             logging.debug("Wrong checkpoint model format %s", latest_checkpoint)

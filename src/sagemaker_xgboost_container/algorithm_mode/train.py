@@ -95,7 +95,6 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     validation_channel = data_config.get('validation', None)
     train_dmatrix, val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type, csv_weights)
 
-    # TODO: validate config
     checkpoint_dir = checkpoint_config.get("LocalPath", None)
 
     train_args = dict(
@@ -174,7 +173,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     callbacks = []
     callbacks.append(callback.print_evaluation(start_iteration=iteration))
     if checkpoint_dir:
-        save_checkpoint = callback.SaveCheckpoint(checkpoint_dir)
+        save_checkpoint = callback.SaveCheckpoint(checkpoint_dir, start_iteration=iteration)
         callbacks.append(save_checkpoint)
 
     logging.info("Train matrix has {} rows".format(train_dmatrix.num_row()))

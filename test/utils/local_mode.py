@@ -38,12 +38,6 @@ CONTAINER_PREFIX = "algo"
 DOCKER_COMPOSE_FILENAME = 'docker-compose.yaml'
 SAGEMAKER_REGION = 'us-west-2'
 
-DEFAULT_HYPERPARAMETERS = {
-    'sagemaker_enable_cloudwatch_metrics': False,
-    'sagemaker_container_log_level': logging.INFO,
-    'sagemaker_region': SAGEMAKER_REGION,
-    'sagemaker_job_name': 'test'
-}
 DEFAULT_HOSTING_ENV = [
     'SAGEMAKER_ENABLE_CLOUDWATCH_METRICS=false',
     'SAGEMAKER_CONTAINER_LOG_LEVEL={}'.format(logging.DEBUG),
@@ -134,7 +128,7 @@ def save_as_json(data, filename):
 
 def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperparameters=None,
           additional_volumes=None, additional_env_vars=None, use_gpu=False, entrypoint=None,
-          source_dir=None):
+          source_dir=None, content_type=None, script_mode=True):
     additional_env_vars = additional_env_vars or []
     additional_volumes = additional_volumes or []
     hyperparameters = hyperparameters or {}
@@ -142,7 +136,8 @@ def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperpa
     tmpdir = create_training(data_dir, customer_script, opt_ml, image_name, additional_volumes,
                              additional_env_vars,
                              hyperparameters, cluster_size, entrypoint=entrypoint,
-                             source_dir=source_dir, use_gpu=use_gpu)
+                             source_dir=source_dir, use_gpu=use_gpu, content_type=content_type,
+                             script_mode=script_mode)
     command = create_docker_command(tmpdir, use_gpu)
     start_docker(tmpdir, command)
     purge()
@@ -256,7 +251,7 @@ def create_docker_command(tmpdir, use_gpu=False, detached=False):
 
 def create_training(data_dir, customer_script, optml, image, additional_volumes,
                     additional_env_vars, additional_hps=None, cluster_size=1, source_dir=None,
-                    entrypoint=None, use_gpu=False):
+                    entrypoint=None, use_gpu=False, content_type=None, script_mode=True):
 
     additional_hps = additional_hps or None
 
@@ -266,10 +261,10 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
     hosts = create_host_names(cluster_size)
     print('creating hosts: {}'.format(hosts))
 
-    config = create_input_data_config(data_dir)
+    config = create_input_data_config(data_dir, content_type=content_type)
     hyperparameters = read_hyperparameters(additional_hps)
 
-    if customer_script:
+    if script_mode:
         timestamp = utils.sagemaker_timestamp()
         s3_script_path = fw_utils.tar_and_upload_dir(session=session,
                                                      bucket=default_bucket(session),
@@ -277,6 +272,10 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
                                                      script=customer_script,
                                                      directory=source_dir)[0]
         hyperparameters.update({
+            'sagemaker_enable_cloudwatch_metrics': False,
+            'sagemaker_container_log_level': logging.INFO,
+            'sagemaker_region': SAGEMAKER_REGION,
+            'sagemaker_job_name': 'test',
             'sagemaker_submit_directory': s3_script_path,
             'sagemaker_program': os.path.basename(customer_script)
         })
@@ -288,6 +287,7 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
         write_hyperparameters(tmpdir, host, hyperparameters)
         write_resource_config(tmpdir, hosts, host)
         write_inputdataconfig(tmpdir, host, config)
+        write_checkpointconfig(tmpdir, host)
 
         shutil.copytree(data_dir, os.path.join(tmpdir, host, 'input', 'data'))
 
@@ -306,6 +306,12 @@ def write_inputdataconfig(path, current_host, inputdataconfig):
     write_json_file(filename, inputdataconfig)
 
 
+def write_checkpointconfig(path, current_host):
+
+    filename = os.path.join(path, current_host, 'input', 'config', 'checkpointconfig.json')
+    write_json_file(filename, {"LocalPath": "/opt/ml/checkpoints"})
+
+
 def write_hyperparameters(path, current_host, hyperparameters):
 
     serialized = {k: json.dumps(v) for k, v in hyperparameters.items()}
@@ -315,22 +321,28 @@ def write_hyperparameters(path, current_host, hyperparameters):
 
 def read_hyperparameters(additonal_hyperparameters=None):
 
-    additonal_hyperparameters = additonal_hyperparameters or {}
-
-    hyperparameters = DEFAULT_HYPERPARAMETERS.copy()
-    hyperparameters.update(additonal_hyperparameters)
+    hyperparameters = additonal_hyperparameters or {}
 
     print('hyperparameters: {}'.format(hyperparameters))
     return hyperparameters
 
 
-def create_input_data_config(data_path):
+def create_input_data_config(data_path, content_type=None):
+
+    if content_type is None:
+        content_type = 'application/octet-stream'
+
     channels = []
     for (_, dirs, _) in os.walk(data_path):
         channels.extend(dirs)
         del dirs
 
-    config = {c: {'ContentType': 'application/octet-stream'} for c in channels}
+    config = {
+        c: {"S3DistributionType": "FullyReplicated",
+            "TrainingInputMode": "File",
+            "ContentType": "libsvm"}
+        for c  in channels}
+
     print('input data config: {}'.format(config))
     return config
 
