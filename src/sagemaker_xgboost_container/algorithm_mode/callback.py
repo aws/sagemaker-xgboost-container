@@ -59,7 +59,30 @@ def print_evaluation(period=1, show_stdv=True, start_iteration=0):
 
 
 class SaveCheckpoint:
-    """Create a callback that saves checkpoints to disk."""
+    """Create a callback that saves checkpoints to disk.
+
+    This class represents the hook which is meant to be used a callback
+    function in XGBoost.
+
+    Example
+    -------
+    >>> save_checkpoint = SaveCheckpoint("/opt/ml/checkpoints")
+    >>> xgboost.train(prams, dtrain, callbacks=[save_checkpoint])
+
+    At the end of each iteration, we save each checkpoint to different files
+    parametrized by the iteration number, e.g., checkpoint.01, checkpoint.02,
+    etc. However, this could result in a large number of files to save locally
+    (and on S3 if used in SageMaker). To save disk space and reduce the amount
+    of data required to be downloaded on resumption, we retain only the N
+    (default 5, spcified by 'max_to_keep') most recent checkpoints.
+
+    To delete stale checkpoints, we use a producer-consumer pattern: we start a
+    daemon thread in the background and maintain a queue of files to delete.
+    There may be a lock on the file if SageMaker is uploading the file; in that
+    case, the file is put back on the queue and we try again later. When
+    training is complete, we put SENTINEL on the queue, and when we see the
+    SENTINEL, we clean up and exit the thread.
+    """
 
     SENTINEL = None
 
@@ -67,7 +90,20 @@ class SaveCheckpoint:
             self, checkpoint_dir: str, max_to_keep: int = 5, start_iteration: int = 0,
             num_round: Optional[int] = None
             ) -> None:
-
+        """
+        Parameters
+        ----------
+        checkpoint_dir: indicates the path to the directory where checkpoints
+            will be saved.  Defaults to /opt/ml/checkpoints on SageMaker.
+        max_to_keep: indicates the maximum number of recent checkpoint files to
+            keep.  As new files are created, older files are deleted.  Defaults
+            to 5 (that is, the 5 most recent checkpoint files are kept.)
+        start_iteration: indicates the round at which the current training
+            started. If xgb_model was loaded from a previous checkpoint, this
+            will be greater than 0 (that is, if the previous training ended
+            after round 19, start_iteration will be 20).
+        num_round: (optional) indicates the number of boosting rounds.
+        """
         self.checkpoint_dir = checkpoint_dir
         self.max_to_keep = max_to_keep
         self.start_iteration = start_iteration
@@ -95,12 +131,13 @@ class SaveCheckpoint:
 
     def start(self) -> None:
 
-        def _delete():
+        def _delete_once(skip_locked_files=True):
 
             for i in iter(self.delete_queue.get, self.SENTINEL):
 
                 path = self.fmt_path(i)
-                if (os.path.isfile(path + FILE_LOCK_SUFFIX)
+                if (skip_locked_files
+                        and os.path.isfile(path + FILE_LOCK_SUFFIX)
                         and not os.path.isfile(path + FILE_SAFE_SUFFIX)):
                     self.delete_queue.put(i)
                     continue
@@ -113,7 +150,20 @@ class SaveCheckpoint:
 
             self.delete_queue.task_done()
 
-        self.thread = threading.Thread(target=_delete, daemon=True)
+        def _delete_twice():
+
+            _delete_once(skip_locked_files=True)
+            # Here, we've reached the end of training because we place sentinel in the
+            # queue at the end of training. We put another sentinel, go through everything
+            # in the queue once again, and try to remove it anyway where there is a lock on
+            # the file or not, because the training is done. On sagemaker, this should send
+            # a delete signal to the agent so that the upload can be canceled and removed
+            # from S3.
+            self.delete_queue.put(self.SENTINEL)
+            _delete_once(skip_locked_files=False)
+
+
+        self.thread = threading.Thread(target=_delete_twice, daemon=True)
         self.thread.start()
 
     def stop(self) -> None:
@@ -122,6 +172,12 @@ class SaveCheckpoint:
         self.thread.join()
 
     def callback(self, env: CallbackEnv) -> None:
+
+        # env.rank: rabit rank of the node/process. master node has rank 0.
+        # env.iteration: current boosting round
+        # env.begin_iteration: round # when training started. this is always 0.
+        # env.end_iteration: round # when training will end. this is always num_round + 1.
+        # env.model: model object
 
         if env.rank != 0:
             logger.debug("Not master (rank = %d). Exiting checkpoint callback.", env.rank)

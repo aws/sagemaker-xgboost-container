@@ -96,6 +96,9 @@ def load_checkpoint(checkpoint_dir: str, max_try=5) -> Tuple[Optional[str], int]
     :return xgb_model: file path of stored xgb model. None if no checkpoint.
     :return iteration: iterations completed before last checkpoiint.
     """
+    if not os.path.exists(checkpoint_dir):
+        return None, 0
+
     regex = r"^{0}\.\d{{{1}}}$".format(CHECKPOINT_FILENAME, CHECKPOINT_NUM_DIGITS)
     checkpoints = [f for f in os.listdir(checkpoint_dir) if re.match(regex, f)]
     if not checkpoints:
