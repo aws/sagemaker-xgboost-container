@@ -163,8 +163,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
         watchlist.append((val_dmatrix, 'validation'))
 
     xgb_model, iteration = train_utils.load_checkpoint(checkpoint_dir)
-    if not is_master:
-        xgb_model = None
     num_round -= iteration
     if xgb_model is not None:
         logging.info("Checkpoint loaded from %s", xgb_model)
