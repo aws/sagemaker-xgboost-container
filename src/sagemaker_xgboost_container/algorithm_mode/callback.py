@@ -162,7 +162,6 @@ class SaveCheckpoint:
             self.delete_queue.put(self.SENTINEL)
             _delete_once(skip_locked_files=False)
 
-
         self.thread = threading.Thread(target=_delete_twice, daemon=True)
         self.thread.start()
 
@@ -193,7 +192,7 @@ class SaveCheckpoint:
         os.rename(tf.name, self.fmt_path(i))
 
         if (i > self.start_iteration + self.max_to_keep
-            and os.path.isfile(self.fmt_path(i - self.max_to_keep))):
+                and os.path.isfile(self.fmt_path(i - self.max_to_keep))):
             self.delete_queue.put(i - self.max_to_keep)
             logger.debug("Checkpoint %d put on delete queue", i - self.max_to_keep)
 
