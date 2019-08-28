@@ -191,7 +191,7 @@ class SaveCheckpoint:
 
         os.rename(tf.name, self.fmt_path(i))
 
-        if (i > self.start_iteration + self.max_to_keep
+        if (i >= self.start_iteration + self.max_to_keep
                 and os.path.isfile(self.fmt_path(i - self.max_to_keep))):
             self.delete_queue.put(i - self.max_to_keep)
             logger.debug("Checkpoint %d put on delete queue", i - self.max_to_keep)

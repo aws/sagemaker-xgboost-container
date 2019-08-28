@@ -100,9 +100,9 @@ def test_xgboost_agaricus_resume(docker_image, opt_ml, capfd):
             script_mode=False)
 
         files = os.listdir(mount_dir)
-        assert len(files) == 5
+        assert len(files) == 10  # previous 5 + latest 5, previous checkpoints are not deleted
         assert all(f.startswith("xgboost-checkpoint.") for f in files)
-        assert all(10 <= int(f.split('.')[1]) < 20 for f in files)
+        assert all(5 <= int(f.split('.')[1]) < 10 or 15 <= int(f.split('.')[1]) < 20 for f in files)
 
     os.remove(temp_file.name)
 
