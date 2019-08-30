@@ -29,11 +29,13 @@ class TestHyperparameterValidation(unittest.TestCase):
             'eval_metric': 'auc'}
 
         auc_invalid_objectives = [
+            'count:poisson',
             'reg:gamma',
             'reg:logistic',
             'reg:squarederror',
             'reg:tweedie',
-            'count:poisson',
+            'multi:softmax',
+            'multi:softprob',
             'survival:cox']
 
         for invalid_objective in auc_invalid_objectives:
