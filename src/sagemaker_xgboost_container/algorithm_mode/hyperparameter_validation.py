@@ -94,7 +94,7 @@ def initialize(metrics):
     @hpv.dependencies_validator(["objective"])
     def eval_metric_dep_validator(value, dependencies):
         if "auc" in value:
-            if not any(metric_type in dependencies["objective"] for metric_type in [
+            if not any(dependencies["objective"].startswith(metric_type) for metric_type in [
                     'binary:', 'rank:']):
                 raise exc.UserError("Metric 'auc' can only be applied for classification and ranking problems.")
 
