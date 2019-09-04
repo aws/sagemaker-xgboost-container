@@ -94,10 +94,9 @@ def initialize(metrics):
     @hpv.dependencies_validator(["objective"])
     def eval_metric_dep_validator(value, dependencies):
         if "auc" in value:
-            if (dependencies["objective"] not in
-                ["binary:logistic", "binary:logitraw", "multi:softmax", "multi:softprob",
-                 "reg:logistic", "rank:pairwise", "binary:hinge"]):
-                raise exc.UserError("Metric 'auc' can only be applied for classification and ranking problem.")
+            if not any(dependencies["objective"].startswith(metric_type) for metric_type in [
+                    'binary:', 'rank:']):
+                raise exc.UserError("Metric 'auc' can only be applied for classification and ranking problems.")
 
     hyperparameters = hpv.Hyperparameters(
         hpv.IntegerHyperparameter(name="num_round", required=True,
@@ -187,8 +186,8 @@ def initialize(metrics):
         hpv.CategoricalHyperparameter(name="objective",
                                       range=["binary:logistic", "binary:logitraw", "binary:hinge",
                                              "count:poisson", "multi:softmax", "multi:softprob",
-                                             "rank:pairwise", "rank:ndcg", "rank:map", "reg:linear", 
-                                             "reg:squarederror", "reg:logistic", "reg:gamma", 
+                                             "rank:pairwise", "rank:ndcg", "rank:map", "reg:linear",
+                                             "reg:squarederror", "reg:logistic", "reg:gamma",
                                              "reg:tweedie", "survival:cox"],
                                       dependencies=objective_validator,
                                       required=False),
