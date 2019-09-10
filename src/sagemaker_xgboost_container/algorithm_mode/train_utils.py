@@ -14,7 +14,7 @@ import logging
 import os
 import re
 from typing import Tuple, Optional
-import xgboost
+import xgboost as xgb
 from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
 from sagemaker_xgboost_container.algorithm_mode.callback import CHECKPOINT_FILENAME, CHECKPOINT_NUM_DIGITS
 
@@ -111,13 +111,13 @@ def load_checkpoint(checkpoint_dir: str, max_try=5) -> Tuple[Optional[str], int]
         try:
             latest_checkpoint = checkpoints.pop()
             xgb_model = os.path.join(checkpoint_dir, latest_checkpoint)
-            booster = xgboost.Booster()
+            booster = xgb.Booster()
             booster.load_model(xgb_model)
 
             filename, extension = latest_checkpoint.split('.')
             iteration = int(extension) + 1
             break
-        except xgboost.core.XGBoostError:
+        except xgb.core.XGBoostError:
             logging.debug("Wrong checkpoint model format %s", latest_checkpoint)
 
     return xgb_model, iteration

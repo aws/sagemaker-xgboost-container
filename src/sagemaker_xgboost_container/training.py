@@ -41,12 +41,15 @@ def run_algorithm_mode():
 
     """
     # TODO: replace with CSDK constants in sagemaker_containers._env
-    train_config = json.load(open(os.getenv(sm_env_constants.SM_INPUT_TRAINING_CONFIG_FILE), "r"))
-    data_config = json.load(open(os.getenv(sm_env_constants.SM_INPUT_DATA_CONFIG_FILE), "r"))
+    with open(os.getenv(sm_env_constants.SM_INPUT_TRAINING_CONFIG_FILE), "r") as f:
+        train_config = json.load(f)
+    with open(os.getenv(sm_env_constants.SM_INPUT_DATA_CONFIG_FILE), "r") as f:
+        data_config = json.load(f)
 
     checkpoint_config_file = os.getenv(sm_env_constants.SM_CHECKPOINT_CONFIG_FILE)
     if os.path.exists(checkpoint_config_file):
-        checkpoint_config = json.load(open(checkpoint_config_file, "r"))
+        with open(checkpoint_config_file, "r") as f:
+            checkpoint_config = json.load(f)
     else:
         checkpoint_config = {}
 
