@@ -162,11 +162,6 @@ def _validate_csv_format(file_path):
         line_to_validate = read_file.readline()
         _get_csv_delimiter(line_to_validate)
 
-        if _get_num_valid_libsvm_features(line_to_validate) > 0:
-            # Throw error if this line can be parsed as LIBSVM formatted line.
-            raise exc.UserError(_get_invalid_csv_error_msg(
-                line_snippet=line_to_validate, file_name=file_path.split('/')[-1]))
-
 
 def _validate_libsvm_format(file_path):
     """Validate that data file is LIBSVM format.

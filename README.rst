@@ -59,7 +59,8 @@ Base Images
 The "base" Dockerfile encompass the installation of the framework and all of the dependencies
 needed.
 
-Tagging scheme is based on <XGBoost-version>-cpu-py3. (e.g. 0.20.0-cpu-py3)
+Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. 0.90-1-cpu-py3), where
+ <SageMaker-XGBoost-version> is comprised of <XGBoost-version>-<SageMaker-version>.
 
 All "final" Dockerfiles build images using base images that use the tagging scheme
 above.
@@ -68,10 +69,10 @@ If you want to build your base docker image, then use:
 
 ::
 
-    # All build instructions assume you're building from the root directory of the sagemaker-scikit-learn-container.
+    # All build instructions assume you're building from the root directory of the sagemaker-xgboost-container.
 
     # CPU
-    docker build -t xgboost-container-base:<xgboost-version>-cpu-py3 -f docker/<xgboost-version>/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3 -f docker/<SageMaker-XGBoost-version>/base/Dockerfile.cpu .
 
 ::
 
@@ -89,7 +90,7 @@ The "final" Dockerfiles encompass the installation of the SageMaker specific sup
 All "final" Dockerfiles use base images for building.
 
 These "base" images are specified with the naming convention of
-xgboost-container-base:<xgboost-version>-cpu-py3.
+xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3.
 
 Before building "final" images:
 
@@ -98,7 +99,7 @@ Dockerfile.
 
 ::
 
-    # Create the SageMaker Scikit-learn Container Python package.
+    # Create the SageMaker XGBoost Container Python package.
     cd sagemaker-xgboost-container
     python setup.py bdist_wheel --universal
 
@@ -148,7 +149,7 @@ If you want to run unit tests, then use:
     # or you can use tox to run unit tests as well as flake8 and code coverage
 
     tox
-    tox -e py3-xgboost0.82,flake8
+    tox -e py3-xgboost0.90,flake8
     tox -e py3-xgboost0.72,py3-xgboostlatest
 
 
