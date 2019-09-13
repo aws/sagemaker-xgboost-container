@@ -13,6 +13,8 @@
 from __future__ import absolute_import
 import unittest
 import os
+import subprocess
+import time
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils
@@ -23,6 +25,7 @@ class TestTrainUtils(unittest.TestCase):
     def setUp(self):
         path = os.path.abspath(__file__)
         self.resource_path = os.path.join(os.path.dirname(path), '..', 'resources')
+        self.utils_path = os.path.join(os.path.dirname(path), '..', 'utils')
 
     def test_get_content_type(self):
         self.assertEqual('libsvm', data_utils.get_content_type('libsvm'))
@@ -78,6 +81,34 @@ class TestTrainUtils(unittest.TestCase):
                 no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 
                 self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+
+    def test_parse_csv_dmatrix_pipe(self):
+        csv_file_paths_and_weight = [('csv_files', 0)]
+
+        for file_path, csv_weight in csv_file_paths_and_weight:
+            with self.subTest(file_path=file_path, csv_weight=csv_weight):
+                csv_path = os.path.join(self.resource_path, 'csv', file_path)
+                pipe_dir = os.path.join(self.resource_path, 'csv/pipe_path')
+                pipe_path = os.path.join(pipe_dir, 'train')
+                os.system('python3 {}/sagemaker_pipe.py train {} {}&'.format(self.utils_path,
+                                                                             csv_path,
+                                                                             pipe_dir))
+
+                time.sleep(1)
+
+                single_node_dmatrix = data_utils.get_csv_dmatrix_pipe_mode(pipe_path, csv_weight)
+
+                self.assertEqual(5, single_node_dmatrix.num_col())
+                self.assertEqual(5, single_node_dmatrix.num_row())
+
+                no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+
+                self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+
+                pids = subprocess.check_output(['pidof', 'python3'])
+                pids = pids.decode('utf-8').split(' ')
+                os.system('kill {}'.format(pids[0]))
+                os.system('rm {}*'.format(pipe_path))
 
     def test_parse_libsvm_dmatrix(self):
         libsvm_file_paths = ['train.libsvm', 'train.libsvm.weights', 'libsvm_files']

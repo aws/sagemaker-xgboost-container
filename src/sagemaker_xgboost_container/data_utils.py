@@ -15,15 +15,21 @@ import csv
 import logging
 import os
 
+import mlio
+import numpy as np
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_containers import _content_types
 from sagemaker_xgboost_container.constants import xgb_content_types
 
+from mlio.integ.numpy import as_numpy
+
+BATCH_SIZE = 4000
 
 CSV = 'csv'
 LIBSVM = 'libsvm'
+
 VALID_CONTENT_TYPES = [CSV, LIBSVM, _content_types.CSV,
                        xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]
 
@@ -238,7 +244,6 @@ def validate_data_file_path(data_path, content_type):
             data_files = [
                 os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path) if _is_data_file(
                     dir_path, file_name)]
-
         if parsed_content_type.lower() == CSV:
             for data_file_path in data_files:
                 _validate_csv_format(data_file_path)
@@ -271,7 +276,41 @@ def get_csv_dmatrix(files_path, csv_weights):
 
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
+
     return dmatrix
+
+
+def get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
+    try:
+        dataset = [mlio.SageMakerPipe(pipe_path)]
+        reader = mlio.CsvReader(dataset=dataset,
+                                batch_size=BATCH_SIZE,
+                                header_row_index=None)
+        examples = []
+        for example in reader:
+            tmp = [as_numpy(feature).squeeze() for feature in example]
+            tmp = np.array(tmp)
+            if len(tmp.shape) > 1:
+                tmp = tmp.T
+            else:
+                tmp = np.reshape(tmp, (1, tmp.shape[0]))
+            examples.append(tmp)
+
+        if examples:
+            data = np.vstack(examples)
+            del examples
+
+            if csv_weights == 1:
+                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weights=data[:, 1])
+            else:
+                dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+
+            return dmatrix
+        else:
+            return None
+
+    except Exception as e:
+        raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
 
 
 def get_libsvm_dmatrix(files_path):
@@ -288,7 +327,7 @@ def get_libsvm_dmatrix(files_path):
     return dmatrix
 
 
-def get_dmatrix(data_path, content_type, csv_weights=0):
+def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     """Create Data Matrix from CSV or LIBSVM file.
 
     Assumes that sanity validation for content type has been done.
@@ -299,22 +338,27 @@ def get_dmatrix(data_path, content_type, csv_weights=0):
                         1 if the instance weights are in the second column of csv file; otherwise, 0
     :return: xgb.DMatrix
     """
-    if not os.path.exists(data_path):
+    if not (os.path.exists(data_path) or (is_pipe and os.path.exists(data_path + '_0'))):
         return None
     else:
         if os.path.isfile(data_path):
             files_path = data_path
-        else:
+        elif not is_pipe:
             for root, dirs, files in os.walk(data_path):
                 if dirs == []:
                     files_path = root
                     break
         if content_type.lower() == CSV:
-            dmatrix = get_csv_dmatrix(files_path, csv_weights)
+            if is_pipe:
+                dmatrix = get_csv_dmatrix_pipe_mode(data_path, csv_weights)
+            else:
+                dmatrix = get_csv_dmatrix(files_path, csv_weights)
         elif content_type.lower() == LIBSVM:
+            if is_pipe:
+                raise exc.UserError("Pipe mode not supported for LibSVM.")
             dmatrix = get_libsvm_dmatrix(files_path)
 
-        if dmatrix.get_label().size == 0:
+        if dmatrix and dmatrix.get_label().size == 0:
             raise exc.UserError(
                 "Got input data without labels. Please check the input data set. "
                 "If training job is running on multiple instances, please switch "
@@ -324,12 +368,15 @@ def get_dmatrix(data_path, content_type, csv_weights=0):
     return dmatrix
 
 
-def get_size(data_path):
+def get_size(data_path, is_pipe=False):
     """Return size of data files at dir_path.
 
     :param data_path: Either directory or file
-    :return: Size of data
+    :return: Size of data or 1 if sagemaker pipe found
     """
+    if is_pipe and os.path.exists(data_path + '_0'):
+        logging.info('Pipe path {} found.'.format(data_path))
+        return 1
     if not os.path.exists(data_path):
         logging.info('Path {} does not exist!'.format(data_path))
         return 0
