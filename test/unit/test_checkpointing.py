@@ -5,7 +5,7 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
-from sagemaker_xgboost_container.algorithm_mode.callback import SaveCheckpoint
+from sagemaker_xgboost_container.checkpointing import SaveCheckpoint
 
 
 class TestSaveCheckpoint(unittest.TestCase):
@@ -37,7 +37,7 @@ class TestSaveCheckpoint(unittest.TestCase):
         callback = SaveCheckpoint(checkpoint_dir=self.test_dir)
         callback(env)
 
-        file_path = os.path.join(self.test_dir, "xgboost-checkpoint.000000000042")
+        file_path = os.path.join(self.test_dir, "xgboost-checkpoint.42")
         self.assertTrue(os.path.isfile(file_path))
         self.assertTrue(len(os.listdir(self.test_dir)), 1)
 
@@ -61,9 +61,9 @@ class TestSaveCheckpoint(unittest.TestCase):
             callback(env)
 
         expected_files = [
-            "xgboost-checkpoint.000000000097",
-            "xgboost-checkpoint.000000000098",
-            "xgboost-checkpoint.000000000099"]
+            "xgboost-checkpoint.97",
+            "xgboost-checkpoint.98",
+            "xgboost-checkpoint.99"]
 
         for fname in expected_files:
             fpath = os.path.join(self.test_dir, fname)
@@ -93,9 +93,9 @@ class TestSaveCheckpoint(unittest.TestCase):
             callback(env)
 
         expected_files = [
-            "xgboost-checkpoint.000000000017",
-            "xgboost-checkpoint.000000000018",
-            "xgboost-checkpoint.000000000019"]
+            "xgboost-checkpoint.17",
+            "xgboost-checkpoint.18",
+            "xgboost-checkpoint.19"]
 
         for fname in expected_files:
             fpath = os.path.join(self.test_dir, fname)
@@ -105,7 +105,15 @@ class TestSaveCheckpoint(unittest.TestCase):
 
     @patch("xgboost.core.CallbackEnv")
     def test_SaveCheckpoint_uploading(self, env):
-
+        # This function attempts to simulate the file uploading procedure used
+        # by SageMaker. When a file is being uploaded by SM, SM will create a
+        # marker file (file name + .sagemaker-uploading) to indicate that the
+        # file is being uploaded. SM will also create another marker file
+        # (file name + .sagemaker-uploaded) when the upload is completed. Thus,
+        # the background thread in SaveCheckpoint will skip deleting a file and
+        # try again later if there is a marker file <filename>.sagemaker-uploading
+        # and only attempt to delete a file when the marker file
+        # <filename>.sagemaker-uploaded is present.
         max_to_keep = 1
         end_iteration = 100
 
@@ -118,41 +126,41 @@ class TestSaveCheckpoint(unittest.TestCase):
 
         env.iteration = 0
         callback(env)
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000000")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.0")
         self.assertTrue(os.path.isfile(fpath))
 
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000000")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.0")
         pathlib.Path(fpath + ".sagemaker-uploading").touch()
 
         env.iteration = 1
         callback(env)
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000001")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.1")
         self.assertTrue(os.path.isfile(fpath))
 
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000001")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.1")
         pathlib.Path(fpath + ".sagemaker-uploading").touch()
 
         env.iteration = 2
         callback(env)
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000002")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.2")
         self.assertTrue(os.path.isfile(fpath))
 
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000000")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.0")
         os.remove(fpath + ".sagemaker-uploading")
         time.sleep(0.5)
         self.assertFalse(os.path.isfile(fpath))
 
         env.iteration = 3
         callback(env)
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000003")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.3")
         self.assertTrue(os.path.isfile(fpath))
 
         env.iteration = 4
         callback(env)
-        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.000000000004")
+        fpath = os.path.join(self.test_dir, "xgboost-checkpoint.4")
         self.assertTrue(os.path.isfile(fpath))
 
-        self.assertFalse(os.path.isfile("xgboost-checkpoint.000000000004"))
+        self.assertFalse(os.path.isfile("xgboost-checkpoint.4"))
 
         callback.stop()
 

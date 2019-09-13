@@ -19,11 +19,11 @@ import xgboost as xgb
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path
 from sagemaker_xgboost_container import distributed
+from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
-from sagemaker_xgboost_container.algorithm_mode import callback
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 
 
@@ -162,16 +162,16 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     if val_dmatrix is not None:
         watchlist.append((val_dmatrix, 'validation'))
 
-    xgb_model, iteration = train_utils.load_checkpoint(checkpoint_dir)
+    xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
     num_round -= iteration
     if xgb_model is not None:
         logging.info("Checkpoint loaded from %s", xgb_model)
         logging.info("Resuming from iteration %s", iteration)
 
     callbacks = []
-    callbacks.append(callback.print_evaluation(start_iteration=iteration))
+    callbacks.append(checkpointing.print_checkpointed_evaluation(start_iteration=iteration))
     if checkpoint_dir:
-        save_checkpoint = callback.SaveCheckpoint(checkpoint_dir, start_iteration=iteration)
+        save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
         callbacks.append(save_checkpoint)
 
     logging.info("Train matrix has {} rows".format(train_dmatrix.num_row()))
