@@ -10,6 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import cgi
 import csv
 import logging
 import os
@@ -23,10 +24,12 @@ from sagemaker_xgboost_container.constants import xgb_content_types
 
 CSV = 'csv'
 LIBSVM = 'libsvm'
+VALID_CONTENT_TYPES = [CSV, LIBSVM, _content_types.CSV,
+                       xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]
 
 
-INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType:" \
-                             " 'csv', 'libsvm', 'text/csv', 'text/libsvm', 'text/x-libsvm'."
+INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType: " + \
+                             ", ".join(['%s' % c for c in VALID_CONTENT_TYPES]) + "."
 INVALID_CONTENT_FORMAT_ERROR = "First line '{line_snippet}...' of file '{file_name}' is not " \
                                "'{content_type}' format. Please ensure the file is in '{content_type}' format."
 
@@ -43,13 +46,34 @@ def _get_invalid_csv_error_msg(line_snippet, file_name):
     return INVALID_CONTENT_FORMAT_ERROR.format(line_snippet=line_snippet, file_name=file_name, content_type='CSV')
 
 
+def _get_csv_content_type(content_type_cfg_val):
+    """
+    Return CSV if content_type_cfg_val is
+    * 'csv',
+    * 'text/csv',
+    * 'text/csv; ...' with valid parameters
+    """
+    if content_type_cfg_val in [CSV, _content_types.CSV]:
+        # Allow 'csv' and 'text/csv'
+        return CSV
+    else:
+        content_type, params = cgi.parse_header(content_type_cfg_val)
+        if content_type == _content_types.CSV:
+            if params.get('label_size') is not None and params['label_size'] != '1':
+                msg = "{} is not an accepted csv ContentType. "\
+                      "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
+                raise exc.UserError(msg)
+            return CSV
+    raise exc.UserError(_get_invalid_content_type_error_msg(content_type_cfg_val))
+
+
 def get_content_type(content_type_cfg_val):
     """Get content type from data config.
 
     Assumes that training and validation data have the same content type.
 
     ['libsvm', 'text/libsvm', 'text/x-libsvm'] will return 'libsvm'
-    ['csv', 'text/csv'] will return 'csv'
+    ['csv', 'text/csv', 'text/csv; label_size=1'] will return 'csv'
 
     :param content_type_cfg_val
     :return: Parsed content type
@@ -58,8 +82,8 @@ def get_content_type(content_type_cfg_val):
         return LIBSVM
     elif content_type_cfg_val.lower() in [LIBSVM, xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]:
         return LIBSVM
-    elif content_type_cfg_val.lower() in [CSV, _content_types.CSV]:
-        return CSV
+    elif CSV in content_type_cfg_val.lower():
+        return _get_csv_content_type(content_type_cfg_val.lower())
     else:
         raise exc.UserError(_get_invalid_content_type_error_msg(content_type_cfg_val))
 
