@@ -24,8 +24,8 @@ def train(train_args, checkpoint_dir):
     """Convenience function for script mode.
 
     Instead of running xgb.train(params, dtrain, ...), users can enable
-    checkpointing in script mode by running this function by creating a
-    dictionary of xgb.train arguments:
+    checkpointing in script mode by creating a dictionary of xgb.train
+    arguments:
 
     train_args = dict(
         params=params,
@@ -38,6 +38,8 @@ def train(train_args, checkpoint_dir):
 
     bst = checkpointing.train(train_args)
     """
+    train_args = train_args.copy()
+
     xgb_model, start_iteration = load_checkpoint(checkpoint_dir)
 
     if xgb_model is not None:
