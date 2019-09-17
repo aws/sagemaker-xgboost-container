@@ -5,6 +5,9 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
+import numpy as np
+import xgboost as xgb
+from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.checkpointing import SaveCheckpoint
 
 
@@ -167,3 +170,61 @@ class TestSaveCheckpoint(unittest.TestCase):
     def tearDown(self):
 
         shutil.rmtree(self.test_dir, ignore_errors=True)
+
+
+def test_train(tmpdir, caplog):
+
+    X_train = np.random.random(size=(100, 5))
+    y_train = np.random.random(size=(100, 1))
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+
+    X_test = np.random.random(size=(100, 5))
+    y_test = np.random.random(size=(100, 1))
+    dtest = xgb.DMatrix(X_test, label=y_test)
+
+    params = {"objective": "binary:logistic"}
+
+    train_args = dict(
+        params=params,
+        dtrain=dtrain,
+        num_boost_round=20,
+        evals=[(dtrain, 'train'), (dtest, 'test')]
+    )
+    checkpoint_dir = os.path.join(tmpdir, "test_checkpoints")
+
+    checkpointing.train(train_args, checkpoint_dir)
+
+    # check that original train_args was not modified
+    assert "callbacks" not in train_args
+    assert "xgb_model" not in train_args
+    assert "verbose_eval" not in train_args
+    assert train_args["params"] == {"objective": "binary:logistic"}
+    assert train_args["dtrain"] is dtrain
+    assert train_args["num_boost_round"] == 20
+    # check that checkpoints were saved
+    expected_files = [
+        "xgboost-checkpoint.15",
+        "xgboost-checkpoint.16",
+        "xgboost-checkpoint.17",
+        "xgboost-checkpoint.18",
+        "xgboost-checkpoint.19"]
+    assert sorted(os.listdir(checkpoint_dir)) == expected_files
+
+    train_args["num_boost_round"] = 30
+    checkpointing.train(train_args, checkpoint_dir)
+
+    assert "callbacks" not in train_args
+    assert "xgb_model" not in train_args
+    assert "verbose_eval" not in train_args
+    assert train_args["num_boost_round"] == 30
+
+    assert "Checkpoint loaded from" in caplog.text
+    assert "Resuming from iteration 20" in caplog.text
+
+    expected_files.extend(
+        ["xgboost-checkpoint.25",
+         "xgboost-checkpoint.26",
+         "xgboost-checkpoint.27",
+         "xgboost-checkpoint.28",
+         "xgboost-checkpoint.29"])
+    assert sorted(os.listdir(checkpoint_dir)) == expected_files
