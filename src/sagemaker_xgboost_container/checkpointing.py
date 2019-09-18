@@ -268,7 +268,7 @@ class SaveCheckpoint(object):
         def _cleanup():
             # Here, we've reached the end of training because we place sentinel in the
             # queue at the end of training. We put another sentinel, go through everything
-            # in the queue once again, and try to remove it anyway whether is a lock on
+            # in the queue once again, and try to remove it anyway whether there is a lock on
             # the file or not, because the training is done. On sagemaker, this should send
             # a delete signal to the agent so that the upload can be canceled and removed
             # from S3, if there are anything remaining in the queue. In normal cases,
