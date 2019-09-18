@@ -196,7 +196,7 @@ class SaveCheckpoint(object):
     SENTINEL = None
 
     def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None):
-        """Inits SaveCheckpoint with checkpoint_dir"""
+        """Init SaveCheckpoint with checkpoint_dir"""
         self.checkpoint_dir = checkpoint_dir
         self.max_to_keep = max_to_keep
         self.start_iteration = start_iteration
@@ -214,17 +214,17 @@ class SaveCheckpoint(object):
         self.start()
 
     def __call__(self, env):
-        """Makes the class callable since it is meant be used as a callback"""
+        """Make the class callable since it is meant be used as a callback"""
         return self.callback(env)
 
     def format_path(self, iteration):
-        """Returns a file path to checkpoint given a iteration number"""
+        """Return a file path to checkpoint given a iteration number"""
         filename = "{}.{}".format(CHECKPOINT_FILENAME, iteration)
         checkpoint_path = os.path.join(self.checkpoint_dir, filename)
         return checkpoint_path
 
     def start(self):
-        """Starts a background thread that deletes old checkpoints
+        """Start a background thread that deletes old checkpoints
 
         To delete stale checkpoints, we use a producer-consumer pattern: we
         start a daemon thread in the background and maintain a queue of files
@@ -239,46 +239,64 @@ class SaveCheckpoint(object):
             uploaded = os.path.isfile(path + FILE_SAFE_SUFFIX)
             return uploading and not uploaded
 
-        def _delete_once(skip_locked_files=True):
+        def _should_skip(path):
+            return not os.path.isfile(path) or path in self.previous_checkpoints
+
+        def _remove(path):
+            try:
+                os.remove(path)
+            except Exception:
+                logger.debug("Failed to delete %s", path)
+            finally:
+                self.delete_queue.task_done()
+
+        def _delete_uploaded_files():
             for iteration in iter(self.delete_queue.get, self.SENTINEL):
                 path = self.format_path(iteration)
-                # if we want to skip files that are still begin uploaded and
-                # SageMaker is uploading the file, we put the file back on the
-                # queue and try again later.
-                if skip_locked_files and _is_uploading(path):
+                if _should_skip(path):
+                    self.delete_queue.task_done()
+                    continue
+                # If SageMaker is still uploading the file, we put the file back on the
+                # queue and try again later. In order to avoid file corruption, we make
+                # best attempt to not delete any files that are still being uploaded.
+                if _is_uploading(path):
                     self.delete_queue.put(iteration)
                     continue
-                try:
-                    os.remove(path)
-                except Exception:
-                    logger.debug("Failed to delete %s", path)
-                finally:
-                    self.delete_queue.task_done()
+                _remove(path)
             self.delete_queue.task_done()
 
-        def _delete_twice():
-            _delete_once(skip_locked_files=True)
+        def _cleanup():
             # Here, we've reached the end of training because we place sentinel in the
             # queue at the end of training. We put another sentinel, go through everything
-            # in the queue once again, and try to remove it anyway where there is a lock on
+            # in the queue once again, and try to remove it anyway whether is a lock on
             # the file or not, because the training is done. On sagemaker, this should send
             # a delete signal to the agent so that the upload can be canceled and removed
-            # from S3.
+            # from S3, if there are anything remaining in the queue. In normal cases,
+            # _cleanup() exits almost immediately and does not do anything.
             self.delete_queue.put(self.SENTINEL)
-            _delete_once(skip_locked_files=False)
+            for iteration in iter(self.delete_queue.get, self.SENTINEL):
+                path = self.format_path(iteration)
+                _remove(path)
+            self.delete_queue.task_done()
 
-        self.thread = threading.Thread(target=_delete_twice, daemon=True)
+        def _delete_uploaded_files_and_cleanup():
+            _delete_uploaded_files()
+            _cleanup()
+
+        self.thread = threading.Thread(
+            target=_delete_uploaded_files_and_cleanup,
+            daemon=True)
         self.thread.start()
 
     def stop(self):
-        """Stops the background thread"""
+        """Stop the background thread"""
         # placing a sentinel in the queue signals that training has ended.
         self.delete_queue.put(self.SENTINEL)
         # training has ended, so join the background back with the main thread.
         self.thread.join()
 
     def _save_checkpoint(self, model, iteration):
-        """Saves checkpoint to a file path formatted with iteration number"""
+        """Save checkpoint to a file path formatted with iteration number"""
         with tempfile.NamedTemporaryFile(
                 dir=self.checkpoint_dir, suffix=TEMP_FILE_SUFFIX, delete=False) as tf:
             model.save_model(tf.name)
@@ -299,19 +317,14 @@ class SaveCheckpoint(object):
         current_iteration = self.start_iteration + env.iteration
         self._save_checkpoint(env.model, current_iteration)
 
-        # At the end of each iteration, we save each checkpoint to different files
-        # parametrized by the iteration number, e.g., checkpoint.1, checkpoint.2,
-        # etc. However, this could result in a large number of files to save locally
-        # (and on S3 if used in SageMaker). To save disk space and reduce the amount
-        # of data required to be downloaded on resumption, we retain only the N
-        # (default 5, spcified by 'max_to_keep') most recent checkpoints.
-        file_to_delete = self.format_path(current_iteration - self.max_to_keep)
-        file_to_delete_exists = os.path.isfile(file_to_delete)
-        if file_to_delete_exists and (file_to_delete not in self.previous_checkpoints):
-            iteration_to_delete = current_iteration - self.max_to_keep
-            self.delete_queue.put(iteration_to_delete)
+        # For example, if we are at iteration 5 and max_to_keep is 5, we no
+        # longer need checkpoint from iteration 0 (i.e., xgboost-checkpoint.0),
+        # so we put iteration_to_delete = 0 on the queue.
+        iteration_to_delete = current_iteration - self.max_to_keep
+        self.delete_queue.put(iteration_to_delete)
 
         offset_iteration = env.end_iteration if self.num_round is None else self.num_round
         training_has_ended = (current_iteration + 1 >= self.start_iteration + offset_iteration)
         if training_has_ended:
             self.stop()
+
