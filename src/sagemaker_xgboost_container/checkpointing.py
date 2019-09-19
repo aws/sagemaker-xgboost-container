@@ -54,29 +54,21 @@ def train(train_args, checkpoint_dir):
     train_args["xgb_model"] = xgb_model
     train_args["callbacks"] = callbacks
     # xgboost's default value for num_boost_round is 10.
+    # If num_boost_round <= 0, xgb.train() doesn't actually train and
+    # immediately returns a Booster object.
     num_boost_round = train_args.get("num_boost_round", 10) - start_iteration
-    # if last checkpoint is greater than num_boost_round, we shouldn't train.
-    train_args["num_boost_round"] = max(0, num_boost_round)
 
     booster = xgb.train(**train_args)
 
     return booster
 
 
-# modified from https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/callback.py
-# The only difference between the following function and the original function in xgboost.callback
-# is the additional 'start_iteration' parameter. 'start_iteration' is used for offsetting the
-# iteration number that appears at the beginning of each evaluation result in the logs.
-# When training starts from iteration 0, the log appears as follows:
-# [0]#011train-rmse:8.10331#011validation-rmse:8.21063
-# [1]#011train-rmse:6.61853#011validation-rmse:6.7193
-# and so on. However, when we use print_checkpointed_evaluation(start_iteration=42), the very
-# first evaluation result is offset by 42, and the log appears as follows:
-# [42]#011train-rmse:8.10331#011validation-rmse:8.21063
-# [43]#011train-rmse:6.61853#011validation-rmse:6.7193
-# This can be useful when resuming training after loading from a previous checkpoint.
 def print_checkpointed_evaluation(period=1, show_stdv=True, start_iteration=0):
     """Create a callback that print evaluation result.
+
+    This function was modified from https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/callback.py
+    The only difference between the following function and the original function in xgboost.callback
+    is the additional 'start_iteration' parameter.
 
     We print the evaluation results every **period** iterations
     and on the first and the last iterations.
@@ -87,7 +79,10 @@ def print_checkpointed_evaluation(period=1, show_stdv=True, start_iteration=0):
         The period to log the evaluation results
 
     show_stdv : bool, optional
-         Whether show stdv if provided
+        Whether show stdv if provided
+
+    start_iteration: int, optioonal
+        Used for offsetting the iteratoin number that appears at the beginning of each evaluation result in the logs.
 
     Returns
     -------
@@ -327,4 +322,3 @@ class SaveCheckpoint(object):
         training_has_ended = (current_iteration + 1 >= self.start_iteration + offset_iteration)
         if training_has_ended:
             self.stop()
-
