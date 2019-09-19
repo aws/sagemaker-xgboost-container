@@ -228,3 +228,31 @@ def test_train(tmpdir, caplog):
          "xgboost-checkpoint.28",
          "xgboost-checkpoint.29"])
     assert sorted(os.listdir(checkpoint_dir)) == expected_files
+
+
+def test_train_zero_or_negative_rounds(tmpdir, caplog):
+
+    X_train = np.random.random(size=(100, 5))
+    y_train = np.random.random(size=(100, 1))
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+
+    X_test = np.random.random(size=(100, 5))
+    y_test = np.random.random(size=(100, 1))
+    dtest = xgb.DMatrix(X_test, label=y_test)
+
+    params = {"objective": "binary:logistic"}
+
+    train_args = dict(
+        params=params,
+        dtrain=dtrain,
+        num_boost_round=0,
+        evals=[(dtrain, 'train'), (dtest, 'test')]
+    )
+    checkpoint_dir = os.path.join(tmpdir, "test_checkpoints")
+
+    checkpointing.train(train_args, checkpoint_dir)
+    assert not os.listdir(checkpoint_dir)
+
+    train_args["num_boost_round"] = -1
+    checkpointing.train(train_args, checkpoint_dir)
+    assert not os.listdir(checkpoint_dir)

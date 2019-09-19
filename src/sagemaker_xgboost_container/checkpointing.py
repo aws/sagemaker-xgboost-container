@@ -56,7 +56,7 @@ def train(train_args, checkpoint_dir):
     # xgboost's default value for num_boost_round is 10.
     # If num_boost_round <= 0, xgb.train() doesn't actually train and
     # immediately returns a Booster object.
-    num_boost_round = train_args.get("num_boost_round", 10) - start_iteration
+    train_args["num_boost_round"] = train_args.get("num_boost_round", 10) - start_iteration
 
     booster = xgb.train(**train_args)
 
