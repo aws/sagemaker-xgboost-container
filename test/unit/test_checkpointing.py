@@ -250,9 +250,11 @@ def test_train_zero_or_negative_rounds(tmpdir, caplog):
     )
     checkpoint_dir = os.path.join(tmpdir, "test_checkpoints")
 
-    checkpointing.train(train_args, checkpoint_dir)
+    bst = checkpointing.train(train_args, checkpoint_dir)
+    assert isinstance(bst, xgb.Booster)
     assert not os.listdir(checkpoint_dir)
 
     train_args["num_boost_round"] = -1
-    checkpointing.train(train_args, checkpoint_dir)
+    bst = checkpointing.train(train_args, checkpoint_dir)
+    assert isinstance(bst, xgb.Booster)
     assert not os.listdir(checkpoint_dir)
