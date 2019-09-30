@@ -1,5 +1,6 @@
 PyYAML<4.3
 matplotlib
+model-archiver
 numpy
 pandas
 psutil
