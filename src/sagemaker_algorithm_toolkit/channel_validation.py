@@ -13,6 +13,11 @@
 from sagemaker_algorithm_toolkit import exceptions as exc
 
 
+CONTENT_TYPE = "ContentType"
+TRAINING_INPUT_MODE = "TrainingInputMode"
+S3_DIST_TYPE = "S3DistributionType"
+
+
 class Channel(object):
     """Represents a single SageMaker training job channel."""
     FILE_MODE = "File"
@@ -28,7 +33,7 @@ class Channel(object):
         self.supported = set()
 
     def format(self):
-        """Formats channel for SageMaker's CreateAlgorithm API."""
+        """Format channel for SageMaker's CreateAlgorithm API."""
         supported_content_types = list(set(c[0] for c in self.supported))
         supported_input_modes = list(set(c[1] for c in self.supported))
         return {"Name": self.name,
@@ -39,12 +44,12 @@ class Channel(object):
                 }
 
     def add(self, content_type, supported_input_mode, supported_s3_data_distribution_type):
-        """Adds relevant configuration as a supported configuration for the channel."""
+        """Add relevant configuration as a supported configuration for the channel."""
         self.supported.add((content_type, supported_input_mode, supported_s3_data_distribution_type))
 
     def validate(self, value):
-        """Validates the provided configuration against the channel's supported configuration."""
-        if (value["ContentType"], value["TrainingInputMode"], value["S3DistributionType"]) not in self.supported:
+        """Validate the provided configuration against the channel's supported configuration."""
+        if (value[CONTENT_TYPE], value[TRAINING_INPUT_MODE], value[S3_DIST_TYPE]) not in self.supported:
             raise exc.UserError("Channel configuration for '{}' channel is not supported: {}".format(self.name, value))
 
 
@@ -53,13 +58,32 @@ class Channels(object):
 
     def __init__(self, *channels):
         self.channels = channels
+        self.default_content_type = None
+
+    def set_default_content_type(self, default_content_type):
+        self.default_content_type = default_content_type
 
     def format(self):
-        """Formats channels for SageMaker's CreateAlgorithm API."""
+        """Format channels for SageMaker's CreateAlgorithm API."""
         return [channel.format() for channel in self.channels]
 
     def validate(self, user_channels):
-        """Validates the provided user-specified channels at runtime against the channels' supported configuration."""
+        """Validate the provided user-specified channels at runtime against the channels' supported configuration.
+
+        Note that this adds default content type for channels if a default exists.
+
+        :param user_channels: dictionary of channels formatted like so
+                {
+                    "channel_name": {
+                        "ContentType": <content_type>.
+                        "TrainingInputMode": <training_input_mode>,
+                        "S3DistributionType": <s3_dist_type>,
+                        ...
+                    },
+                    "channel_name": {...
+                    }
+                }
+        """
         for channel in self.channels:
             if channel.name not in user_channels:
                 if channel.required:
@@ -71,7 +95,14 @@ class Channels(object):
             try:
                 channel_obj = name_to_channel[channel]
             except KeyError:
-                raise exc.UserError("Extraneous channel found: {}".format(channel_obj))
+                raise exc.UserError("Extraneous channel found: {}".format(channel))
+
+            if CONTENT_TYPE not in value:
+                if self.default_content_type:
+                    value[CONTENT_TYPE] = self.default_content_type
+                else:
+                    raise exc.UserError("Missing content type for channel: {}".format(channel))
+
             channel_obj.validate(value)
             validated_channels[channel] = value
 

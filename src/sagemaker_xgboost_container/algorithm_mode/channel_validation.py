@@ -38,4 +38,7 @@ def initialize():
     code_channel = cv.Channel(name="code", required=False)
     code_channel.add("text/python", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
 
-    return cv.Channels(train_channel, validation_channel, code_channel)
+    data_channels = cv.Channels(train_channel, validation_channel, code_channel)
+    data_channels.set_default_content_type("text/libsvm")
+
+    return data_channels
