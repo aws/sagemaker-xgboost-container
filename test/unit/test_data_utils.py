@@ -31,9 +31,21 @@ class TestTrainUtils(unittest.TestCase):
 
         self.assertEqual('csv', data_utils.get_content_type('csv'))
         self.assertEqual('csv', data_utils.get_content_type('text/csv'))
+        self.assertEqual('csv', data_utils.get_content_type('text/csv; label_size=1'))
+        self.assertEqual('csv', data_utils.get_content_type('text/csv;label_size = 1'))
+        self.assertEqual('csv', data_utils.get_content_type('text/csv; charset=utf-8'))
+        self.assertEqual('csv', data_utils.get_content_type('text/csv; label_size=1; charset=utf-8'))
 
         with self.assertRaises(exc.UserError):
             data_utils.get_content_type('incorrect_format')
+        with self.assertRaises(exc.UserError):
+            data_utils.get_content_type('text/csv; label_size=5')
+        with self.assertRaises(exc.UserError):
+            data_utils.get_content_type('text/csv; label_size=1=1')
+        with self.assertRaises(exc.UserError):
+            data_utils.get_content_type('text/csv; label_size=1; label_size=2')
+        with self.assertRaises(exc.UserError):
+            data_utils.get_content_type('label_size=1; text/csv')
 
     def test_validate_csv_files(self):
         csv_file_paths = ['train.csv', 'train.csv.weights', 'csv_files']
