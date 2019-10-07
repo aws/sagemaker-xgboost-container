@@ -39,6 +39,9 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual('csv', data_utils.get_content_type('text/csv; charset=utf-8'))
         self.assertEqual('csv', data_utils.get_content_type('text/csv; label_size=1; charset=utf-8'))
 
+        self.assertEqual('parquet', data_utils.get_content_type('parquet'))
+        self.assertEqual('parquet', data_utils.get_content_type('application/x-parquet'))
+
         with self.assertRaises(exc.UserError):
             data_utils.get_content_type('incorrect_format')
         with self.assertRaises(exc.UserError):
@@ -125,3 +128,47 @@ class TestTrainUtils(unittest.TestCase):
                 no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
 
                 self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+
+    def test_parse_parquet_dmatrix(self):
+        pq_file_paths = ['train.parquet', 'pq_files']
+
+        for file_path in pq_file_paths:
+            with self.subTest(file_path=file_path):
+                pq_path = os.path.join(self.resource_path, 'parquet', file_path)
+
+                single_node_dmatrix = data_utils.get_parquet_dmatrix(pq_path)
+
+                self.assertEqual(5, single_node_dmatrix.num_col())
+                self.assertEqual(5, single_node_dmatrix.num_row())
+
+                no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+
+                self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+
+    def test_parse_parquet_dmatrix_pipe(self):
+        pq_file_paths = ['pq_files']
+
+        for file_path in pq_file_paths:
+            with self.subTest(file_path=file_path):
+                pq_path = os.path.join(self.resource_path, 'parquet', file_path)
+                pipe_dir = os.path.join(self.resource_path, 'parquet/pipe_path')
+                pipe_path = os.path.join(pipe_dir, 'train')
+                os.system('python3 {}/sagemaker_pipe.py train {} {}&'.format(self.utils_path,
+                                                                             pq_path,
+                                                                             pipe_dir))
+
+                time.sleep(1)
+
+                single_node_dmatrix = data_utils.get_parquet_dmatrix_pipe_mode(pipe_path)
+
+                self.assertEqual(5, single_node_dmatrix.num_col())
+                self.assertEqual(5, single_node_dmatrix.num_row())
+
+                no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+
+                self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+
+                pids = subprocess.check_output(['pidof', 'python3'])
+                pids = pids.decode('utf-8').split(' ')
+                os.system('kill {}'.format(pids[0]))
+                os.system('rm {}*'.format(pipe_path))

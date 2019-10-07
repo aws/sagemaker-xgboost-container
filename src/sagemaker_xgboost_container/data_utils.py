@@ -17,6 +17,8 @@ import os
 
 import mlio
 import numpy as np
+import pandas as pd
+import pyarrow.parquet as pq
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
@@ -24,14 +26,17 @@ from sagemaker_containers import _content_types
 from sagemaker_xgboost_container.constants import xgb_content_types
 
 from mlio.integ.numpy import as_numpy
+from mlio.integ.arrow import as_arrow_file
 
 BATCH_SIZE = 4000
 
 CSV = 'csv'
 LIBSVM = 'libsvm'
+PARQUET = 'parquet'
 
-VALID_CONTENT_TYPES = [CSV, LIBSVM, _content_types.CSV,
-                       xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]
+VALID_CONTENT_TYPES = [CSV, LIBSVM, PARQUET, _content_types.CSV,
+                       xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM,
+                       xgb_content_types.X_PARQUET]
 
 
 INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType: " + \
@@ -90,6 +95,8 @@ def get_content_type(content_type_cfg_val):
         return LIBSVM
     elif CSV in content_type_cfg_val.lower():
         return _get_csv_content_type(content_type_cfg_val.lower())
+    elif content_type_cfg_val.lower() in [PARQUET, xgb_content_types.X_PARQUET]:
+        return PARQUET
     else:
         raise exc.UserError(_get_invalid_content_type_error_msg(content_type_cfg_val))
 
@@ -250,6 +257,9 @@ def validate_data_file_path(data_path, content_type):
         elif parsed_content_type.lower() == LIBSVM:
             for data_file_path in data_files:
                 _validate_libsvm_format(data_file_path)
+        elif parsed_content_type.lower() == PARQUET:
+            # No op
+            return
 
 
 def get_csv_dmatrix(files_path, csv_weights):
@@ -327,6 +337,50 @@ def get_libsvm_dmatrix(files_path):
     return dmatrix
 
 
+def get_parquet_dmatrix(files_path):
+    try:
+        table = pq.read_table(files_path)
+
+        data = table.to_pandas()
+        if type(data) is pd.DataFrame:
+            # pyarrow.Table.to_pandas may produce NumPy array or pandas DataFrame
+            data = data.to_numpy()
+
+        dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+        return dmatrix
+
+    except Exception as e:
+        raise exc.UserError("Failed to load parquet data with exception:\n{}".format(e))
+
+
+def get_parquet_dmatrix_pipe_mode(pipe_path):
+    try:
+        f = mlio.SageMakerPipe(pipe_path)
+        examples = []
+
+        with f.open_read() as strm:
+            reader = mlio.ParquetRecordReader(strm)
+
+            for record in reader:
+                table = pq.read_table(as_arrow_file(record))
+                array = table.to_pandas()
+                if type(array) is pd.DataFrame:
+                    array = array.to_numpy()
+                examples.append(array)
+
+        if examples:
+            data = np.vstack(examples)
+            del examples
+
+            dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+            return dmatrix
+        else:
+            return None
+
+    except Exception as e:
+        raise exc.UserError("Failed to load parquet data with exception:\n{}".format(e))
+
+
 def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     """Create Data Matrix from CSV or LIBSVM file.
 
@@ -357,6 +411,11 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
             if is_pipe:
                 raise exc.UserError("Pipe mode not supported for LibSVM.")
             dmatrix = get_libsvm_dmatrix(files_path)
+        elif content_type.lower() == PARQUET:
+            if is_pipe:
+                dmatrix = get_parquet_dmatrix_pipe_mode(data_path)
+            else:
+                dmatrix = get_parquet_dmatrix(files_path)
 
         if dmatrix and dmatrix.get_label().size == 0:
             raise exc.UserError(
