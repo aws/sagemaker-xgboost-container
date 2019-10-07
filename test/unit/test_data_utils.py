@@ -42,6 +42,9 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual('parquet', data_utils.get_content_type('parquet'))
         self.assertEqual('parquet', data_utils.get_content_type('application/x-parquet'))
 
+        self.assertEqual('recordio-protobuf', data_utils.get_content_type('recordio-protobuf'))
+        self.assertEqual('recordio-protobuf', data_utils.get_content_type('application/x-recordio-protobuf'))
+
         with self.assertRaises(exc.UserError):
             data_utils.get_content_type('incorrect_format')
         with self.assertRaises(exc.UserError):
@@ -160,6 +163,50 @@ class TestTrainUtils(unittest.TestCase):
                 time.sleep(1)
 
                 single_node_dmatrix = data_utils.get_parquet_dmatrix_pipe_mode(pipe_path)
+
+                self.assertEqual(5, single_node_dmatrix.num_col())
+                self.assertEqual(5, single_node_dmatrix.num_row())
+
+                no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+
+                self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+
+                pids = subprocess.check_output(['pidof', 'python3'])
+                pids = pids.decode('utf-8').split(' ')
+                os.system('kill {}'.format(pids[0]))
+                os.system('rm {}*'.format(pipe_path))
+
+    def test_parse_protobuf_dmatrix(self):
+        pb_file_paths = ['train.pb', 'pb_files']
+
+        for file_path in pb_file_paths:
+            with self.subTest(file_path=file_path):
+                pb_path = os.path.join(self.resource_path, 'recordio_protobuf', file_path)
+
+                single_node_dmatrix = data_utils.get_recordio_protobuf_dmatrix(pb_path)
+
+                self.assertEqual(5, single_node_dmatrix.num_col())
+                self.assertEqual(5, single_node_dmatrix.num_row())
+
+                no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
+
+                self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
+
+    def test_parse_protobuf_dmatrix_pipe(self):
+        pb_file_paths = ['pb_files']
+
+        for file_path in pb_file_paths:
+            with self.subTest(file_path=file_path):
+                pb_path = os.path.join(self.resource_path, 'recordio_protobuf', file_path)
+                pipe_dir = os.path.join(self.resource_path, 'recordio_protobuf/pipe_path')
+                pipe_path = os.path.join(pipe_dir, 'train')
+                os.system('python3 {}/sagemaker_pipe.py train {} {}&'.format(self.utils_path,
+                                                                             pb_path,
+                                                                             pipe_dir))
+
+                time.sleep(1)
+
+                single_node_dmatrix = data_utils.get_recordio_protobuf_dmatrix_pipe_mode(pipe_path)
 
                 self.assertEqual(5, single_node_dmatrix.num_col())
                 self.assertEqual(5, single_node_dmatrix.num_row())

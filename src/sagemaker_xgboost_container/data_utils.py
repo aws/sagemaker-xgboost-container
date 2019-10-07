@@ -33,10 +33,12 @@ BATCH_SIZE = 4000
 CSV = 'csv'
 LIBSVM = 'libsvm'
 PARQUET = 'parquet'
+RECORDIO_PROTOBUF = 'recordio-protobuf'
 
-VALID_CONTENT_TYPES = [CSV, LIBSVM, PARQUET, _content_types.CSV,
-                       xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM,
-                       xgb_content_types.X_PARQUET]
+VALID_CONTENT_TYPES = [CSV, LIBSVM, PARQUET, RECORDIO_PROTOBUF,
+                       _content_types.CSV, xgb_content_types.LIBSVM,
+                       xgb_content_types.X_LIBSVM, xgb_content_types.X_PARQUET,
+                       xgb_content_types.X_RECORDIO_PROTOBUF]
 
 
 INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType: " + \
@@ -97,6 +99,8 @@ def get_content_type(content_type_cfg_val):
         return _get_csv_content_type(content_type_cfg_val.lower())
     elif content_type_cfg_val.lower() in [PARQUET, xgb_content_types.X_PARQUET]:
         return PARQUET
+    elif content_type_cfg_val.lower() in [RECORDIO_PROTOBUF, xgb_content_types.X_RECORDIO_PROTOBUF]:
+        return RECORDIO_PROTOBUF
     else:
         raise exc.UserError(_get_invalid_content_type_error_msg(content_type_cfg_val))
 
@@ -257,7 +261,7 @@ def validate_data_file_path(data_path, content_type):
         elif parsed_content_type.lower() == LIBSVM:
             for data_file_path in data_files:
                 _validate_libsvm_format(data_file_path)
-        elif parsed_content_type.lower() == PARQUET:
+        elif parsed_content_type.lower() == PARQUET or parsed_content_type.lower() == RECORDIO_PROTOBUF:
             # No op
             return
 
@@ -381,6 +385,62 @@ def get_parquet_dmatrix_pipe_mode(pipe_path):
         raise exc.UserError("Failed to load parquet data with exception:\n{}".format(e))
 
 
+def get_recordio_protobuf_dmatrix(files_path):
+    try:
+        dataset = mlio.list_files(files_path)
+        reader = mlio.RecordIOProtobufReader(dataset=dataset,
+                                             batch_size=BATCH_SIZE)
+        all_values = []
+        all_label_values = []
+        for example in reader:
+            label_values = as_numpy(example['label_values'])
+            values = as_numpy(example['values'])
+
+            all_label_values.append(label_values)
+            all_values.append(values)
+
+        if all_values:
+            data = np.vstack(all_values)
+            labels = np.vstack(all_label_values)
+            del all_values, all_label_values
+
+            dmatrix = xgb.DMatrix(data, label=labels.squeeze())
+            return dmatrix
+        else:
+            return None
+
+    except Exception as e:
+        raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
+
+
+def get_recordio_protobuf_dmatrix_pipe_mode(pipe_path):
+    try:
+        dataset = [mlio.SageMakerPipe(pipe_path)]
+        reader = mlio.RecordIOProtobufReader(dataset=dataset,
+                                             batch_size=BATCH_SIZE)
+        all_values = []
+        all_label_values = []
+        for example in reader:
+            label_values = as_numpy(example['label_values'])
+            values = as_numpy(example['values'])
+
+            all_label_values.append(label_values)
+            all_values.append(values)
+
+        if all_values:
+            data = np.vstack(all_values)
+            labels = np.vstack(all_label_values)
+            del all_values, all_label_values
+
+            dmatrix = xgb.DMatrix(data, label=labels.squeeze())
+            return dmatrix
+        else:
+            return None
+
+    except Exception as e:
+        raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
+
+
 def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     """Create Data Matrix from CSV or LIBSVM file.
 
@@ -416,6 +476,11 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
                 dmatrix = get_parquet_dmatrix_pipe_mode(data_path)
             else:
                 dmatrix = get_parquet_dmatrix(files_path)
+        elif content_type.lower() == RECORDIO_PROTOBUF:
+            if is_pipe:
+                dmatrix = get_recordio_protobuf_dmatrix_pipe_mode(data_path)
+            else:
+                dmatrix = get_recordio_protobuf_dmatrix(files_path)
 
         if dmatrix and dmatrix.get_label().size == 0:
             raise exc.UserError(
