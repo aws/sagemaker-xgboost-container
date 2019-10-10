@@ -11,70 +11,27 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from sagemaker_algorithm_toolkit import channel_validation as cv
+from sagemaker_xgboost_container.data_utils import VALID_CONTENT_TYPES, VALID_PIPED_CONTENT_TYPES
 
 
 def initialize():
     train_channel = cv.Channel(name="train", required=True)
-    train_channel.add("csv", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("libsvm", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("libsvm", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("parquet", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("parquet", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("text/libsvm", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("text/libsvm", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("application/x-parquet", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("application/x-parquet", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("application/x-recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    train_channel.add("application/x-recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
+    for ct in VALID_CONTENT_TYPES:
+        train_channel.add(ct, cv.Channel.FILE_MODE, cv.Channel.SHARDED)
+        train_channel.add(ct, cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
 
-    train_channel.add("csv", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    train_channel.add("csv", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("parquet", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    train_channel.add("parquet", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    train_channel.add("recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("text/csv", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    train_channel.add("text/csv", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("application/x-parquet", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    train_channel.add("application/x-parquet", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    train_channel.add("application/x-recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    train_channel.add("application/x-recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
+    for ct in VALID_PIPED_CONTENT_TYPES:
+        train_channel.add(ct, cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
+        train_channel.add(ct, cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
 
     validation_channel = cv.Channel(name="validation", required=False)
-    validation_channel.add("csv", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("libsvm", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("libsvm", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("parquet", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("parquet", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("text/libsvm", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("text/libsvm", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("application/x-parquet", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("application/x-parquet", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("application/x-recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("application/x-recordio-protobuf", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
+    for ct in VALID_CONTENT_TYPES:
+        validation_channel.add(ct, cv.Channel.FILE_MODE, cv.Channel.SHARDED)
+        validation_channel.add(ct, cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
 
-    validation_channel.add("csv", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("csv", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("parquet", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("parquet", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("text/csv", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("text/csv", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("application/x-parquet", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("application/x-parquet", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
-    validation_channel.add("application/x-recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
-    validation_channel.add("application/x-recordio-protobuf", cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
+    for ct in VALID_PIPED_CONTENT_TYPES:
+        validation_channel.add(ct, cv.Channel.PIPE_MODE, cv.Channel.SHARDED)
+        validation_channel.add(ct, cv.Channel.PIPE_MODE, cv.Channel.REPLICATED)
 
     # new for script mode/algorithm mode toggle
     code_channel = cv.Channel(name="code", required=False)

@@ -41,6 +41,7 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     :param validate_path:
     :param content_type: Content type of data. Supports 'libsvm' or 'csv'
     :param csv_weights: 1 if instance weights are in the second column of csv data files; otherwise, 0
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
     :return: Parsed xgb.DMatrix
     """
     train_files_size = get_size(train_path, is_pipe) if train_path else 0

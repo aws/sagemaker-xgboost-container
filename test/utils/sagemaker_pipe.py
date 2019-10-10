@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 
-try:
-    # for python 3.x:
-    from urllib.parse import urlparse
-except ImportError:
-    # for python 2.x:
-    from urlparse import urlparse
+"""
+Original source: https://github.com/ishaaq/sagemaker-pipe
+Author: ishaaq
+
+This project builds a very simple implementation of SageMaker Training's internal IO subsystem that
+is able to pipe channel data files to an algorithm. It is meant to be used as a local-testing tool
+in order to test a PIPE mode algorithm locally before attempting to run it for real with SageMaker Training.
+"""
+
+from urllib.parse import urlparse
 
 import argparse
 import boto3
@@ -81,6 +85,12 @@ def gunzip(src_retriever, tmp_path, sink):
 
 
 def run_pipe(channel, src_retriever, dest):
+    """Emulate SageMaker pipe.
+
+    :param channel: Pipe name
+    :param src_retriever: Function to stream data to the pipe
+    :param dest: Path to directory of the pipe
+    """
     for epoch in range(NUM_EPOCHS):
         print('Running epoch: {}'.format(epoch))
         # delete previous epoch's fifo if it exists:
@@ -102,10 +112,23 @@ def run_pipe(channel, src_retriever, dest):
 
 
 def fifo_path(dest, channel, epoch):
+    """Construct full FIFO path.
+
+    :param dest: Path to directory of FIFO
+    :param channel: FIFO name
+    :param epoch: Integer appended to FIFO name indicating the training epoch
+    :return: full FIFO path
+    """
     return dest + '/' + channel + '_' + str(epoch)
 
 
 def delete_fifo(dest, channel, epoch):
+    """Delete FIFO.
+
+    :param dest: Path to directory of FIFO
+    :param channel: FIFO name
+    :param epoch: Integer appended to FIFO name indicating the training epoch
+    """
     try:
         path = fifo_path(dest, channel, epoch)
         os.unlink(path)
@@ -117,6 +140,13 @@ def delete_fifo(dest, channel, epoch):
 
 
 def create_fifo(dest, channel, epoch):
+    """Create FIFO.
+
+    :param dest: Path of directory to create FIFO in
+    :param channel: FIFO name
+    :param epoch: Integer appended to FIFO name indicating the training epoch
+    :return: Boolean, True if path is FIFO, else False
+    """
     path = fifo_path(dest, channel, epoch)
     logging.debug('Creating fifo: {}'.format(path))
     mkdir(os.path.dirname(path))
@@ -126,12 +156,21 @@ def create_fifo(dest, channel, epoch):
 
 
 def is_fifo(path):
+    """Check if the specified path is a FIFO.
+
+    :param path: Path of FIFO to check
+    :return: Boolean, True if path is FIFO, else False
+    """
     if not os.path.isfile(path):
         return False
     return stat.S_ISFIFO(os.stat(path).st_mode)
 
 
 def mkdir(path):
+    """Create the specified directory.
+
+    :param path: Path of the directory to create
+    """
     try:
         os.makedirs(path)
     except OSError as exc:
