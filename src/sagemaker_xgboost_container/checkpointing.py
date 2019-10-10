@@ -20,49 +20,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def train(train_args, checkpoint_dir):
-    """Convenience function for script mode.
-
-    Instead of running xgb.train(params, dtrain, ...), users can enable
-    checkpointing in script mode by creating a dictionary of xgb.train
-    arguments:
-
-    train_args = dict(
-        params=params,
-        dtrain=dtrain,
-        num_boost_round=num_round,
-        evals=[(dtrain, 'train'), (dtest, 'test')]
-    )
-
-    and calling:
-
-    bst = checkpointing.train(train_args)
-    """
-    train_args = train_args.copy()
-
-    xgb_model, start_iteration = load_checkpoint(checkpoint_dir)
-
-    if xgb_model is not None:
-        logging.info("Checkpoint loaded from %s", xgb_model)
-        logging.info("Resuming from iteration %s", start_iteration)
-
-    callbacks = train_args.get("callbacks", [])
-    callbacks.append(print_checkpointed_evaluation(start_iteration=start_iteration))
-    callbacks.append(save_checkpoint(checkpoint_dir, start_iteration=start_iteration))
-
-    train_args["verbose_eval"] = False  # suppress xgboost's print_evaluation()
-    train_args["xgb_model"] = xgb_model
-    train_args["callbacks"] = callbacks
-    # xgboost's default value for num_boost_round is 10.
-    # If num_boost_round <= 0, xgb.train() doesn't actually train and
-    # immediately returns a Booster object.
-    train_args["num_boost_round"] = train_args.get("num_boost_round", 10) - start_iteration
-
-    booster = xgb.train(**train_args)
-
-    return booster
-
-
 def print_checkpointed_evaluation(period=1, show_stdv=True, start_iteration=0):
     """Create a callback that print evaluation result.
 

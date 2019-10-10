@@ -5,10 +5,13 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
+import pytest
 import numpy as np
 import xgboost as xgb
 from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.checkpointing import SaveCheckpoint
+from sagemaker_xgboost_container.callback import add_checkpointing
+from sagemaker_algorithm_toolkit.exceptions import UserError
 
 
 class TestSaveCheckpoint(unittest.TestCase):
@@ -172,7 +175,7 @@ class TestSaveCheckpoint(unittest.TestCase):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
 
-def test_train(tmpdir, caplog):
+def test_add_checkpointing(tmpdir, caplog):
 
     X_train = np.random.random(size=(100, 5))
     y_train = np.random.random(size=(100, 1))
@@ -184,24 +187,24 @@ def test_train(tmpdir, caplog):
 
     params = {"objective": "binary:logistic"}
 
-    train_args = dict(
-        params=params,
-        dtrain=dtrain,
-        num_boost_round=20,
-        evals=[(dtrain, 'train'), (dtest, 'test')]
-    )
+    num_round = 20
+    callbacks = []
     checkpoint_dir = os.path.join(tmpdir, "test_checkpoints")
 
-    checkpointing.train(train_args, checkpoint_dir)
+    xgb_model, num_boost_round = add_checkpointing(callbacks, checkpoint_dir, num_round)
 
-    # check that original train_args was not modified
-    assert "callbacks" not in train_args
-    assert "xgb_model" not in train_args
-    assert "verbose_eval" not in train_args
-    assert train_args["params"] == {"objective": "binary:logistic"}
-    assert train_args["dtrain"] is dtrain
-    assert train_args["num_boost_round"] == 20
-    # check that checkpoints were saved
+    assert num_boost_round == 20
+    assert len(callbacks) > 0
+
+    xgb.train(
+        params=params,
+        dtrain=dtrain,
+        callbacks=callbacks,
+        xgb_model=xgb_model,
+        num_boost_round=num_boost_round,
+        evals=[(dtrain, 'train'), (dtest, 'test')]
+    )
+
     expected_files = [
         "xgboost-checkpoint.15",
         "xgboost-checkpoint.16",
@@ -210,13 +213,26 @@ def test_train(tmpdir, caplog):
         "xgboost-checkpoint.19"]
     assert sorted(os.listdir(checkpoint_dir)) == expected_files
 
-    train_args["num_boost_round"] = 30
-    checkpointing.train(train_args, checkpoint_dir)
+    new_num_round = 30
 
-    assert "callbacks" not in train_args
-    assert "xgb_model" not in train_args
-    assert "verbose_eval" not in train_args
-    assert train_args["num_boost_round"] == 30
+    with pytest.raises(UserError):
+        new_xgb_model, new_num_boost_round = add_checkpointing(
+            callbacks, checkpoint_dir, new_num_round)
+
+    callbacks = []
+    new_xgb_model, new_num_boost_round = add_checkpointing(
+        callbacks, checkpoint_dir, new_num_round)
+
+    xgb.train(
+        params=params,
+        dtrain=dtrain,
+        callbacks=callbacks,
+        xgb_model=new_xgb_model,
+        num_boost_round=new_num_boost_round,
+        evals=[(dtrain, 'train'), (dtest, 'test')]
+    )
+
+    assert new_num_boost_round == 10
 
     assert "Checkpoint loaded from" in caplog.text
     assert "Resuming from iteration 20" in caplog.text
@@ -230,7 +246,7 @@ def test_train(tmpdir, caplog):
     assert sorted(os.listdir(checkpoint_dir)) == expected_files
 
 
-def test_train_zero_or_negative_rounds(tmpdir, caplog):
+def test_train_zero_or_negative_rounds(tmpdir):
 
     X_train = np.random.random(size=(100, 5))
     y_train = np.random.random(size=(100, 1))
@@ -241,20 +257,31 @@ def test_train_zero_or_negative_rounds(tmpdir, caplog):
     dtest = xgb.DMatrix(X_test, label=y_test)
 
     params = {"objective": "binary:logistic"}
-
-    train_args = dict(
-        params=params,
-        dtrain=dtrain,
-        num_boost_round=0,
-        evals=[(dtrain, 'train'), (dtest, 'test')]
-    )
     checkpoint_dir = os.path.join(tmpdir, "test_checkpoints")
 
-    bst = checkpointing.train(train_args, checkpoint_dir)
-    assert isinstance(bst, xgb.Booster)
+    num_boost_round = 0
+    callbacks = []
+    xgb_model, num_boost_round = add_checkpointing(callbacks, checkpoint_dir, num_boost_round)
+
+    xgb.train(
+        params=params,
+        dtrain=dtrain,
+        xgb_model=xgb_model,
+        callbacks=callbacks,
+        num_boost_round=num_boost_round,
+        evals=[(dtrain, 'train'), (dtest, 'test')])
+
     assert not os.listdir(checkpoint_dir)
 
-    train_args["num_boost_round"] = -1
-    bst = checkpointing.train(train_args, checkpoint_dir)
-    assert isinstance(bst, xgb.Booster)
+    num_boost_round = -1
+    callbacks = []
+    xgb_model, num_boost_round = add_checkpointing(callbacks, checkpoint_dir, num_boost_round)
+
+    xgb.train(
+        params=params,
+        dtrain=dtrain,
+        xgb_model=xgb_model,
+        callbacks=callbacks,
+        num_boost_round=num_boost_round,
+        evals=[(dtrain, 'train'), (dtest, 'test')])
     assert not os.listdir(checkpoint_dir)
