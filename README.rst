@@ -131,6 +131,16 @@ dependencies.
     cd sagemaker-xgboost-container
     pip install -e .[test]
 
+Conda is also required and can be installed by following the instructions at https://conda.io/projects/conda/en/latest/user-guide/install/index.html. For convenience, the Linux installation commands are provided as an example.
+
+::
+
+    curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3
+    rm Miniconda3-latest-Linux-x86_64.sh
+    export PATH=/miniconda3/bin:${PATH}
+    conda update -y conda
+
 Tests are defined in
 `test/ <https://github.com/aws/sagemaker-xgboost-container/tree/master/test>`__
 and include unit, local integration, and SageMaker integration tests.
