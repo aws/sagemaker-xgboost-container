@@ -389,7 +389,7 @@ def _get_parquet_dmatrix_file_mode(files_path):
 
         dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
         del data
-        
+
         return dmatrix
 
     except Exception as e:
@@ -469,7 +469,7 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
             data = np.vstack(examples)
             del examples
 
-            dmatrix = xgb.DMatrix(data[:, 1:], labels=data[:, 0])
+            dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
             return dmatrix
         else:
             return None
