@@ -12,101 +12,43 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 import logging
+# import os
+# import pkg_resources
+import subprocess
+# import sys
+# import time
 
-from sagemaker_containers.beta.framework import (
-    encoders, env, modules, transformer, worker)
+# from retrying import retry
 
-from sagemaker_xgboost_container import encoder as xgb_encoders
-from sagemaker_xgboost_container.algorithm_mode import serve
+# from sagemaker_containers.beta.framework import (encoders, env, modules, transformer, worker)
 
-logging.basicConfig(format='%(asctime)s %(levelname)s - %(name)s - %(message)s', level=logging.INFO)
+# from sagemaker_xgboost_container import encoder as xgb_encoders
 
-logging.getLogger('boto3').setLevel(logging.INFO)
-logging.getLogger('s3transfer').setLevel(logging.INFO)
-logging.getLogger('botocore').setLevel(logging.WARN)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-
-def default_model_fn(model_dir):
-    """Load a model. For XGBoost Framework, a default function to load a model is not provided.
-    Users should provide customized model_fn() in script.
-    Args:
-        model_dir: a directory where model is saved.
-    Returns: A XGBoost model.
-    """
-    return transformer.default_model_fn(model_dir)
+# import sagemaker_inference
+from sagemaker_inference import model_server
+# from sagemaker_inference.model_server import _create_model_server_config_file, _add_sigterm_handler
+# from sagemaker_inference import default_handler_service, environment, utils
+from sagemaker_xgboost_container.algorithm_mode import handler_service
 
 
-def default_input_fn(input_data, content_type):
-    """Take request data and de-serializes the data into an object for prediction.
-        When an InvokeEndpoint operation is made against an Endpoint running SageMaker model server,
-        the model server receives two pieces of information:
-            - The request Content-Type, for example "application/json"
-            - The request data, which is at most 5 MB (5 * 1024 * 1024 bytes) in size.
-        The input_fn is responsible to take the request data and pre-process it before prediction.
-    Args:
-        input_data (obj): the request data.
-        content_type (str): the request Content-Type.
-    Returns:
-        (obj): data ready for prediction. For XGBoost, this defaults to DMatrix.
-    """
-    return xgb_encoders.decode(input_data, content_type)
+HANDLER_SERVICE = handler_service.__name__
 
 
-def default_predict_fn(input_data, model):
-    """A default predict_fn for XGBooost Framework. Calls a model on data deserialized in input_fn.
-    Args:
-        input_data: input data (Numpy array) for prediction deserialized by input_fn
-        model: XGBoost model loaded in memory by model_fn
-    Returns: a prediction
-    """
-    output = model.predict(input_data, validate_features=False)
-    return output
+def _retry_if_error(exception):
+    return isinstance(exception, subprocess.CalledProcessError)
 
 
-def default_output_fn(prediction, accept):
-    """Function responsible to serialize the prediction for the response.
-    Args:
-        prediction (obj): prediction returned by predict_fn .
-        accept (str): accept content-type expected by the client.
-    Returns:
-        (worker.Response): a Flask response object with the following args:
-            * Args:
-                response: the serialized data to return
-                accept: the content-type that the data was transformed to.
-    """
-    return worker.Response(encoders.encode(prediction, accept), mimetype=accept)
+# @retry(stop_max_delay=1000 * 30, retry_on_exception=_retry_if_error)
+def _start_model_server():
+    # there's a race condition that causes the model server command to
+    # sometimes fail with 'bad address'. more investigation needed
+    # retry starting mms until it's ready
+    print("Trying to set up model server handler + {}".format(HANDLER_SERVICE))
+    model_server.start_model_server(handler_service=HANDLER_SERVICE)
 
 
-def _user_module_transformer(user_module):
-    model_fn = getattr(user_module, 'model_fn', default_model_fn)
-    input_fn = getattr(user_module, 'input_fn', default_input_fn)
-    predict_fn = getattr(user_module, 'predict_fn', default_predict_fn)
-    output_fn = getattr(user_module, 'output_fn', default_output_fn)
-
-    return transformer.Transformer(model_fn=model_fn, input_fn=input_fn, predict_fn=predict_fn,
-                                   output_fn=output_fn)
-
-
-app = None
-
-
-def main(environ, start_response):
-    global app
-    if app is None:
-        serving_env = env.ServingEnv()
-        if serving_env.module_name is None:
-            app = serve.ScoringService.csdk_start()
-        else:
-            user_module = modules.import_module(serving_env.module_dir, serving_env.module_name)
-
-            user_module_transformer = _user_module_transformer(user_module)
-
-            user_module_transformer.initialize()
-
-            app = worker.Worker(transform_fn=user_module_transformer.transform,
-                                module_name=serving_env.module_name)
-
-    return app(environ, start_response)
+def main():  # environ, start_response):
+    # serving_env = env.ServingEnv()
+    # if serving_env.module_name is None:
+    print("Starting MXNet server")
+    _start_model_server()

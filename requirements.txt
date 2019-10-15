@@ -1,12 +1,14 @@
 PyYAML<4.3
 matplotlib
 model-archiver
+mxnet-model-server
 numpy
 pandas
 psutil
 requests<2.21
 retrying==1.3.3
 sagemaker-containers>=2.5.1
+sagemaker-inference==1.0.1
 scikit-learn
 scipy
 urllib3<1.25
