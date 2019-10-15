@@ -20,7 +20,7 @@ import shutil
 import sys
 import tempfile
 
-from sagemaker import Session
+from sagemaker import LocalSession, Session
 from .utils import local_mode
 
 logger = logging.getLogger(__name__)
@@ -138,6 +138,11 @@ def fixture_build_image(request, framework_version, py_version, processor, tag, 
 @pytest.fixture(scope='session', name='sagemaker_session')
 def fixture_sagemaker_session(region):
     return Session(boto_session=boto3.Session(region_name=region))
+
+
+@pytest.fixture(scope='session')
+def sagemaker_local_session(region):
+    return LocalSession(boto_session=boto3.Session(region_name=region))
 
 
 @pytest.fixture(name='aws_id', scope='session')
