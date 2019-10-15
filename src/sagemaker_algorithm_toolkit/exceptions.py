@@ -10,6 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import http
 import warnings
 
 
@@ -92,3 +93,33 @@ class PlatformError(BaseToolkitError):
 
     def __init__(self, message=None, caused_by=None):
         super(PlatformError, self).__init__(message, caused_by)
+
+
+class InferenceToolkitError(Exception):
+    """Exception used to indicate a problem that occurred during inference.
+    Note: This should be moved into the sagemaker-inference toolkit repository"""
+
+    def __init__(self, status_code, message=None):
+        self.status_code = status_code
+        self.message = message
+
+class NoContentInferenceError(InferenceToolkitError):
+    def __init__(self):
+        super(NoContentInferenceError, self).__init__(http.client.NO_CONTENT, "")
+
+
+class UnsupportedMediaTypeInferenceError(InferenceToolkitError):
+    def __init__(self, message):
+        super(UnsupportedMediaTypeInferenceError, self).__init__(http.client.UNSUPPORTED_MEDIA_TYPE, message)
+
+
+class ModelLoadInferenceError(InferenceToolkitError):
+    def __init__(self, message):
+        formatted_message = "Unable to load model: {}".format(message)
+        super(ModelLoadInferenceError, self).__init__(http.client.INTERNAL_SERVER_ERROR, formatted_message)
+
+
+class BadRequestInferenceError(InferenceToolkitError):
+    def __init__(self, message):
+        formatted_message = "Unable to evaluate payload provided: {}".format(message)
+        super(BadRequestInferenceError, self).__init__(http.client.BAD_REQUEST, formatted_message)

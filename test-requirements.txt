@@ -5,9 +5,13 @@ coverage
 docker-compose
 flake8
 mock
+mxnet-model-server
 pytest
 pytest-cov
 pytest-xdist
 sagemaker>=1.3.0
 tox
+sagemaker-inference==1.0.1
+tox
 tox-conda
+xgboost==0.90
