@@ -12,6 +12,7 @@ from sagemaker_containers.beta.framework import (
     encoders, env, modules, transformer, worker)
 from sagemaker_inference import content_types, decoder, default_inference_handler, errors
 
+from sagemaker_algorithm_toolkit.exceptions import BaseInferenceToolkitError
 from sagemaker_algorithm_toolkit.exceptions import NoContentInferenceError, UnsupportedMediaTypeInferenceError, \
     ModelLoadInferenceError, BadRequestInferenceError
 
@@ -122,7 +123,8 @@ class DefaultXGBoostAlgoModeInferenceHandler(default_inference_handler.DefaultIn
                 dtest = encoder.csv_to_dmatrix(payload, dtype=np.float)
             except Exception as e:
                 raise UnsupportedMediaTypeInferenceError("Loading csv data failed with Exception, "
-                                               "please ensure data is in csv format: {} {}".format(type(e), e))
+                                                         "please ensure data is in csv format: {} {}".format(type(e),
+                                                                                                             e))
         elif content_type == "text/x-libsvm" or content_type == 'text/libsvm':
             try:
                 if not isinstance(input_data, str):
@@ -131,7 +133,8 @@ class DefaultXGBoostAlgoModeInferenceHandler(default_inference_handler.DefaultIn
                 dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(payload))
             except Exception as e:
                 raise UnsupportedMediaTypeInferenceError("Loading libsvm data failed with Exception, "
-                                               "please ensure data is in libsvm format: {} {}".format(type(e), e))
+                                                         "please ensure data is in libsvm format: {} {}".format(type(e),
+                                                                                                                e))
         else:
             raise UnsupportedMediaTypeInferenceError("Content type must be either libsvm or csv.")
 
