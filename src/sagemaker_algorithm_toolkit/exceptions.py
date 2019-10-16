@@ -10,7 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-import http
+import http.client
 import warnings
 
 
@@ -95,31 +95,37 @@ class PlatformError(BaseToolkitError):
         super(PlatformError, self).__init__(message, caused_by)
 
 
-class InferenceToolkitError(Exception):
+class BaseInferenceToolkitError(Exception):
     """Exception used to indicate a problem that occurred during inference.
-    Note: This should be moved into the sagemaker-inference toolkit repository"""
 
-    def __init__(self, status_code, message=None):
+    :param status_code: HTTP Error Status Code to send to client
+    :param message: Response message to send to client
+    :param phrase: Response body to send to client
+    """
+
+    def __init__(self, status_code, message=None, phrase=None):
         self.status_code = status_code
-        self.message = message
+        self.message = message if message else "Invalid Request"
+        self.phrase = phrase if phrase else message
 
-class NoContentInferenceError(InferenceToolkitError):
+
+class NoContentInferenceError(BaseInferenceToolkitError):
     def __init__(self):
         super(NoContentInferenceError, self).__init__(http.client.NO_CONTENT, "")
 
 
-class UnsupportedMediaTypeInferenceError(InferenceToolkitError):
+class UnsupportedMediaTypeInferenceError(BaseInferenceToolkitError):
     def __init__(self, message):
         super(UnsupportedMediaTypeInferenceError, self).__init__(http.client.UNSUPPORTED_MEDIA_TYPE, message)
 
 
-class ModelLoadInferenceError(InferenceToolkitError):
+class ModelLoadInferenceError(BaseInferenceToolkitError):
     def __init__(self, message):
         formatted_message = "Unable to load model: {}".format(message)
         super(ModelLoadInferenceError, self).__init__(http.client.INTERNAL_SERVER_ERROR, formatted_message)
 
 
-class BadRequestInferenceError(InferenceToolkitError):
+class BadRequestInferenceError(BaseInferenceToolkitError):
     def __init__(self, message):
         formatted_message = "Unable to evaluate payload provided: {}".format(message)
         super(BadRequestInferenceError, self).__init__(http.client.BAD_REQUEST, formatted_message)

@@ -18,7 +18,7 @@ import http
 from sagemaker_inference import content_types, environment, utils
 from sagemaker_inference.default_inference_handler import DefaultInferenceHandler
 
-from sagemaker_algorithm_toolkit.exceptions import InferenceToolkitError
+from sagemaker_algorithm_toolkit.exceptions import BaseInferenceToolkitError
 from sagemaker_algorithm_toolkit.exceptions import NoContentInferenceError, UnsupportedMediaTypeInferenceError, \
     ModelLoadInferenceError, BadRequestInferenceError
 
@@ -86,9 +86,6 @@ class Transformer(object):
             if not accept or accept == content_types.ANY:
                 accept = self._environment.default_accept
 
-            if content_type in content_types.UTF8_TYPES:
-                input_data = input_data.decode('utf-8')
-
             result = self._transform_fn(self._model, input_data, content_type, accept)
 
             response = result
@@ -101,9 +98,11 @@ class Transformer(object):
 
             context.set_response_content_type(0, response_content_type)
             return [response]
-        except (NoContentInferenceError, UnsupportedMediaTypeInferenceError,
-                ModelLoadInferenceError, BadRequestInferenceError) as ite:
-            return self.handle_error(context, ite.status_code, ite.message)
+        except Exception as e:
+            if isinstance(e, BaseInferenceToolkitError):
+                return self.handle_error(context, e.status_code, e.message)
+            else:
+                raise e
 
     def validate_and_initialize(self):  # type: () -> None
         """Validates the user module against the SageMaker inference contract.
