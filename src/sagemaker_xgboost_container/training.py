@@ -37,7 +37,7 @@ def run_algorithm_mode():
         'SM_HOSTS'
         'SM_CURRENT_HOST'
         'SM_MODEL_DIR'
-        'SM_CHECKPOINT_CONFIG_FILE'
+        'SM_INPUT_CHECKPOINT_CONFIG_FILE'
 
     """
     # TODO: replace with CSDK constants in sagemaker_containers._env
@@ -46,7 +46,7 @@ def run_algorithm_mode():
     with open(os.getenv(sm_env_constants.SM_INPUT_DATA_CONFIG_FILE), "r") as f:
         data_config = json.load(f)
 
-    checkpoint_config_file = os.getenv(sm_env_constants.SM_CHECKPOINT_CONFIG_FILE)
+    checkpoint_config_file = os.getenv(sm_env_constants.SM_INPUT_CHECKPOINT_CONFIG_FILE)
     if os.path.exists(checkpoint_config_file):
         with open(checkpoint_config_file, "r") as f:
             checkpoint_config = json.load(f)

@@ -24,6 +24,7 @@ from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
+from sagemaker_xgboost_container.callback import add_tornasole_hook
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 
 
@@ -173,6 +174,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     if checkpoint_dir:
         save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
         callbacks.append(save_checkpoint)
+
+    add_tornasole_hook(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
+                       val_dmatrix=val_dmatrix)
 
     logging.info("Train matrix has {} rows".format(train_dmatrix.num_row()))
     if val_dmatrix:

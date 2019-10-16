@@ -6,7 +6,8 @@ LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
 ENV SM_INPUT /opt/ml/input
 ENV SM_INPUT_TRAINING_CONFIG_FILE $SM_INPUT/config/hyperparameters.json
 ENV SM_INPUT_DATA_CONFIG_FILE $SM_INPUT/config/inputdataconfig.json
-ENV SM_CHECKPOINT_CONFIG_FILE $SM_INPUT/config/checkpointconfig.json
+ENV SM_INPUT_CHECKPOINT_CONFIG_FILE $SM_INPUT/config/checkpointconfig.json
+ENV SM_INPUT_DEBUG_CONFIG_FILE $SM_INPUT/config/debughookconfig.json
 
 # Set SageMaker serving environment variables
 ENV SM_MODEL_DIR /opt/ml/model
@@ -27,3 +28,10 @@ COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
 COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
 RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
     rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+
+# Tornasole
+# Will install from pypi once packages are released there. For now, copy from local file system.
+ARG tornasole_installable=tornasole-0.4a0-py3-none-any.whl
+COPY $tornasole_installable /tmp/.
+RUN pip3 install --force-reinstall /tmp/$tornasole_installable
+
