@@ -10,6 +10,6 @@ pytest
 pytest-cov
 pytest-xdist
 sagemaker>=1.3.0
-sagemaker-inference==1.0.1
+sagemaker-inference==1.0.4
 tox
 xgboost==0.90

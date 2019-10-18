@@ -11,21 +11,21 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
-
 from mock import patch
-from mock import MagicMock
-# import numpy as np
-# import pytest
-# import xgboost as xgb
-#
-# from sagemaker_containers.beta.framework import (content_types, encoders, errors)
+
 from sagemaker_xgboost_container import serving
 
 
 @patch('sagemaker_inference.model_server.start_model_server')
-def test_hosting_start(start_model_server):
-    environ = MagicMock()
-    start_response = MagicMock()
-    serving.main() # environ, start_response)
+def test_hosting_algorithm_mode(start_model_server):
+    serving.main()
     start_model_server.assert_called_with(
         handler_service='sagemaker_xgboost_container.algorithm_mode.handler_service')
+
+
+@patch('sagemaker_inference.model_server.start_model_server')
+@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_name', return_value='foo')
+def test_hosting_user_mode(user_module_name, start_model_server):
+    serving.main()
+    start_model_server.assert_called_with(
+        handler_service='sagemaker_xgboost_container.handler_service')
