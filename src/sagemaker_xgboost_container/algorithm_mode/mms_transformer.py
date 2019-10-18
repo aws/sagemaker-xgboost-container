@@ -13,16 +13,11 @@
 from __future__ import absolute_import
 
 import importlib
-import http
 
 from sagemaker_inference import content_types, environment, utils
 from sagemaker_inference.default_inference_handler import DefaultInferenceHandler
 
-from sagemaker_algorithm_toolkit.exceptions import BaseInferenceToolkitError
-from sagemaker_algorithm_toolkit.exceptions import NoContentInferenceError, UnsupportedMediaTypeInferenceError, \
-    ModelLoadInferenceError, BadRequestInferenceError
-
-
+from sagemaker_xgboost_container.algorithm_mode.inference_errors import BaseInferenceToolkitError
 """
 This is a modified copy of the Transformer found in sagemaker-inference, which is found here:
 https://github.com/aws/sagemaker-inference-toolkit/blob/master/src/sagemaker_inference/transformer.py
