@@ -12,6 +12,7 @@
 # language governing permissions and limitations under the License.
 import http.client
 
+
 class BaseInferenceToolkitError(Exception):
     """Exception used to indicate a problem that occurred during inference.
 

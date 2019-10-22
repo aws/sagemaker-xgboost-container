@@ -38,7 +38,7 @@ setup(
     },
 
     entry_points={
-        'console_scripts': 'serve=sagemaker_pytorch_serving_container.serving:main'
+        'console_scripts': 'serve=sagemaker_xgboost_container.serving:main'
     },
 
     python_requires='>=3.5',
