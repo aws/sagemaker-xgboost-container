@@ -184,11 +184,11 @@ class HandlerService(DefaultHandlerService):
                     encoded_prediction = encoder.encode(prediction, accept)
                 else:
                     raise ValueError("{} is not an accepted Accept type. Please choose one of the following:"
-                                     " ['text/csv', 'application/json'].")
+                                     " ['{}', '{}'].".format(accept, content_types.CSV, content_types.JSON))
             except Exception as e:
                 raise UnsupportedMediaTypeInferenceError(
                     "Encoding to accept type {} failed with exception: {}".format(accept,
-                                                                                e))
+                                                                                  e))
             return encoded_prediction
 
     def __init__(self):

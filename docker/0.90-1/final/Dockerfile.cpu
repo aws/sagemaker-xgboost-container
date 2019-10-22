@@ -16,16 +16,15 @@ RUN useradd -m model-server
 RUN mkdir -p /home/model-server/tmp
 RUN chown -R model-server /home/model-server
 
-# TODO: Create execution parameters endpoint
-# RUN python3 setup.py build_plugins plugins=sagemaker
-
 # Copy MMS configs to correct location
-COPY mms_config/config.properties /home/model-server/
+COPY docker/0.90-1/resources/mms/config.properties /home/model-server/
 
-# Copy MMS entrypoint script
-COPY docker/0.90-1/mms-entrypoint.py /usr/local/bin/dockerd-entrypoint.py
+# Copy execution parameters endpoint plugin for MMS
+RUN mkdir -p /tmp/plugins
+COPY docker/0.90-1/resources/mms/execution-parameters.jar /tmp/plugins/
 
 LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
+LABEL com.amazonaws.sagemaker.capabilities.multi-models=true
 
 # Set SageMaker training environment variables
 ENV SM_INPUT /opt/ml/input

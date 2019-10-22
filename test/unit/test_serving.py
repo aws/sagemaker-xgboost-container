@@ -24,8 +24,11 @@ def test_hosting_algorithm_mode(start_model_server):
 
 
 @patch('sagemaker_inference.model_server.start_model_server')
-@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_name', return_value='foo')
-def test_hosting_user_mode(user_module_name, start_model_server):
+@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_dir')
+@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_name')
+@patch('sagemaker_containers.beta.framework.modules.import_module')
+def test_hosting_user_mode(import_module, user_module_name, module_dir, start_model_server):
     serving.main()
     start_model_server.assert_called_with(
         handler_service='sagemaker_xgboost_container.handler_service')
+    import_module.assert_called_with(module_dir, user_module_name)
