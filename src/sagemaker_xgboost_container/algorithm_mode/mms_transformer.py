@@ -134,6 +134,7 @@ class Transformer(object):
             self._predict_fn = predict_fn or self._default_inference_handler.default_predict_fn
             self._output_fn = output_fn or self._default_inference_handler.default_output_fn
         except Exception as e:
+            print(e)
             self._model_fn = self._default_inference_handler.default_model_fn
             self._transform_fn = self._default_transform_fn
             self._input_fn = self._default_inference_handler.default_input_fn

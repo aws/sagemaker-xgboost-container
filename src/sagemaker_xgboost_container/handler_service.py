@@ -16,7 +16,7 @@ import textwrap
 
 from sagemaker_inference import content_types, default_inference_handler
 from sagemaker_inference.default_handler_service import DefaultHandlerService
-from sagemaker_xgboost_container.algorithm_mode.mms_transformer import Transformer
+from sagemaker_inference.transformer import Transformer
 from sagemaker_containers.beta.framework import encoders
 
 from sagemaker_xgboost_container import encoder as xgb_encoders
