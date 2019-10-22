@@ -17,16 +17,16 @@ import pickle as pkl
 from scipy.sparse import csr_matrix
 import xgboost as xgb
 
-from sagemaker_containers.beta.framework import encoders
-
-from sagemaker_inference import content_types, default_inference_handler
+from sagemaker_inference import content_types, default_inference_handler, encoder
 from sagemaker_inference.default_handler_service import DefaultHandlerService
-# from sagemaker_inference.transformer import Transformer
 
 from sagemaker_xgboost_container.algorithm_mode.mms_transformer import Transformer
-from sagemaker_xgboost_container import encoder
+from sagemaker_xgboost_container import encoder as xgb_encoder
 from sagemaker_xgboost_container.algorithm_mode.inference_errors import NoContentInferenceError, \
     UnsupportedMediaTypeInferenceError, ModelLoadInferenceError, BadRequestInferenceError
+
+
+SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
 
 
 # FIXME: https://github.com/aws/sagemaker-xgboost-container/issues/12
@@ -129,12 +129,12 @@ class HandlerService(DefaultHandlerService):
                 try:
                     input_data = input_data.decode('utf-8')
                     payload = input_data.strip()
-                    dtest = encoder.csv_to_dmatrix(payload, dtype=np.float)
+                    dtest = xgb_encoder.csv_to_dmatrix(payload, dtype=np.float)
                 except Exception as e:
-                    raise UnsupportedMediaTypeInferenceError("Loading csv data failed with Exception, "
-                                                             "please ensure data is in csv format: {} {}".format(
-                        type(e),
-                        e))
+                    raise UnsupportedMediaTypeInferenceError("Loading csv data failed with "
+                                                             "Exception, please ensure data "
+                                                             "is in csv format: {} {}".format(type(e),
+                                                                                              e))
             elif content_type == "text/x-libsvm" or content_type == 'text/libsvm':
                 try:
                     # if not isinstance(input_data, str):
@@ -142,10 +142,10 @@ class HandlerService(DefaultHandlerService):
                     payload = input_data.strip()
                     dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(payload))
                 except Exception as e:
-                    raise UnsupportedMediaTypeInferenceError("Loading libsvm data failed with Exception, "
-                                                             "please ensure data is in libsvm format: {} {}".format(
-                        type(e),
-                        e))
+                    raise UnsupportedMediaTypeInferenceError("Loading libsvm data failed with "
+                                                             "Exception, please ensure data "
+                                                             "is in libsvm format: {} {}".format(type(e),
+                                                                                                 e))
             else:
                 raise UnsupportedMediaTypeInferenceError("Content type must be either libsvm or csv.")
 
@@ -174,14 +174,21 @@ class HandlerService(DefaultHandlerService):
                 encoded response for MMS to return to client
             """
             try:
-                encoded_prediction = encoders.encode(prediction, accept)
-                if accept == content_types.CSV:
-                    encoded_prediction = encoded_prediction.encode("utf-8")
+                if accept == content_types.CSV or accept == 'csv':
+                    if SAGEMAKER_BATCH:
+                        return_data = "\n".join(map(str, prediction.tolist())) + '\n'
+                    else:
+                        return_data = ",".join(map(str, prediction.tolist()))
+                    encoded_prediction = return_data.encode("utf-8")
+                elif accept == content_types.JSON or accept == 'json':
+                    encoded_prediction = encoder.encode(prediction, accept)
+                else:
+                    raise ValueError("{} is not an accepted Accept type. Please choose one of the following:"
+                                     " ['text/csv', 'application/json'].")
             except Exception as e:
                 raise UnsupportedMediaTypeInferenceError(
-                    "Encoding to accept type {} failed with exception: ".format(accept,
+                    "Encoding to accept type {} failed with exception: {}".format(accept,
                                                                                 e))
-
             return encoded_prediction
 
     def __init__(self):

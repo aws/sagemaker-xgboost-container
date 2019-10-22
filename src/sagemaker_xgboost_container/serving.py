@@ -16,7 +16,7 @@ import subprocess
 
 from retrying import retry
 
-from sagemaker_containers.beta.framework import env
+from sagemaker_containers.beta.framework import env, modules
 
 from sagemaker_inference import model_server
 from sagemaker_xgboost_container.algorithm_mode import handler_service as algo_handler_service
@@ -48,4 +48,6 @@ def main():
         _start_model_server(ALGO_HANDLER_SERVICE)
     else:
         logging.info("Staring MXNet Model Server with user module.")
+        # Install user module from s3 to import
+        modules.import_module(serving_env.module_dir, serving_env.module_name)
         _start_model_server(USER_HANDLER_SERVICE)

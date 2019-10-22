@@ -43,7 +43,7 @@ class FakeEstimator:
         return
 
 
-@pytest.mark.parametrize('csv_array', ('42,6,9', '42.0,6.0,9.0'))
+@pytest.mark.parametrize('csv_array', (b'42,6,9', b'42.0,6.0,9.0'))
 def test_input_fn_dmatrix(csv_array):
     deserialized_csv_array, content_type = handler.default_input_fn(csv_array, content_types.CSV)
     assert type(deserialized_csv_array) is xgb.DMatrix
