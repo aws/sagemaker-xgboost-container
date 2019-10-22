@@ -74,12 +74,7 @@ def test_output_fn_json(np_array):
 
 def test_output_fn_csv(np_array):
     response = handler.default_output_fn(np_array, content_types.CSV)
-    assert response == b'1.0,1.0\n1.0,1.0\n'
-
-
-def test_output_fn_npz(np_array):
-    response = handler.default_output_fn(np_array, content_types.NPY)
-    assert response == encoders.array_to_npy(np_array)
+    assert response == b'[1.0, 1.0],[1.0, 1.0]'
 
 
 def test_output_fn_bad_accept():

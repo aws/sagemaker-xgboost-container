@@ -18,6 +18,8 @@ class BaseInferenceToolkitError(Exception):
 
     This is meant to be extended from so that customers may handle errors within inference servers.
 
+    TODO: This should be moved to the sagemaker-inference-toolkit repo
+
     :param status_code: HTTP Error Status Code to send to client
     :param message: Response message to send to client
     :param phrase: Response body to send to client

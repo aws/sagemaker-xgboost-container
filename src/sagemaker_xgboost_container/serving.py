@@ -12,6 +12,8 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 import logging
+import multiprocessing
+import os
 import subprocess
 
 from retrying import retry
@@ -42,6 +44,13 @@ def _start_model_server(handler):
 
 def main():
     serving_env = env.ServingEnv()
+
+    if "SAGEMAKER_MULTI_MODEL" in os.environ and os.environ["SAGEMAKER_MULTI_MODEL"]:
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
+        os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
+    else:
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(multiprocessing.cpu_count())
+        os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/opt/ml/model'
 
     if serving_env.module_name is None:
         logging.info("Starting MXNet server in algorithm mode.")
