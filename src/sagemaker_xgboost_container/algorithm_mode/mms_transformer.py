@@ -115,7 +115,7 @@ class Transformer(object):
         in the user module.
         """
         user_module_name = self._environment.module_name
-        if importlib.util.find_spec(user_module_name) is not None:
+        try:
             user_module = importlib.import_module(user_module_name)
 
             self._model_fn = getattr(user_module, 'model_fn', self._default_inference_handler.default_model_fn)
@@ -133,7 +133,7 @@ class Transformer(object):
             self._input_fn = input_fn or self._default_inference_handler.default_input_fn
             self._predict_fn = predict_fn or self._default_inference_handler.default_predict_fn
             self._output_fn = output_fn or self._default_inference_handler.default_output_fn
-        else:
+        except Exception as e:
             self._model_fn = self._default_inference_handler.default_model_fn
             self._transform_fn = self._default_transform_fn
             self._input_fn = self._default_inference_handler.default_input_fn
