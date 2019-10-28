@@ -109,7 +109,6 @@ class Transformer(object):
         except Exception as e:
             if isinstance(e, BaseInferenceToolkitError):
                 logging.error(e)
-                raise e
                 return self.handle_error(context, e.status_code, e.message)
             else:
                 raise e

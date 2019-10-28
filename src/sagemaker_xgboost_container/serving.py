@@ -46,7 +46,6 @@ def _start_model_server(is_multi_model, handler):
     logging.info("Trying to set up model server handler: {}".format(handler))
 
     os.environ["SAGEMAKER_MMS_DEFAULT_HANDER"] = handler
-
     model_server.start_model_server(handler_service=handler,
                                     is_multi_model=is_multi_model,
                                     config_file=os.environ['XGBOOST_MMS_CONFIG'])
