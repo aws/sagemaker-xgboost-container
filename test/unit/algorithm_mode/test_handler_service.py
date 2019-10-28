@@ -54,8 +54,9 @@ def test_input_fn_bad_content_type():
         handler.default_input_fn('', 'application/not_supported')
 
 
-def test_default_model_fn():
-    booster, format = handler.default_model_fn('{}/model'.format(resource_path))
+@pytest.mark.parametrize('model_dir', ['sanity', 'boston'])
+def test_default_model_fn(model_dir):
+    booster, format = handler.default_model_fn('{}/models/{}'.format(resource_path, model_dir))
     assert type(booster) is xgb.Booster
     assert format == 'pkl_format'
 

@@ -61,7 +61,7 @@ class TestTrainUtils(unittest.TestCase):
 
         for file_path in csv_file_paths:
             with self.subTest(file_path=file_path):
-                csv_path = os.path.join(self.resource_path, 'csv', file_path)
+                csv_path = os.path.join(self.data_path, 'csv', file_path)
                 data_utils.validate_data_file_path(csv_path, 'csv')
 
     def test_validate_libsvm_files(self):
@@ -69,7 +69,7 @@ class TestTrainUtils(unittest.TestCase):
 
         for file_path in libsvm_file_paths:
             with self.subTest(file_path=file_path):
-                csv_path = os.path.join(self.resource_path, 'libsvm', file_path)
+                csv_path = os.path.join(self.data_path, 'libsvm', file_path)
                 data_utils.validate_data_file_path(csv_path, 'libsvm')
 
     def _check_dmatrix(self, reader, path, num_col, num_row, *args):
