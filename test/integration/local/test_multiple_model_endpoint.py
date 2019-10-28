@@ -146,6 +146,7 @@ def test_load_and_unload_model():
     assert code == 404, res
     assert res['message'] == "Model not found: {}".format(model_name), res
 
+
 def test_load_and_unload_two_models():
     model_name_0 = 'sanity'
     model_data_0 = {

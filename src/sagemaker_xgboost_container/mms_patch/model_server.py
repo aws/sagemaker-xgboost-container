@@ -11,7 +11,6 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
-
 import os
 import signal
 import subprocess
@@ -58,6 +57,8 @@ def start_model_server(is_multi_model=False, handler_service=DEFAULT_HANDLER_SER
     if os.path.exists(REQUIREMENTS_PATH):
         _install_requirements()
 
+    _set_python_path()
+
     mxnet_model_server_cmd = ['mxnet-model-server',
                               '--start',
                               '--mms-config', config_file,
@@ -67,8 +68,6 @@ def start_model_server(is_multi_model=False, handler_service=DEFAULT_HANDLER_SER
     if not is_multi_model:
         _adapt_to_mms_format(handler_service)
         mxnet_model_server_cmd += ['--model-store', DEFAULT_MMS_MODEL_DIRECTORY]
-
-    # _set_python_path()
 
     logger.info(mxnet_model_server_cmd)
     subprocess.Popen(mxnet_model_server_cmd)
@@ -99,8 +98,6 @@ def _adapt_to_mms_format(handler_service):
 
     logger.info(model_archiver_cmd)
     subprocess.check_call(model_archiver_cmd)
-
-    _set_python_path()
 
 
 def _set_python_path():
