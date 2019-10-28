@@ -105,7 +105,7 @@ class HandlerService(DefaultHandlerService):
                     booster.load_model(os.path.join(model_dir, model_file))
                     format = 'xgb_format'
                 except Exception as exp_xgb:
-                    raise ModelLoadInferenceError("Unable to load model: %s %s", exp_pkl, exp_xgb)
+                    raise ModelLoadInferenceError("Unable to load model: {} {}".format(str(exp_pkl), str(exp_xgb)))
             booster.set_param('nthread', 1)
             return booster, format
 

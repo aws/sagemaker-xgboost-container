@@ -13,6 +13,7 @@
 from __future__ import absolute_import
 
 import importlib
+import logging
 
 from sagemaker_inference import content_types, environment, utils
 from sagemaker_inference.default_inference_handler import DefaultInferenceHandler
@@ -67,9 +68,21 @@ class Transformer(object):
         Returns:
             list[obj]: the serialized prediction result wrapped in a list.
         """
-        try:
-            self.validate_and_initialize()
+        if not self._initialized:
+            try:
+                sys_properties = context._system_properties
+                model_dir = sys_properties.get('model_dir')
 
+                self.validate_and_initialize(model_dir)
+            except Exception as e:
+                if isinstance(e, BaseInferenceToolkitError):
+                    logging.error("Error loading model: {}".format(e))
+                    return self.handle_error(context, e.status_code, e.message)
+                else:
+                    raise e
+            self._initialized = True
+
+        try:
             input_data = data[0].get('body')
 
             request_processor = context.request_processor[0]
@@ -95,19 +108,22 @@ class Transformer(object):
             return [response]
         except Exception as e:
             if isinstance(e, BaseInferenceToolkitError):
+                logging.error(e)
+                raise e
                 return self.handle_error(context, e.status_code, e.message)
             else:
                 raise e
 
-    def validate_and_initialize(self):  # type: () -> None
+    def validate_and_initialize(self, model_dir):  # type: () -> None
         """Validates the user module against the SageMaker inference contract.
         Load the model as defined by the ``model_fn`` to prepare handling predictions.
+
+        NOTE: This still uses environment values from the legacy sagemaker-containers. This should be removed.
         """
-        if not self._initialized:
-            self._environment = environment.Environment()
-            self._validate_user_module_and_set_functions()
-            self._model = self._model_fn(environment.model_dir)
-            self._initialized = True
+        self._environment = environment.Environment()
+        self._validate_user_module_and_set_functions()
+        self._model = self._model_fn(model_dir)
+        self._initialized = True
 
     def _validate_user_module_and_set_functions(self):
         """Retrieves and validates the inference handlers provided within the user module.
@@ -133,8 +149,7 @@ class Transformer(object):
             self._input_fn = input_fn or self._default_inference_handler.default_input_fn
             self._predict_fn = predict_fn or self._default_inference_handler.default_predict_fn
             self._output_fn = output_fn or self._default_inference_handler.default_output_fn
-        except Exception as e:
-            print(e)
+        except Exception:
             self._model_fn = self._default_inference_handler.default_model_fn
             self._transform_fn = self._default_transform_fn
             self._input_fn = self._default_inference_handler.default_input_fn
