@@ -22,7 +22,7 @@ class TestTrainUtils(unittest.TestCase):
 
     def setUp(self):
         path = os.path.abspath(__file__)
-        self.resource_path = os.path.join(os.path.dirname(path), '..', 'resources')
+        self.data_path = os.path.join(os.path.dirname(path), '..', 'resources', 'data')
 
     def test_get_content_type(self):
         self.assertEqual('libsvm', data_utils.get_content_type('libsvm'))
@@ -52,7 +52,7 @@ class TestTrainUtils(unittest.TestCase):
 
         for file_path in csv_file_paths:
             with self.subTest(file_path=file_path):
-                csv_path = os.path.join(self.resource_path, 'csv', file_path)
+                csv_path = os.path.join(self.data_path, 'csv', file_path)
                 data_utils.validate_data_file_path(csv_path, 'csv')
 
     def test_validate_libsvm_files(self):
@@ -60,7 +60,7 @@ class TestTrainUtils(unittest.TestCase):
 
         for file_path in libsvm_file_paths:
             with self.subTest(file_path=file_path):
-                csv_path = os.path.join(self.resource_path, 'libsvm', file_path)
+                csv_path = os.path.join(self.data_path, 'libsvm', file_path)
                 data_utils.validate_data_file_path(csv_path, 'libsvm')
 
     def test_parse_csv_dmatrix(self):
@@ -68,7 +68,7 @@ class TestTrainUtils(unittest.TestCase):
 
         for file_path, csv_weight in csv_file_paths_and_weight:
             with self.subTest(file_path=file_path, csv_weight=csv_weight):
-                csv_path = os.path.join(self.resource_path, 'csv', file_path)
+                csv_path = os.path.join(self.data_path, 'csv', file_path)
 
                 single_node_dmatrix = data_utils.get_csv_dmatrix(csv_path, csv_weight)
 
@@ -84,7 +84,7 @@ class TestTrainUtils(unittest.TestCase):
 
         for file_path in libsvm_file_paths:
             with self.subTest(file_path=file_path):
-                libsvm_path = os.path.join(self.resource_path, 'libsvm', file_path)
+                libsvm_path = os.path.join(self.data_path, 'libsvm', file_path)
 
                 single_node_dmatrix = data_utils.get_libsvm_dmatrix(libsvm_path)
 
