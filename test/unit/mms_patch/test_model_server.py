@@ -20,7 +20,8 @@ import pytest
 
 from sagemaker_inference import environment
 from sagemaker_xgboost_container.mms_patch import model_server
-from sagemaker_xgboost_container.mms_patch.model_server import MMS_NAMESPACE, REQUIREMENTS_PATH
+from sagemaker_xgboost_container.mms_patch.model_server import MMS_NAMESPACE, REQUIREMENTS_PATH, \
+    DEFAULT_MMS_MODEL_DIRECTORY
 
 PYTHON_PATH = 'python_path'
 DEFAULT_CONFIGURATION = 'default_configuration'
@@ -47,6 +48,7 @@ def test_start_model_server_default_service_handler(adapt, create_config, exists
                               '--start',
                               '--mms-config', model_server.MMS_CONFIG_FILE,
                               '--log-config', model_server.DEFAULT_MMS_LOG_FILE,
+                              '--model-store', DEFAULT_MMS_MODEL_DIRECTORY,
                               ]
 
     subprocess_popen.assert_called_once_with(mxnet_model_server_cmd)
@@ -68,11 +70,10 @@ def test_start_model_server_custom_handler_service(adapt, create_config, sigterm
     adapt.assert_called_once_with(handler_service)
 
 
-@patch('sagemaker_xgboost_container.mms_patch.model_server._set_python_path')
 @patch('subprocess.check_call')
 @patch('os.makedirs')
 @patch('os.path.exists', return_value=False)
-def test_adapt_to_mms_format(path_exists, make_dir, subprocess_check_call, set_python_path):
+def test_adapt_to_mms_format(path_exists, make_dir, subprocess_check_call):
     handler_service = Mock()
 
     model_server._adapt_to_mms_format(handler_service)
@@ -89,7 +90,6 @@ def test_adapt_to_mms_format(path_exists, make_dir, subprocess_check_call, set_p
                           ]
 
     subprocess_check_call.assert_called_once_with(model_archiver_cmd)
-    set_python_path.assert_called_once_with()
 
 
 @patch('sagemaker_xgboost_container.mms_patch.model_server._set_python_path')

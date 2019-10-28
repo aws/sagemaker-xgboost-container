@@ -95,7 +95,8 @@ class HandlerService(DefaultHandlerService):
                 A XGBoost model.
                 XGBoost model format type.
             """
-            model_file = os.listdir(model_dir)[0]
+            model_files = (file for file in os.listdir(model_dir) if os.path.isfile(os.path.join(model_dir, file)))
+            model_file = next(model_files)
             try:
                 booster = pkl.load(open(os.path.join(model_dir, model_file), 'rb'))
                 format = 'pkl_format'
