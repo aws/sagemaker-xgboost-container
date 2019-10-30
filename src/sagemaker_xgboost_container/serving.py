@@ -44,8 +44,7 @@ def _start_model_server(is_multi_model, handler):
     # sometimes fail with 'bad address'. more investigation needed
     # retry starting mms until it's ready
     logging.info("Trying to set up model server handler: {}".format(handler))
-
-    os.environ["SAGEMAKER_MMS_DEFAULT_HANDER"] = handler
+    _set_mms_configs(is_multi_model, handler)
     model_server.start_model_server(handler_service=handler,
                                     is_multi_model=is_multi_model,
                                     config_file=os.environ['XGBOOST_MMS_CONFIG'])
@@ -58,11 +57,13 @@ def _is_multi_model_endpoint():
         return False
 
 
-def _set_mms_configs(is_multi_model):
+def _set_mms_configs(is_multi_model, handler):
     """Set environment variables for MMS to parse during server initialization.
 
-    If multi-model mode, each model is defaulted 1 worker and the model store directory is '/'.
-    Else, we assign a worker per CPU to the single model.
+    'SAGEMAKER_MMS_MODEL_STORE' has to be set to the model location during single model inference because MMS
+    is initialized with the model. In multi-model mode, MMS is started with no models loaded.
+
+    Note: Ideally, instead of relying on env vars, this should be written directly to a config file.
     """
     if is_multi_model:
         os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
@@ -77,13 +78,12 @@ def _set_mms_configs(is_multi_model):
         os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
     if not os.getenv("SAGEMAKER_MAX_REQUEST_SIZE"):
         os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(MAX_PAYLOAD_IN_MB * 1024 * 1024)
-        # Note that this value is returned for GET execution-parameters
+    os.environ["SAGEMAKER_MMS_DEFAULT_HANDER"] = handler
 
 
 def main():
     serving_env = env.ServingEnv()
     is_multi_model = _is_multi_model_endpoint()
-    _set_mms_configs(is_multi_model)
 
     if serving_env.module_name is None:
         logging.info("Starting MXNet server in algorithm mode.")
