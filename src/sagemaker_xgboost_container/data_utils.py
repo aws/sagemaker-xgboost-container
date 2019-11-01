@@ -314,14 +314,18 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
                                 batch_size=BATCH_SIZE,
                                 header_row_index=None)
 
+        # Check if data is present in reader
         if reader.peek_example() is not None:
             examples = []
             for example in reader:
+                # Write each feature (column) of example into a single numpy array
                 tmp = [as_numpy(feature).squeeze() for feature in example]
                 tmp = np.array(tmp)
                 if len(tmp.shape) > 1:
+                    # Columns are written as rows, needs to be transposed
                     tmp = tmp.T
                 else:
+                    # If tmp is a 1-D array, it needs to be reshaped as a matrix
                     tmp = np.reshape(tmp, (1, tmp.shape[0]))
                 examples.append(tmp)
 
