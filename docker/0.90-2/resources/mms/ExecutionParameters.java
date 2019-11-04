@@ -1,3 +1,5 @@
+package software.amazon.ai.mms.plugins.endpoint;
+
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import java.io.IOException;
@@ -19,20 +21,28 @@ import software.amazon.ai.mms.servingsdk.http.Response;
 //
 // > ./gradlew fJ
 //
-// The jar should be available in plugins/build/libs as endpoints-1.0.jar
+// Modify file in plugins/endpoint/resources/META-INF/services/* to specify this file location
+//
+// Then build the JAR:
+//
+// > ./gradlew build
+//
+// The jar should be available in plugins/endpoints/build/libs as endpoints-1.0.jar
 @Endpoint(
         urlPattern = "execution-parameters",
         endpointType = EndpointTypes.INFERENCE,
         description = "Execution parameters endpoint")
 public class ExecutionParameters extends ModelServerEndpoint {
-
     @Override
     public void doGet(Request req, Response rsp, Context ctx) throws IOException {
         Properties prop = ctx.getConfig();
+        // 6 * 1024 * 1024
+        int maxRequestSize =
+                Integer.parseInt(prop.getProperty("SAGEMAKER_MAX_REQUEST_SIZE", "6291456"));
         SagemakerXgboostResponse r = new SagemakerXgboostResponse();
         r.setMaxConcurrentTransforms(Integer.parseInt(prop.getProperty("NUM_WORKERS", "1")));
         r.setBatchStrategy("MULTI_RECORD");
-        r.setMaxPayloadInMB(Integer.parseInt(prop.getProperty("SAGEMAKER_MAX_REQUEST_SIZE", "6")));
+        r.setMaxPayloadInMB(maxRequestSize / (1024 * 1024));
         rsp.getOutputStream()
                 .write(
                         new GsonBuilder()
