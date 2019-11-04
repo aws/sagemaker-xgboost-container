@@ -166,3 +166,12 @@ class TestTrainUtils(unittest.TestCase):
                 reader = data_utils.get_recordio_protobuf_dmatrix
                 is_pipe = True
                 self._check_piped_dmatrix(pb_path, pipe_path, pipe_dir, reader, 5, 5, is_pipe)
+
+    def test_parse_sparse_protobuf_dmatrix(self):
+        pb_file_paths = ['sparse']
+
+        for file_path in pb_file_paths:
+            with self.subTest(file_path=file_path):
+                pb_path = os.path.join(self.resource_path, 'recordio_protobuf', file_path)
+                reader = data_utils.get_recordio_protobuf_dmatrix
+                self._check_dmatrix(reader, pb_path, 5, 5)

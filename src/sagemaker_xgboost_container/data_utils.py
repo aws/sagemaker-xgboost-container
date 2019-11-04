@@ -25,8 +25,11 @@ from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_containers import _content_types
 from sagemaker_xgboost_container.constants import xgb_content_types
 
-from mlio.integ.numpy import as_numpy
 from mlio.integ.arrow import as_arrow_file
+from mlio.integ.numpy import as_numpy
+from mlio.integ.scipy import to_coo_matrix
+
+from scipy.sparse import vstack as scipy_vstack
 
 BATCH_SIZE = 4000
 
@@ -310,17 +313,22 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
         reader = mlio.CsvReader(dataset=dataset,
                                 batch_size=BATCH_SIZE,
                                 header_row_index=None)
-        examples = []
-        for example in reader:
-            tmp = [as_numpy(feature).squeeze() for feature in example]
-            tmp = np.array(tmp)
-            if len(tmp.shape) > 1:
-                tmp = tmp.T
-            else:
-                tmp = np.reshape(tmp, (1, tmp.shape[0]))
-            examples.append(tmp)
 
-        if examples:
+        # Check if data is present in reader
+        if reader.peek_example() is not None:
+            examples = []
+            for example in reader:
+                # Write each feature (column) of example into a single numpy array
+                tmp = [as_numpy(feature).squeeze() for feature in example]
+                tmp = np.array(tmp)
+                if len(tmp.shape) > 1:
+                    # Columns are written as rows, needs to be transposed
+                    tmp = tmp.T
+                else:
+                    # If tmp is a 1-D array, it needs to be reshaped as a matrix
+                    tmp = np.reshape(tmp, (1, tmp.shape[0]))
+                examples.append(tmp)
+
             data = np.vstack(examples)
             del examples
 
@@ -459,17 +467,27 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
             reader = mlio.RecordIOProtobufReader(dataset=dataset,
                                                  batch_size=BATCH_SIZE)
 
-        examples = []
-        for example in reader:
-            tmp = [as_numpy(feature) for feature in example]
-            tmp = np.hstack(tmp)
-            examples.append(tmp)
+        if reader.peek_example() is not None:
+            # recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
+            if type(reader.peek_example()['values']) is mlio.core.DenseTensor:
+                to_matrix = as_numpy
+                vstack = np.vstack
+            else:
+                to_matrix = to_coo_matrix
+                vstack = scipy_vstack
 
-        if examples:
-            data = np.vstack(examples)
-            del examples
+            all_features = []
+            all_labels = []
+            for example in reader:
+                features = to_matrix(example['values'])
+                all_features.append(features)
 
-            dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+                labels = as_numpy(example['label_values']).squeeze()
+                all_labels.append(labels)
+
+            all_features = vstack(all_features)
+            all_labels = np.concatenate(all_labels)
+            dmatrix = xgb.DMatrix(all_features, label=all_labels)
             return dmatrix
         else:
             return None
