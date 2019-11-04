@@ -1,4 +1,5 @@
-FROM xgboost-container-base:0.90-1-cpu-py3
+FROM xgboost-container-base:0.90-2-cpu-py3
+ENV SAGEMAKER_XGBOOST_VERSION 0.90-2
 
 ########################
 # Install dependencies #
@@ -29,12 +30,12 @@ RUN mkdir -p /home/model-server/tmp
 RUN chown -R model-server /home/model-server
 
 # Copy MMS configs
-COPY docker/0.90-2/resources/mms/config.properties /home/model-server
+COPY docker/$SAGEMAKER_XGBOOST_VERSION/resources/mms/config.properties /home/model-server
 ENV XGBOOST_MMS_CONFIG=/home/model-server/config.properties
 
 # Copy execution parameters endpoint plugin for MMS
 RUN mkdir -p /tmp/plugins
-COPY docker/0.90-2/resources/mms/endpoints-1.0.jar /tmp/plugins
+COPY docker/$SAGEMAKER_XGBOOST_VERSION/resources/mms/endpoints-1.0.jar /tmp/plugins
 RUN chmod +x /tmp/plugins/endpoints-1.0.jar
 
 # Create directory for models
