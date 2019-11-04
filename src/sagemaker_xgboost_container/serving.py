@@ -21,7 +21,6 @@ from retrying import retry
 from sagemaker_containers.beta.framework import env, modules
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-
 from sagemaker_xgboost_container.mms_patch import model_server
 from sagemaker_xgboost_container.algorithm_mode import handler_service as algo_handler_service
 from sagemaker_xgboost_container import handler_service as user_module_handler_service
@@ -31,7 +30,7 @@ ALGO_HANDLER_SERVICE = algo_handler_service.__name__
 USER_HANDLER_SERVICE = user_module_handler_service.__name__
 
 PORT = 8080
-MAX_PAYLOAD_IN_MB = 6
+DEFAULT_MAX_CONTENT_LEN = 6 * 1024 * 1024
 
 
 def _retry_if_error(exception):
@@ -65,6 +64,8 @@ def _set_mms_configs(is_multi_model, handler):
 
     Note: Ideally, instead of relying on env vars, this should be written directly to a config file.
     """
+    max_content_length = os.getenv("MAX_CONTENT_LENGTH", DEFAULT_MAX_CONTENT_LEN)
+
     if is_multi_model:
         os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
         os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
@@ -76,8 +77,8 @@ def _set_mms_configs(is_multi_model, handler):
 
     if not os.getenv("SAGEMAKER_BIND_TO_PORT", None):
         os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
-    if not os.getenv("SAGEMAKER_MAX_REQUEST_SIZE"):
-        os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(MAX_PAYLOAD_IN_MB * 1024 * 1024)
+
+    os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(max_content_length)
     os.environ["SAGEMAKER_MMS_DEFAULT_HANDER"] = handler
 
 
