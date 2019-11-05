@@ -17,7 +17,6 @@ import os
 import subprocess
 
 from retrying import retry
-
 from sagemaker_containers.beta.framework import env, modules
 
 from sagemaker_algorithm_toolkit import exceptions as exc
@@ -31,7 +30,6 @@ USER_HANDLER_SERVICE = user_module_handler_service.__name__
 
 PORT = 8080
 DEFAULT_MAX_CONTENT_LEN = 6 * 1024**2
-
 
 
 def _retry_if_error(exception):

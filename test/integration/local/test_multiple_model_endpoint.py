@@ -206,6 +206,6 @@ def test_load_one_model_two_times():
     assert res_json['status'] == 'Workers scaled'
 
     code_load, res = make_load_model_request(json.dumps(model_data))
-    assert code_load == 400
+    assert code_load == 409
     res_json = json.loads(res)
     assert res_json['message'] == 'Model {} is already registered.'.format(model_name)

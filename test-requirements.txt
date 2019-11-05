@@ -9,6 +9,7 @@ mxnet-model-server
 pytest
 pytest-cov
 pytest-xdist
+python-dateutil==2.8.0
 requests<2.21
 sagemaker>=1.3.0
 sagemaker-containers>=2.5.6
