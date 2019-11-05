@@ -91,7 +91,7 @@ def test_env_var_setting_single_and_multi_model(start_model_server, mock_get_num
         assert os.environ["SAGEMAKER_MMS_MODEL_STORE"] == '/opt/ml/model'
         assert os.environ["SAGEMAKER_MMS_LOAD_MODELS"] == 'ALL'
         assert os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] == str(serving.DEFAULT_MAX_CONTENT_LEN)
-        assert os.environ["SAGEMAKER_MMS_DEFAULT_HANDER"] == test_handler_str
+        assert os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] == test_handler_str
 
     with patch.dict('os.environ', {}):
         serving._set_mms_configs(True, test_handler_str)
@@ -100,7 +100,7 @@ def test_env_var_setting_single_and_multi_model(start_model_server, mock_get_num
         assert os.environ["SAGEMAKER_MMS_MODEL_STORE"] == '/'
         assert os.environ["SAGEMAKER_MMS_LOAD_MODELS"] == ''
         assert os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] == str(serving.DEFAULT_MAX_CONTENT_LEN)
-        assert os.environ["SAGEMAKER_MMS_DEFAULT_HANDER"] == test_handler_str
+        assert os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] == test_handler_str
 
 
 @patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')

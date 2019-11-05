@@ -190,6 +190,6 @@ class TestTrainUtils(unittest.TestCase):
 
         for file_path in pb_file_paths:
             with self.subTest(file_path=file_path):
-                pb_path = os.path.join(self.resource_path, 'recordio_protobuf', file_path)
+                pb_path = os.path.join(self.data_path, 'recordio_protobuf', file_path)
                 reader = data_utils.get_recordio_protobuf_dmatrix
                 self._check_dmatrix(reader, pb_path, 5, 5)
