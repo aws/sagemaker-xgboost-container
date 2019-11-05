@@ -33,12 +33,12 @@ import software.amazon.ai.mms.servingsdk.http.Response;
         endpointType = EndpointTypes.INFERENCE,
         description = "Execution parameters endpoint")
 public class ExecutionParameters extends ModelServerEndpoint {
+
     @Override
     public void doGet(Request req, Response rsp, Context ctx) throws IOException {
         Properties prop = ctx.getConfig();
         // 6 * 1024 * 1024
-        int maxRequestSize =
-                Integer.parseInt(prop.getProperty("SAGEMAKER_MAX_REQUEST_SIZE", "6291456"));
+        int maxRequestSize = Integer.parseInt(prop.getProperty("max_request_size", "6291456"));
         SagemakerXgboostResponse r = new SagemakerXgboostResponse();
         r.setMaxConcurrentTransforms(Integer.parseInt(prop.getProperty("NUM_WORKERS", "1")));
         r.setBatchStrategy("MULTI_RECORD");

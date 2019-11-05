@@ -30,7 +30,7 @@ ALGO_HANDLER_SERVICE = algo_handler_service.__name__
 USER_HANDLER_SERVICE = user_module_handler_service.__name__
 
 PORT = 8080
-DEFAULT_MAX_CONTENT_LEN = 5 * 1024**2
+DEFAULT_MAX_CONTENT_LEN = 6 * 1024**2
 
 
 
@@ -58,7 +58,8 @@ def _is_multi_model_endpoint():
 
 
 def _set_mms_configs(is_multi_model, handler):
-    """Set environment variables for MMS to parse during server initialization.
+    """Set environment variables for MMS to parse during server initialization. These env vars are used to
+    propagate the config.properties file used during MxNet Model Server initialization.
 
     'SAGEMAKER_MMS_MODEL_STORE' has to be set to the model location during single model inference because MMS
     is initialized with the model. In multi-model mode, MMS is started with no models loaded.
@@ -80,7 +81,7 @@ def _set_mms_configs(is_multi_model, handler):
         os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
 
     os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(max_content_length)
-    os.environ["SAGEMAKER_MMS_DEFAULT_HANDER"] = handler
+    os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] = handler
 
 
 def main():
