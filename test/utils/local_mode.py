@@ -88,41 +88,6 @@ def get_image_uri(framework_name, tag):
     return '{}:{}'.format(framework_name, tag)
 
 
-def create_config_files(program, s3_source_archive, path, additional_hp=None):
-    additional_hp = additional_hp or {}
-
-    rc = {"current_host": "algo-1", "hosts": ["algo-1"]}
-
-    hp = {'sagemaker_region': 'us-west-2',
-          'sagemaker_program': program,
-          'sagemaker_submit_directory': s3_source_archive,
-          'sagemaker_container_log_level': logging.INFO}
-
-    hp.update(additional_hp)
-
-    ic = {
-        "training": {"ContentType": "trainingContentType"},
-        "evaluation": {"ContentType": "evalContentType"},
-        "Validation": {}
-    }
-
-    write_conf_files(rc, hp, ic, path)
-
-
-def write_conf_files(rc, hp, ic, path):
-    os.makedirs('{}/input/config'.format(path))
-
-    rc_file = os.path.join(path, 'input/config/resourceconfig.json')
-    hp_file = os.path.join(path, 'input/config/hyperparameters.json')
-    ic_file = os.path.join(path, 'input/config/inputdataconfig.json')
-
-    hp = serialize_hyperparameters(hp)
-
-    save_as_json(rc, rc_file)
-    save_as_json(hp, hp_file)
-    save_as_json(ic, ic_file)
-
-
 def serialize_hyperparameters(hp):
     return {str(k): json.dumps(v) for (k, v) in hp.items()}
 
@@ -134,7 +99,7 @@ def save_as_json(data, filename):
 
 def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperparameters=None,
           additional_volumes=None, additional_env_vars=None, use_gpu=False, entrypoint=None,
-          source_dir=None):
+          source_dir=None, debughookconfig=None):
     additional_env_vars = additional_env_vars or []
     additional_volumes = additional_volumes or []
     hyperparameters = hyperparameters or {}
@@ -142,7 +107,8 @@ def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperpa
     tmpdir = create_training(data_dir, customer_script, opt_ml, image_name, additional_volumes,
                              additional_env_vars,
                              hyperparameters, cluster_size, entrypoint=entrypoint,
-                             source_dir=source_dir, use_gpu=use_gpu)
+                             source_dir=source_dir, use_gpu=use_gpu,
+                             debughookconfig=debughookconfig)
     command = create_docker_command(tmpdir, use_gpu)
     start_docker(tmpdir, command)
     purge()
@@ -256,7 +222,7 @@ def create_docker_command(tmpdir, use_gpu=False, detached=False):
 
 def create_training(data_dir, customer_script, optml, image, additional_volumes,
                     additional_env_vars, additional_hps=None, cluster_size=1, source_dir=None,
-                    entrypoint=None, use_gpu=False):
+                    entrypoint=None, use_gpu=False, debughookconfig=None):
 
     additional_hps = additional_hps or None
 
@@ -267,7 +233,11 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
     print('creating hosts: {}'.format(hosts))
 
     config = create_input_data_config(data_dir)
-    hyperparameters = read_hyperparameters(additional_hps)
+
+    if not customer_script:
+        hyperparameters = read_hyperparameters(additional_hps, use_default_hyperparameters=False)
+    else:
+        hyperparameters = read_hyperparameters(additional_hps)
 
     if customer_script:
         timestamp = utils.sagemaker_timestamp()
@@ -288,6 +258,8 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
         write_hyperparameters(tmpdir, host, hyperparameters)
         write_resource_config(tmpdir, hosts, host)
         write_inputdataconfig(tmpdir, host, config)
+        if debughookconfig is not None:
+            write_debughookconfig(tmpdir, host, debughookconfig)
 
         shutil.copytree(data_dir, os.path.join(tmpdir, host, 'input', 'data'))
 
@@ -306,6 +278,12 @@ def write_inputdataconfig(path, current_host, inputdataconfig):
     write_json_file(filename, inputdataconfig)
 
 
+def write_debughookconfig(path, current_host, debughookconfig):
+
+    filename = os.path.join(path, current_host, 'input', 'config', 'debughookconfig.json')
+    write_json_file(filename, debughookconfig)
+
+
 def write_hyperparameters(path, current_host, hyperparameters):
 
     serialized = {k: json.dumps(v) for k, v in hyperparameters.items()}
@@ -313,24 +291,29 @@ def write_hyperparameters(path, current_host, hyperparameters):
     write_json_file(filename, serialized)
 
 
-def read_hyperparameters(additonal_hyperparameters=None):
+def read_hyperparameters(additonal_hyperparameters=None, use_default_hyperparameters=True):
 
     additonal_hyperparameters = additonal_hyperparameters or {}
 
-    hyperparameters = DEFAULT_HYPERPARAMETERS.copy()
+    hyperparameters = DEFAULT_HYPERPARAMETERS.copy() if use_default_hyperparameters else {}
     hyperparameters.update(additonal_hyperparameters)
 
     print('hyperparameters: {}'.format(hyperparameters))
     return hyperparameters
 
 
-def create_input_data_config(data_path):
+def create_input_data_config(data_path, content_type="libsvm", input_mode="File",
+                             distribution_type="FullyReplicated"):
     channels = []
     for (_, dirs, _) in os.walk(data_path):
         channels.extend(dirs)
         del dirs
 
-    config = {c: {'ContentType': 'application/octet-stream'} for c in channels}
+    config = {
+        c: {"ContentType": content_type,
+            "TrainingInputMode": input_mode,
+            "S3DistributionType": distribution_type}
+        for c in channels}
     print('input data config: {}'.format(config))
     return config
 
