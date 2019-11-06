@@ -1,4 +1,3 @@
-import json
 import logging
 from tornasole.xgboost import TornasoleHook
 
