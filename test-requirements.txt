@@ -5,7 +5,7 @@ coverage
 docker-compose
 flake8
 mock
-mxnet-model-server
+mxnet-model-server==1.0.8
 pytest
 pytest-cov
 pytest-xdist

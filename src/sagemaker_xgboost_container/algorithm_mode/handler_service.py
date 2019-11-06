@@ -81,7 +81,7 @@ class HandlerService(DefaultHandlerService):
     This class extends ``DefaultHandlerService``, which define the following:
         - The ``handle`` method is invoked for all incoming inference requests to the model server.
         - The ``initialize`` method is invoked at model server start up.
-    Based on: https://github.com/awslabs/mxnet-model-server/blob/master/docs/custom_service.md
+    Based on: https://github.com/awslabs/mxnet-model-server/blob/v1.0.8/docs/custom_service.md
     """
 
     class DefaultXGBoostAlgoModeInferenceHandler(default_inference_handler.DefaultInferenceHandler):
