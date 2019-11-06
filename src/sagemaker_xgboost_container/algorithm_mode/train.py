@@ -17,6 +17,7 @@ import os
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
+from sagemaker_algorithm_toolkit.channel_validation import Channel
 from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path
 from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container import checkpointing
@@ -31,7 +32,7 @@ from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 logger = logging.getLogger(__name__)
 
 
-def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights=0):
+def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights=0, is_pipe=False):
     """Get training and validation Data Matrices for XGBoost training.
 
     Check size and format of both training and validation data channels, and return parsed
@@ -41,21 +42,25 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     :param validate_path:
     :param content_type: Content type of data. Supports 'libsvm' or 'csv'
     :param csv_weights: 1 if instance weights are in the second column of csv data files; otherwise, 0
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
     :return: Parsed xgb.DMatrix
     """
-    train_files_size = get_size(train_path) if train_path else 0
-    val_files_size = get_size(validate_path) if validate_path else 0
+    train_files_size = get_size(train_path, is_pipe) if train_path else 0
+    val_files_size = get_size(validate_path, is_pipe) if validate_path else 0
 
-    logging.debug("File size need to be processed in the node: {}mb.".format(
-        round((train_files_size + val_files_size) / (1024 * 1024), 2)))
+    if not is_pipe:
+        logging.debug("File size need to be processed in the node: {}mb.".format(
+            round((train_files_size + val_files_size) / (1024 * 1024), 2)))
 
-    if train_files_size > 0:
-        validate_data_file_path(train_path, content_type)
-    if val_files_size > 0:
-        validate_data_file_path(validate_path, content_type)
+        if train_files_size > 0:
+            validate_data_file_path(train_path, content_type)
+        if val_files_size > 0:
+            validate_data_file_path(validate_path, content_type)
 
-    train_dmatrix = get_dmatrix(train_path, content_type, csv_weights=csv_weights) if train_files_size > 0 else None
-    val_dmatrix = get_dmatrix(validate_path, content_type) if val_files_size > 0 else None
+    train_dmatrix = get_dmatrix(train_path, content_type, csv_weights=csv_weights, is_pipe=is_pipe) \
+        if train_files_size > 0 else None
+    val_dmatrix = get_dmatrix(validate_path, content_type, is_pipe=is_pipe) \
+        if val_files_size > 0 else None
 
     return train_dmatrix, val_dmatrix
 
@@ -92,9 +97,12 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
 
     # Get Training and Validation Data Matrices
     file_type = get_content_type(validated_data_config['train'].get("ContentType"))
+    input_mode = validated_data_config['train'].get("TrainingInputMode")
     csv_weights = validated_train_config.get("csv_weights", 0)
-    validation_channel = data_config.get('validation', None)
-    train_dmatrix, val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type, csv_weights)
+    is_pipe = (input_mode == Channel.PIPE_MODE)
+
+    validation_channel = validated_data_config.get('validation', None)
+    train_dmatrix, val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type, csv_weights, is_pipe)
 
     checkpoint_dir = checkpoint_config.get("LocalPath", None)
 

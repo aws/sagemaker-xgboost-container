@@ -12,3 +12,5 @@
 # language governing permissions and limitations under the License.
 X_LIBSVM = 'text/x-libsvm'
 LIBSVM = 'text/libsvm'
+X_PARQUET = 'application/x-parquet'
+X_RECORDIO_PROTOBUF = 'application/x-recordio-protobuf'
