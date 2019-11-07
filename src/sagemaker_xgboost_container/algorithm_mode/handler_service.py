@@ -64,6 +64,10 @@ def predict(booster, model_format, dtest, content_type):
             if y > x + 1:
                 raise ValueError('Feature size of libsvm inference data {} is larger than '
                                  'feature size of trained model {}.'.format(y, x))
+        elif content_type == 'application/x-recordio-protobuf':
+            if not ((x == y) or (x == y + 1)):
+                raise ValueError('Feature size of recordio-protobuf inference data {} is not consistent '
+                                 'with feature size of trained model {}.'.format(y, x))
         elif content_type == 'text/csv':
             if not ((x == y) or (x == y + 1)):
                 raise ValueError('Feature size of csv inference data {} is not consistent '
@@ -119,7 +123,7 @@ class HandlerService(DefaultHandlerService):
                 The input_fn is responsible to take the request data and pre-process it before prediction.
             Args:
                 input_data (obj): the request data.
-                content_type (str): the request Content-Type. XGBoost accepts CSV and LIBSVM.
+                content_type (str): the request Content-Type. XGBoost accepts CSV, LIBSVM, and RECORDIO-PROTOBUF.
             Returns:
                 (obj): data ready for prediction. For XGBoost, this defaults to DMatrix.
             """
@@ -147,8 +151,17 @@ class HandlerService(DefaultHandlerService):
                                                              "Exception, please ensure data "
                                                              "is in libsvm format: {} {}".format(type(e),
                                                                                                  e))
+            elif content_type == "application/x-recordio-protobuf":
+                try:
+                    payload = input_data
+                    dtest = xgb_encoder.recordio_protobuf_to_dmatrix(payload)
+                except Exception as e:
+                    raise UnsupportedMediaTypeInferenceError("Loading recordio-protobuf data failed with "
+                                                             "Exception, please ensure data is in "
+                                                             "recordio-protobuf format: {} {}".format(type(e),
+                                                                                                      e))
             else:
-                raise UnsupportedMediaTypeInferenceError("Content type must be either libsvm or csv.")
+                raise UnsupportedMediaTypeInferenceError("Content type must be csv, libsvm, or recordio-protobuf.")
 
             return dtest, content_type
 

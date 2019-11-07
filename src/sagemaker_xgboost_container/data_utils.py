@@ -16,20 +16,19 @@ import logging
 import os
 
 import mlio
-import numpy as np
-import pandas as pd
-import pyarrow.parquet as pq
-import xgboost as xgb
-
-from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_containers import _content_types
-from sagemaker_xgboost_container.constants import xgb_content_types
-
 from mlio.integ.arrow import as_arrow_file
 from mlio.integ.numpy import as_numpy
 from mlio.integ.scipy import to_coo_matrix
-
+import numpy as np
+import pandas as pd
+import pyarrow.parquet as pq
+from sagemaker_containers import _content_types
 from scipy.sparse import vstack as scipy_vstack
+import xgboost as xgb
+
+from sagemaker_algorithm_toolkit import exceptions as exc
+from sagemaker_xgboost_container.constants import xgb_content_types
+
 
 BATCH_SIZE = 4000
 
