@@ -165,7 +165,7 @@ def test_load_and_unload_two_models():
     }
     code, res = make_load_model_request(json.dumps(model_data_1))
     assert code == 200, res
-    res_json = json.loads(res)
+    res_json = json.loagids(res)
     assert res_json['status'] == 'Workers scaled'
 
     code, res = make_invocation_request('0,0,1', model_name_0)

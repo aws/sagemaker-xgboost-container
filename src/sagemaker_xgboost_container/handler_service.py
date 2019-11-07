@@ -20,6 +20,7 @@ from sagemaker_inference.transformer import Transformer
 from sagemaker_containers.beta.framework import encoders
 
 from sagemaker_xgboost_container import encoder as xgb_encoders
+# from sagemaker_xgboost_container.mms_patch.mms_transformer import Transformer
 
 
 class HandlerService(DefaultHandlerService):
@@ -58,6 +59,8 @@ class HandlerService(DefaultHandlerService):
             Returns:
                 (obj): data ready for prediction. For XGBoost, this defaults to DMatrix.
             """
+            # if content_type in content_types.UTF8_TYPES:
+            #     input_data = input_data.decode('utf-8')
             return xgb_encoders.decode(input_data, content_type)
 
         def default_predict_fn(self, input_data, model):
