@@ -14,28 +14,14 @@ from __future__ import absolute_import
 import unittest
 import os
 from pathlib import Path
+import shutil
 import signal
-import stat
 import subprocess
 import sys
 import time
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils
-
-
-def _clear_folder(directory):
-    if os.path.exists(directory):
-        for the_file in os.listdir(directory):
-            file_path = os.path.join(directory, the_file)
-            try:
-                if os.path.isfile(file_path) or stat.S_ISFIFO(os.stat(file_path).st_mode):
-                    os.unlink(file_path)
-                else:
-                    _clear_folder(file_path)
-                    os.rmdir(file_path)
-            except Exception as e:
-                print(e)
 
 
 class TestTrainUtils(unittest.TestCase):
@@ -104,14 +90,15 @@ class TestTrainUtils(unittest.TestCase):
         python_exe = sys.executable
         pipe_cmd = '{}/sagemaker_pipe.py train {} {}'.format(self.utils_path, file_path, pipe_dir)
 
+        proc = subprocess.Popen([python_exe] + pipe_cmd.split(" "))
         try:
-            proc = subprocess.Popen([python_exe] + pipe_cmd.split(" "))
             time.sleep(1)
 
             self._check_dmatrix(reader, pipe_path, num_col, num_row, *args)
         finally:
-            os.kill(proc.pid, signal.SIGTERM)
-            _clear_folder(pipe_dir)
+            proc.terminate()
+
+            shutil.rmtree(pipe_dir)
 
     def test_parse_csv_dmatrix(self):
         csv_file_paths_and_weight = [('train.csv', 0), ('train.csv.weights', 1), ('csv_files', 0)]
