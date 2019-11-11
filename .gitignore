@@ -1,5 +1,6 @@
 dist/
 build/
+.eggs/
 src/sagemaker_xgboost_container.egg-info/
 .venv
 *~
@@ -7,3 +8,4 @@ src/sagemaker_xgboost_container.egg-info/
 __pycache__
 .coverage*
 .mypy_cache/
+.python-version

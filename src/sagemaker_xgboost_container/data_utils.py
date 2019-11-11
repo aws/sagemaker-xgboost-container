@@ -30,7 +30,7 @@ from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants import xgb_content_types
 
 
-BATCH_SIZE = 4000
+BATCH_SIZE = 1000
 
 CSV = 'csv'
 LIBSVM = 'libsvm'
@@ -291,60 +291,56 @@ def _get_csv_dmatrix_file_mode(files_path, csv_weights):
     return dmatrix
 
 
-def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
+def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights, subsample_ratio_on_read):
     """Get Data Matrix from CSV data in pipe mode.
 
     :param pipe_path: SageMaker pipe path where CSV formatted training data is piped
     :param csv_weights: 1 if instance weights are in second column of CSV data; else 0
+    :param subsample_ratio_on_read: None or a value in (0, 1) to indicate how much of the dataset should
+            be read into memory.
     :return: xgb.DMatrix or None
     """
     try:
-        dataset = [mlio.SageMakerPipe(pipe_path)]
+        dataset = [mlio.SageMakerPipe(pipe_path, fifo_id=0)]
         reader = mlio.CsvReader(dataset=dataset,
                                 batch_size=BATCH_SIZE,
-                                header_row_index=None)
+                                header_row_index=None,
+                                subsample_ratio=subsample_ratio_on_read)
 
         # Check if data is present in reader
-        if reader.peek_example() is not None:
-            examples = []
-            for example in reader:
-                # Write each feature (column) of example into a single numpy array
-                tmp = [as_numpy(feature).squeeze() for feature in example]
-                tmp = np.array(tmp)
-                if len(tmp.shape) > 1:
-                    # Columns are written as rows, needs to be transposed
-                    tmp = tmp.T
-                else:
-                    # If tmp is a 1-D array, it needs to be reshaped as a matrix
-                    tmp = np.reshape(tmp, (1, tmp.shape[0]))
-                examples.append(tmp)
-
-            data = np.vstack(examples)
-            del examples
-
-            if csv_weights == 1:
-                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weights=data[:, 1])
-            else:
-                dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
-
-            return dmatrix
-        else:
+        if reader.peek_example() is None:
             return None
 
+        batches = []
+        for example in reader:
+            batch = np.column_stack([as_numpy(f) for f in example])
+            batches.append(batch)
+
+        data = np.vstack(batches)
+        del batches
+
+        if csv_weights == 1:
+            dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weights=data[:, 1])
+        else:
+            dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+
+        return dmatrix
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
 
 
-def get_csv_dmatrix(path, csv_weights, is_pipe=False):
+def get_csv_dmatrix(path, csv_weights, is_pipe=False, subsample_ratio_on_read=None):
     """Get Data Matrix from CSV data.
 
     :param path: Path where CSV formatted training data resides, either directory, file, or SageMaker pipe
     :param csv_weights: 1 if instance weights are in second column of CSV data; else 0
     :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :param subsample_ratio_on_read: None or a value in (0, 1) to indicate how much of the dataset should
+            be read into memory.
     :return: xgb.DMatrix or None
     """
     if is_pipe:
-        return _get_csv_dmatrix_pipe_mode(path, csv_weights)
+        return _get_csv_dmatrix_pipe_mode(path, csv_weights, subsample_ratio_on_read)
     else:
         return _get_csv_dmatrix_file_mode(path, csv_weights)
 
@@ -440,53 +436,61 @@ def get_parquet_dmatrix(path, is_pipe=False):
         return _get_parquet_dmatrix_file_mode(path)
 
 
-def get_recordio_protobuf_dmatrix(path, is_pipe=False):
+def get_recordio_protobuf_dmatrix(path, is_pipe=False, subsample_ratio_on_read=None):
     """Get Data Matrix from recordio-protobuf data.
 
     :param path: Path where recordio-protobuf formatted training data resides, either directory, file, or SageMaker pipe
     :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :param subsample_ratio_on_read: None or a value in (0, 1) to indicate how much of the dataset should
+            be read into memory.
     :return: xgb.DMatrix or None
     """
     try:
         if is_pipe:
             dataset = [mlio.SageMakerPipe(path)]
             reader = mlio.RecordIOProtobufReader(dataset=dataset,
-                                                 batch_size=BATCH_SIZE)
+                                                 batch_size=BATCH_SIZE,
+                                                 subsample_ratio=subsample_ratio_on_read)
         else:
             dataset = mlio.list_files(path)
             reader = mlio.RecordIOProtobufReader(dataset=dataset,
-                                                 batch_size=BATCH_SIZE)
+                                                 batch_size=BATCH_SIZE,
+                                                 subsample_ratio=subsample_ratio_on_read)
 
-        if reader.peek_example() is not None:
-            # recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
-            if type(reader.peek_example()['values']) is mlio.core.DenseTensor:
-                to_matrix = as_numpy
-                vstack = np.vstack
-            else:
-                to_matrix = to_coo_matrix
-                vstack = scipy_vstack
-
-            all_features = []
-            all_labels = []
-            for example in reader:
-                features = to_matrix(example['values'])
-                all_features.append(features)
-
-                labels = as_numpy(example['label_values']).squeeze()
-                all_labels.append(labels)
-
-            all_features = vstack(all_features)
-            all_labels = np.concatenate(all_labels)
-            dmatrix = xgb.DMatrix(all_features, label=all_labels)
-            return dmatrix
-        else:
+        exm = reader.peek_example()
+        if exm is None:
             return None
 
+        # Recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
+        if isinstance(exm['values'], mlio.DenseTensor):
+            to_matrix = as_numpy
+            vstack = np.vstack
+        else:
+            to_matrix = to_coo_matrix
+            vstack = scipy_vstack
+
+        all_values = []
+        all_labels = []
+        for example in reader:
+            values = to_matrix(example['values'])
+            all_values.append(values)
+
+            labels = as_numpy(example['label_values']).squeeze()
+            all_labels.append(labels)
+
+        all_values = vstack(all_values)
+        all_labels = np.concatenate(all_labels)
+
+        return xgb.DMatrix(all_values, label=all_labels)
     except Exception as e:
         raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
 
 
-def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
+def get_dmatrix(data_path,
+                content_type,
+                csv_weights=0,
+                is_pipe=False,
+                subsample_ratio_on_read=None):
     """Create Data Matrix from CSV or LIBSVM file.
 
     Assumes that sanity validation for content type has been done.
@@ -496,33 +500,58 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     :param csv_weights: Only used if file_type is 'csv'.
                         1 if the instance weights are in the second column of csv file; otherwise, 0
     :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :param subsample_ratio_on_read: None or a value in (0, 1) to indicate how much of the dataset should
+            be read into memory.
     :return: xgb.DMatrix or None
     """
     if not (os.path.exists(data_path) or (is_pipe and os.path.exists(data_path + '_0'))):
         return None
-    else:
-        if os.path.isfile(data_path) or is_pipe:
-            files_path = data_path
-        elif not is_pipe:
-            for root, dirs, files in os.walk(data_path):
-                if dirs == []:
-                    files_path = root
-                    break
-        if content_type.lower() == CSV:
-            dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
-        elif content_type.lower() == LIBSVM:
-            dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
-        elif content_type.lower() == PARQUET:
-            dmatrix = get_parquet_dmatrix(files_path, is_pipe)
-        elif content_type.lower() == RECORDIO_PROTOBUF:
-            dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
 
-        if dmatrix and dmatrix.get_label().size == 0:
-            raise exc.UserError(
-                "Got input data without labels. Please check the input data set. "
-                "If training job is running on multiple instances, please switch "
-                "to using single instance if number of records in the data set "
-                "is less than number of workers (16 * number of instance) in the cluster.")
+    if os.path.isfile(data_path) or is_pipe:
+        files_path = data_path
+    elif not is_pipe:
+        for root, dirs, files in os.walk(data_path):
+            if not dirs:
+                files_path = root
+                break
+
+    if content_type.lower() == CSV:
+        if subsample_ratio_on_read and not is_pipe:
+            logging.warning(
+                "The subsample_ratio_on_read hyperparameter is not used for "
+                "CSV datasets in file mode.")
+
+        dmatrix = get_csv_dmatrix(files_path,
+                                  csv_weights,
+                                  is_pipe,
+                                  subsample_ratio_on_read)
+    elif content_type.lower() == LIBSVM:
+        if subsample_ratio_on_read:
+            logging.warning(
+                "The subsample_ratio_on_read hyperparameter is not used for "
+                "libsvm datasets.")
+
+        dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == PARQUET:
+        if subsample_ratio_on_read:
+            logging.warning(
+                "The subsample_ratio_on_read hyperparameter is not used for "
+                "Parquet datasets.")
+
+        dmatrix = get_parquet_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == RECORDIO_PROTOBUF:
+        dmatrix = get_recordio_protobuf_dmatrix(files_path,
+                                                is_pipe,
+                                                subsample_ratio_on_read)
+    else:
+        raise exc.UserError(_get_invalid_content_type_error_msg(content_type))
+
+    if dmatrix and dmatrix.get_label().size == 0:
+        raise exc.UserError(
+            "Got input data without labels. Please check the input data set. "
+            "If training job is running on multiple instances, please switch "
+            "to using single instance if number of records in the data set "
+            "is less than number of workers (16 * number of instance) in the cluster.")
 
     return dmatrix
 
