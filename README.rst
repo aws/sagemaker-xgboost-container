@@ -79,7 +79,7 @@ If you want to build your base docker image, then use:
     # Example
 
     # CPU
-    docker build -t xgboost-container-base:0.90-1-cpu-py3 -f docker/0.90-1/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
 
 
 Final Images
@@ -117,7 +117,7 @@ If you want to build "final" Docker images, then use:
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-container:0.90-1-cpu-py3 -f docker/0.90-1/final/Dockerfile.cpu .
+    docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
 
 Running the tests
 -----------------
@@ -130,6 +130,16 @@ dependencies.
     git clone https://github.com/aws/sagemaker-xgboost-container.git
     cd sagemaker-xgboost-container
     pip install -e .[test]
+
+Conda is also required and can be installed by following the instructions at https://conda.io/projects/conda/en/latest/user-guide/install/index.html. For convenience, the Linux installation commands are provided as an example.
+
+::
+
+    curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3
+    rm Miniconda3-latest-Linux-x86_64.sh
+    export PATH=/miniconda3/bin:${PATH}
+    conda update -y conda
 
 Tests are defined in
 `test/ <https://github.com/aws/sagemaker-xgboost-container/tree/master/test>`__

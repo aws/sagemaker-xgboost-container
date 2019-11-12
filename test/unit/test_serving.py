@@ -11,79 +11,105 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
-
 from mock import patch
-import numpy as np
+import os
 import pytest
-import xgboost as xgb
 
-from sagemaker_containers.beta.framework import (content_types, encoders, errors)
+from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import serving
+from sagemaker_xgboost_container import handler_service as user_module_handler_service
+from sagemaker_xgboost_container.algorithm_mode import handler_service as algo_handler_service
 
 
-@pytest.fixture(scope='module', name='np_array')
-def fixture_np_array():
-    return np.ones((2, 2))
+TEST_CONFIG_FILE = "test_dir"
+ALGO_HANDLER_SERVICE = algo_handler_service.__name__
+USER_HANDLER_SERVICE = user_module_handler_service.__name__
+TEST_MAX_CONTENT_LEN = 1024
+TEST_NUM_CPU = 3
 
 
-class FakeEstimator:
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def predict(input):
-        return
+@pytest.fixture
+def mock_set_mms_config_file(monkeypatch):
+    monkeypatch.setenv('XGBOOST_MMS_CONFIG', TEST_CONFIG_FILE)
 
 
-@pytest.mark.parametrize('csv_array', ('42,6,9', '42.0,6.0,9.0'))
-def test_input_fn_dmatrix(csv_array):
-    deserialized_csv_array = serving.default_input_fn(csv_array, content_types.CSV)
-    assert type(deserialized_csv_array) is xgb.DMatrix
+@pytest.fixture
+def mock_set_multi_model_env(monkeypatch):
+    monkeypatch.setenv('SAGEMAKER_MULTI_MODEL', 'true')
 
 
-def test_input_fn_bad_content_type():
-    with pytest.raises(errors.UnsupportedFormatError):
-        serving.default_input_fn('', 'application/not_supported')
+@patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')
+def test_single_model_algorithm_mode_hosting(start_model_server, mock_set_mms_config_file):
+    serving.main()
+    start_model_server.assert_called_with(
+        is_multi_model=False,
+        handler_service='sagemaker_xgboost_container.algorithm_mode.handler_service',
+        config_file=TEST_CONFIG_FILE)
 
 
-def test_default_model_fn():
-    with pytest.raises(NotImplementedError):
-        serving.default_model_fn('model_dir')
+@patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')
+def test_multi_model_algorithm_mode_hosting(start_model_server, mock_set_mms_config_file, mock_set_multi_model_env):
+    serving.main()
+    start_model_server.assert_called_with(
+        is_multi_model=True,
+        handler_service='sagemaker_xgboost_container.algorithm_mode.handler_service',
+        config_file=TEST_CONFIG_FILE)
 
 
-def test_predict_fn(np_array):
-    mock_estimator = FakeEstimator()
-    with patch.object(mock_estimator, 'predict') as mock:
-        serving.default_predict_fn(np_array, mock_estimator)
-    mock.assert_called_once()
+@patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')
+@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_dir')
+@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_name')
+@patch('sagemaker_containers.beta.framework.modules.import_module')
+def test_single_model_user_mode_hosting(
+        import_module,
+        user_module_name,
+        module_dir,
+        start_model_server,
+        mock_set_mms_config_file):
+    serving.main()
+    start_model_server.assert_called_with(
+        is_multi_model=False,
+        handler_service='sagemaker_xgboost_container.handler_service',
+        config_file=TEST_CONFIG_FILE)
+    import_module.assert_called_with(module_dir, user_module_name)
 
 
-def test_output_fn_json(np_array):
-    response = serving.default_output_fn(np_array, content_types.JSON)
-
-    assert response.get_data(as_text=True) == encoders.array_to_json(np_array.tolist())
-    assert response.content_type == content_types.JSON
-
-
-def test_output_fn_csv(np_array):
-    response = serving.default_output_fn(np_array, content_types.CSV)
-
-    print(response)
-
-    assert response.get_data(as_text=True) == '1.0,1.0\n1.0,1.0\n'
-    # TODO This is a workaround to get the test passsing.
-    # Not sure if it is related to executing tests on Mac in specific virtual environment,
-    # but the content type in response is: 'text/csv; charset=utf-8' instead of the expected: text/csv
-    assert content_types.CSV in response.content_type
+@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_name')
+def test_multi_model_user_mode_hosting_error(user_module_name, mock_set_multi_model_env):
+    with pytest.raises(exc.PlatformError):
+        serving.main()
 
 
-def test_output_fn_npz(np_array):
-    response = serving.default_output_fn(np_array, content_types.NPY)
+@patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')
+@patch('multiprocessing.cpu_count', return_value=TEST_NUM_CPU)
+def test_env_var_setting_single_and_multi_model(start_model_server, mock_get_num_cpu):
+    test_handler_str = 'foo'
+    with patch.dict('os.environ', {}):
+        serving._set_mms_configs(False, test_handler_str)
 
-    assert response.get_data() == encoders.array_to_npy(np_array)
-    assert response.content_type == content_types.NPY
+        assert os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] == str(TEST_NUM_CPU)
+        assert os.environ["SAGEMAKER_MMS_MODEL_STORE"] == '/opt/ml/model'
+        assert os.environ["SAGEMAKER_MMS_LOAD_MODELS"] == 'ALL'
+        assert os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] == str(serving.DEFAULT_MAX_CONTENT_LEN)
+        assert os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] == test_handler_str
+
+    with patch.dict('os.environ', {}):
+        serving._set_mms_configs(True, test_handler_str)
+
+        assert os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] == '1'
+        assert os.environ["SAGEMAKER_MMS_MODEL_STORE"] == '/'
+        assert os.environ["SAGEMAKER_MMS_LOAD_MODELS"] == ''
+        assert os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] == str(serving.DEFAULT_MAX_CONTENT_LEN)
+        assert os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] == test_handler_str
 
 
-def test_input_fn_bad_accept():
-    with pytest.raises(errors.UnsupportedFormatError):
-        serving.default_output_fn('', 'application/not_supported')
+@patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')
+def test_set_max_content_len(start_model_server):
+    test_handler_str = 'foo'
+    with patch.dict('os.environ', {}):
+        serving._set_mms_configs(False, test_handler_str)
+        assert os.environ['SAGEMAKER_MAX_REQUEST_SIZE'] == str(serving.DEFAULT_MAX_CONTENT_LEN)
+
+    with patch.dict('os.environ', {'MAX_CONTENT_LENGTH': str(TEST_MAX_CONTENT_LEN)}):
+        serving._set_mms_configs(False, test_handler_str)
+        assert os.environ['SAGEMAKER_MAX_REQUEST_SIZE'] == str(TEST_MAX_CONTENT_LEN)

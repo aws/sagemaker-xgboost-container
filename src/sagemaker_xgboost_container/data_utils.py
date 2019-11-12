@@ -15,17 +15,36 @@ import csv
 import logging
 import os
 
+import mlio
+from mlio.integ.arrow import as_arrow_file
+from mlio.integ.numpy import as_numpy
+from mlio.integ.scipy import to_coo_matrix
+import numpy as np
+import pandas as pd
+import pyarrow.parquet as pq
+from sagemaker_containers import _content_types
+from scipy.sparse import vstack as scipy_vstack
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_containers import _content_types
 from sagemaker_xgboost_container.constants import xgb_content_types
 
 
+BATCH_SIZE = 4000
+
 CSV = 'csv'
 LIBSVM = 'libsvm'
-VALID_CONTENT_TYPES = [CSV, LIBSVM, _content_types.CSV,
-                       xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]
+PARQUET = 'parquet'
+RECORDIO_PROTOBUF = 'recordio-protobuf'
+
+VALID_CONTENT_TYPES = [CSV, LIBSVM, PARQUET, RECORDIO_PROTOBUF,
+                       _content_types.CSV, xgb_content_types.LIBSVM,
+                       xgb_content_types.X_LIBSVM, xgb_content_types.X_PARQUET,
+                       xgb_content_types.X_RECORDIO_PROTOBUF]
+
+VALID_PIPED_CONTENT_TYPES = [CSV, PARQUET, RECORDIO_PROTOBUF,
+                             _content_types.CSV, xgb_content_types.X_PARQUET,
+                             xgb_content_types.X_RECORDIO_PROTOBUF]
 
 
 INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType: " + \
@@ -84,6 +103,10 @@ def get_content_type(content_type_cfg_val):
         return LIBSVM
     elif CSV in content_type_cfg_val.lower():
         return _get_csv_content_type(content_type_cfg_val.lower())
+    elif content_type_cfg_val.lower() in [PARQUET, xgb_content_types.X_PARQUET]:
+        return PARQUET
+    elif content_type_cfg_val.lower() in [RECORDIO_PROTOBUF, xgb_content_types.X_RECORDIO_PROTOBUF]:
+        return RECORDIO_PROTOBUF
     else:
         raise exc.UserError(_get_invalid_content_type_error_msg(content_type_cfg_val))
 
@@ -238,17 +261,19 @@ def validate_data_file_path(data_path, content_type):
             data_files = [
                 os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path) if _is_data_file(
                     dir_path, file_name)]
-
         if parsed_content_type.lower() == CSV:
             for data_file_path in data_files:
                 _validate_csv_format(data_file_path)
         elif parsed_content_type.lower() == LIBSVM:
             for data_file_path in data_files:
                 _validate_libsvm_format(data_file_path)
+        elif parsed_content_type.lower() == PARQUET or parsed_content_type.lower() == RECORDIO_PROTOBUF:
+            # No op
+            return
 
 
-def get_csv_dmatrix(files_path, csv_weights):
-    """Get Data Matrix from CSV files.
+def _get_csv_dmatrix_file_mode(files_path, csv_weights):
+    """Get Data Matrix from CSV data in file mode.
 
     Infer the delimiter of data from first line of first data file.
 
@@ -271,15 +296,80 @@ def get_csv_dmatrix(files_path, csv_weights):
 
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
+
     return dmatrix
 
 
-def get_libsvm_dmatrix(files_path):
+def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
+    """Get Data Matrix from CSV data in pipe mode.
+
+    :param pipe_path: SageMaker pipe path where CSV formatted training data is piped
+    :param csv_weights: 1 if instance weights are in second column of CSV data; else 0
+    :return: xgb.DMatrix or None
+    """
+    try:
+        dataset = [mlio.SageMakerPipe(pipe_path)]
+        reader = mlio.CsvReader(dataset=dataset,
+                                batch_size=BATCH_SIZE,
+                                header_row_index=None)
+
+        # Check if data is present in reader
+        if reader.peek_example() is not None:
+            examples = []
+            for example in reader:
+                # Write each feature (column) of example into a single numpy array
+                tmp = [as_numpy(feature).squeeze() for feature in example]
+                tmp = np.array(tmp)
+                if len(tmp.shape) > 1:
+                    # Columns are written as rows, needs to be transposed
+                    tmp = tmp.T
+                else:
+                    # If tmp is a 1-D array, it needs to be reshaped as a matrix
+                    tmp = np.reshape(tmp, (1, tmp.shape[0]))
+                examples.append(tmp)
+
+            data = np.vstack(examples)
+            del examples
+
+            if csv_weights == 1:
+                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weights=data[:, 1])
+            else:
+                dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+
+            return dmatrix
+        else:
+            return None
+
+    except Exception as e:
+        raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
+
+
+def get_csv_dmatrix(path, csv_weights, is_pipe=False):
+    """Get Data Matrix from CSV data.
+
+    :param path: Path where CSV formatted training data resides, either directory, file, or SageMaker pipe
+    :param csv_weights: 1 if instance weights are in second column of CSV data; else 0
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :return: xgb.DMatrix or None
+    """
+    if is_pipe:
+        return _get_csv_dmatrix_pipe_mode(path, csv_weights)
+    else:
+        return _get_csv_dmatrix_file_mode(path, csv_weights)
+
+
+def get_libsvm_dmatrix(files_path, is_pipe=False):
     """Get DMatrix from libsvm file path.
 
+    Pipe mode not currently supported for libsvm.
+
     :param files_path: File path where LIBSVM formatted training data resides, either directory or file
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
     :return: xgb.DMatrix
     """
+    if is_pipe:
+        raise exc.UserError("Pipe mode not supported for LibSVM.")
+
     try:
         dmatrix = xgb.DMatrix(files_path)
     except Exception as e:
@@ -288,7 +378,124 @@ def get_libsvm_dmatrix(files_path):
     return dmatrix
 
 
-def get_dmatrix(data_path, content_type, csv_weights=0):
+def _get_parquet_dmatrix_file_mode(files_path):
+    """Get Data Matrix from parquet data in file mode.
+
+    :param files_path: File path where parquet formatted training data resides, either directory or file
+    :return: xgb.DMatrix
+    """
+    try:
+        table = pq.read_table(files_path)
+
+        data = table.to_pandas()
+        del table
+
+        if type(data) is pd.DataFrame:
+            # pyarrow.Table.to_pandas may produce NumPy array or pandas DataFrame
+            data = data.to_numpy()
+
+        dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+        del data
+
+        return dmatrix
+
+    except Exception as e:
+        raise exc.UserError("Failed to load parquet data with exception:\n{}".format(e))
+
+
+def _get_parquet_dmatrix_pipe_mode(pipe_path):
+    """Get Data Matrix from parquet data in pipe mode.
+
+    :param pipe_path: SageMaker pipe path where parquet formatted training data is piped
+    :return: xgb.DMatrix or None
+    """
+    try:
+        f = mlio.SageMakerPipe(pipe_path)
+        examples = []
+
+        with f.open_read() as strm:
+            reader = mlio.ParquetRecordReader(strm)
+
+            for record in reader:
+                table = pq.read_table(as_arrow_file(record))
+                array = table.to_pandas()
+                if type(array) is pd.DataFrame:
+                    array = array.to_numpy()
+                examples.append(array)
+
+        if examples:
+            data = np.vstack(examples)
+            del examples
+
+            dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
+            return dmatrix
+        else:
+            return None
+
+    except Exception as e:
+        raise exc.UserError("Failed to load parquet data with exception:\n{}".format(e))
+
+
+def get_parquet_dmatrix(path, is_pipe=False):
+    """Get Data Matrix from parquet data.
+
+    :param path: Path where parquet formatted training data resides, either directory, file, or SageMaker pipe
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :return: xgb.DMatrix or None
+    """
+    if is_pipe:
+        return _get_parquet_dmatrix_pipe_mode(path)
+    else:
+        return _get_parquet_dmatrix_file_mode(path)
+
+
+def get_recordio_protobuf_dmatrix(path, is_pipe=False):
+    """Get Data Matrix from recordio-protobuf data.
+
+    :param path: Path where recordio-protobuf formatted training data resides, either directory, file, or SageMaker pipe
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :return: xgb.DMatrix or None
+    """
+    try:
+        if is_pipe:
+            dataset = [mlio.SageMakerPipe(path)]
+            reader = mlio.RecordIOProtobufReader(dataset=dataset,
+                                                 batch_size=BATCH_SIZE)
+        else:
+            dataset = mlio.list_files(path)
+            reader = mlio.RecordIOProtobufReader(dataset=dataset,
+                                                 batch_size=BATCH_SIZE)
+
+        if reader.peek_example() is not None:
+            # recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
+            if type(reader.peek_example()['values']) is mlio.core.DenseTensor:
+                to_matrix = as_numpy
+                vstack = np.vstack
+            else:
+                to_matrix = to_coo_matrix
+                vstack = scipy_vstack
+
+            all_features = []
+            all_labels = []
+            for example in reader:
+                features = to_matrix(example['values'])
+                all_features.append(features)
+
+                labels = as_numpy(example['label_values']).squeeze()
+                all_labels.append(labels)
+
+            all_features = vstack(all_features)
+            all_labels = np.concatenate(all_labels)
+            dmatrix = xgb.DMatrix(all_features, label=all_labels)
+            return dmatrix
+        else:
+            return None
+
+    except Exception as e:
+        raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
+
+
+def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     """Create Data Matrix from CSV or LIBSVM file.
 
     Assumes that sanity validation for content type has been done.
@@ -297,24 +504,29 @@ def get_dmatrix(data_path, content_type, csv_weights=0):
     :param content_type:
     :param csv_weights: Only used if file_type is 'csv'.
                         1 if the instance weights are in the second column of csv file; otherwise, 0
-    :return: xgb.DMatrix
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :return: xgb.DMatrix or None
     """
-    if not os.path.exists(data_path):
+    if not (os.path.exists(data_path) or (is_pipe and os.path.exists(data_path + '_0'))):
         return None
     else:
-        if os.path.isfile(data_path):
+        if os.path.isfile(data_path) or is_pipe:
             files_path = data_path
-        else:
+        elif not is_pipe:
             for root, dirs, files in os.walk(data_path):
                 if dirs == []:
                     files_path = root
                     break
         if content_type.lower() == CSV:
-            dmatrix = get_csv_dmatrix(files_path, csv_weights)
+            dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
         elif content_type.lower() == LIBSVM:
-            dmatrix = get_libsvm_dmatrix(files_path)
+            dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
+        elif content_type.lower() == PARQUET:
+            dmatrix = get_parquet_dmatrix(files_path, is_pipe)
+        elif content_type.lower() == RECORDIO_PROTOBUF:
+            dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
 
-        if dmatrix.get_label().size == 0:
+        if dmatrix and dmatrix.get_label().size == 0:
             raise exc.UserError(
                 "Got input data without labels. Please check the input data set. "
                 "If training job is running on multiple instances, please switch "
@@ -324,12 +536,16 @@ def get_dmatrix(data_path, content_type, csv_weights=0):
     return dmatrix
 
 
-def get_size(data_path):
+def get_size(data_path, is_pipe=False):
     """Return size of data files at dir_path.
 
     :param data_path: Either directory or file
-    :return: Size of data
+    :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :return: Size of data or 1 if sagemaker pipe found
     """
+    if is_pipe and os.path.exists(data_path + '_0'):
+        logging.info('Pipe path {} found.'.format(data_path))
+        return 1
     if not os.path.exists(data_path):
         logging.info('Path {} does not exist!'.format(data_path))
         return 0

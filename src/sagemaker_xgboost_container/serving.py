@@ -12,101 +12,87 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 import logging
+import multiprocessing
+import os
+import subprocess
 
-from sagemaker_containers.beta.framework import (
-    encoders, env, modules, transformer, worker)
+from retrying import retry
+from sagemaker_containers.beta.framework import env, modules
 
-from sagemaker_xgboost_container import encoder as xgb_encoders
-from sagemaker_xgboost_container.algorithm_mode import serve
-
-logging.basicConfig(format='%(asctime)s %(levelname)s - %(name)s - %(message)s', level=logging.INFO)
-
-logging.getLogger('boto3').setLevel(logging.INFO)
-logging.getLogger('s3transfer').setLevel(logging.INFO)
-logging.getLogger('botocore').setLevel(logging.WARN)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from sagemaker_algorithm_toolkit import exceptions as exc
+from sagemaker_xgboost_container.mms_patch import model_server
+from sagemaker_xgboost_container.algorithm_mode import handler_service as algo_handler_service
+from sagemaker_xgboost_container import handler_service as user_module_handler_service
 
 
-def default_model_fn(model_dir):
-    """Load a model. For XGBoost Framework, a default function to load a model is not provided.
-    Users should provide customized model_fn() in script.
-    Args:
-        model_dir: a directory where model is saved.
-    Returns: A XGBoost model.
+ALGO_HANDLER_SERVICE = algo_handler_service.__name__
+USER_HANDLER_SERVICE = user_module_handler_service.__name__
+
+PORT = 8080
+DEFAULT_MAX_CONTENT_LEN = 6 * 1024**2
+
+
+def _retry_if_error(exception):
+    return isinstance(exception, subprocess.CalledProcessError)
+
+
+@retry(stop_max_delay=1000 * 30, retry_on_exception=_retry_if_error)
+def _start_model_server(is_multi_model, handler):
+    # there's a race condition that causes the model server command to
+    # sometimes fail with 'bad address'. more investigation needed
+    # retry starting mms until it's ready
+    logging.info("Trying to set up model server handler: {}".format(handler))
+    _set_mms_configs(is_multi_model, handler)
+    model_server.start_model_server(handler_service=handler,
+                                    is_multi_model=is_multi_model,
+                                    config_file=os.environ['XGBOOST_MMS_CONFIG'])
+
+
+def _is_multi_model_endpoint():
+    if "SAGEMAKER_MULTI_MODEL" in os.environ and os.environ["SAGEMAKER_MULTI_MODEL"] == 'true':
+        return True
+    else:
+        return False
+
+
+def _set_mms_configs(is_multi_model, handler):
+    """Set environment variables for MMS to parse during server initialization. These env vars are used to
+    propagate the config.properties file used during MxNet Model Server initialization.
+
+    'SAGEMAKER_MMS_MODEL_STORE' has to be set to the model location during single model inference because MMS
+    is initialized with the model. In multi-model mode, MMS is started with no models loaded.
+
+    Note: Ideally, instead of relying on env vars, this should be written directly to a config file.
     """
-    return transformer.default_model_fn(model_dir)
+    max_content_length = os.getenv("MAX_CONTENT_LENGTH", DEFAULT_MAX_CONTENT_LEN)
+
+    if is_multi_model:
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
+        os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
+        os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
+    else:
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(multiprocessing.cpu_count())
+        os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/opt/ml/model'
+        os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = 'ALL'
+
+    if not os.getenv("SAGEMAKER_BIND_TO_PORT", None):
+        os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
+
+    os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(max_content_length)
+    os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] = handler
 
 
-def default_input_fn(input_data, content_type):
-    """Take request data and de-serializes the data into an object for prediction.
-        When an InvokeEndpoint operation is made against an Endpoint running SageMaker model server,
-        the model server receives two pieces of information:
-            - The request Content-Type, for example "application/json"
-            - The request data, which is at most 5 MB (5 * 1024 * 1024 bytes) in size.
-        The input_fn is responsible to take the request data and pre-process it before prediction.
-    Args:
-        input_data (obj): the request data.
-        content_type (str): the request Content-Type.
-    Returns:
-        (obj): data ready for prediction. For XGBoost, this defaults to DMatrix.
-    """
-    return xgb_encoders.decode(input_data, content_type)
+def main():
+    serving_env = env.ServingEnv()
+    is_multi_model = _is_multi_model_endpoint()
 
-
-def default_predict_fn(input_data, model):
-    """A default predict_fn for XGBooost Framework. Calls a model on data deserialized in input_fn.
-    Args:
-        input_data: input data (Numpy array) for prediction deserialized by input_fn
-        model: XGBoost model loaded in memory by model_fn
-    Returns: a prediction
-    """
-    output = model.predict(input_data, validate_features=False)
-    return output
-
-
-def default_output_fn(prediction, accept):
-    """Function responsible to serialize the prediction for the response.
-    Args:
-        prediction (obj): prediction returned by predict_fn .
-        accept (str): accept content-type expected by the client.
-    Returns:
-        (worker.Response): a Flask response object with the following args:
-            * Args:
-                response: the serialized data to return
-                accept: the content-type that the data was transformed to.
-    """
-    return worker.Response(encoders.encode(prediction, accept), mimetype=accept)
-
-
-def _user_module_transformer(user_module):
-    model_fn = getattr(user_module, 'model_fn', default_model_fn)
-    input_fn = getattr(user_module, 'input_fn', default_input_fn)
-    predict_fn = getattr(user_module, 'predict_fn', default_predict_fn)
-    output_fn = getattr(user_module, 'output_fn', default_output_fn)
-
-    return transformer.Transformer(model_fn=model_fn, input_fn=input_fn, predict_fn=predict_fn,
-                                   output_fn=output_fn)
-
-
-app = None
-
-
-def main(environ, start_response):
-    global app
-    if app is None:
-        serving_env = env.ServingEnv()
-        if serving_env.module_name is None:
-            app = serve.ScoringService.csdk_start()
-        else:
-            user_module = modules.import_module(serving_env.module_dir, serving_env.module_name)
-
-            user_module_transformer = _user_module_transformer(user_module)
-
-            user_module_transformer.initialize()
-
-            app = worker.Worker(transform_fn=user_module_transformer.transform,
-                                module_name=serving_env.module_name)
-
-    return app(environ, start_response)
+    if serving_env.module_name is None:
+        logging.info("Starting MXNet server in algorithm mode.")
+        _start_model_server(is_multi_model, ALGO_HANDLER_SERVICE)
+    else:
+        if is_multi_model:
+            raise exc.PlatformError("Multi model not supported in script mode.")
+        logging.info("Staring MXNet Model Server with user module.")
+        # Install user module from s3 to import
+        modules.import_module(serving_env.module_dir, serving_env.module_name)
+        _start_model_server(False, USER_HANDLER_SERVICE)
