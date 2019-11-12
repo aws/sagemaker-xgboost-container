@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      docker: 18
+  pre_build:
+    commands:
+    - echo Installing dependencies...
+    - curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    - bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3
+    - export PATH=/miniconda3/bin:${PATH}
+    - conda update -y conda
+    - conda install -y 'requests<2.21'  # sagemaker-python-sdk requires requests<2.21
+    - pip install -e .[test]
+  build:
+    commands:
+    - echo Build started on `date`
+    - echo Building the Docker image...
+    - docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
+    - python setup.py bdist_wheel --universal
+    - docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
+    - echo Running unit tests
+    - tox
+    - echo Running local integration tests
+    - pytest test/integration/local --docker-base-name preprod-xgboost-container --tag 0.90-2-cpu-py3 --py-version 3 --framework-version 0.90-2
+  post_build:
+    commands:
+    - echo Build completed on `date`
