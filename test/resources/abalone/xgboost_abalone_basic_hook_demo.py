@@ -7,8 +7,8 @@ import tempfile
 import urllib.request
 
 import xgboost
-from tornasole import SaveConfig
-from tornasole.xgboost import TornasoleHook
+from smdebug import SaveConfig
+from smdebug.xgboost import Hook
 
 
 def parse_args():
@@ -69,7 +69,7 @@ def load_abalone(train_split=0.8, seed=42):
 def create_tornasole_hook(out_dir, train_data=None, validation_data=None, frequency=1):
 
     save_config = SaveConfig(save_interval=frequency)
-    hook = TornasoleHook(
+    hook = Hook(
         out_dir=out_dir,
         save_config=save_config,
         train_data=train_data,

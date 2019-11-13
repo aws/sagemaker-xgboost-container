@@ -99,7 +99,7 @@ def save_as_json(data, filename):
 
 def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperparameters=None,
           additional_volumes=None, additional_env_vars=None, use_gpu=False, entrypoint=None,
-          source_dir=None, debughookconfig=None):
+          source_dir=None, debughookconfig=None, **kwargs):
     additional_env_vars = additional_env_vars or []
     additional_volumes = additional_volumes or []
     hyperparameters = hyperparameters or {}
@@ -108,7 +108,7 @@ def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperpa
                              additional_env_vars,
                              hyperparameters, cluster_size, entrypoint=entrypoint,
                              source_dir=source_dir, use_gpu=use_gpu,
-                             debughookconfig=debughookconfig)
+                             debughookconfig=debughookconfig, **kwargs)
     command = create_docker_command(tmpdir, use_gpu)
     start_docker(tmpdir, command)
     purge()
@@ -222,7 +222,7 @@ def create_docker_command(tmpdir, use_gpu=False, detached=False):
 
 def create_training(data_dir, customer_script, optml, image, additional_volumes,
                     additional_env_vars, additional_hps=None, cluster_size=1, source_dir=None,
-                    entrypoint=None, use_gpu=False, debughookconfig=None):
+                    entrypoint=None, use_gpu=False, debughookconfig=None, **kwargs):
 
     additional_hps = additional_hps or None
 
@@ -232,7 +232,7 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
     hosts = create_host_names(cluster_size)
     print('creating hosts: {}'.format(hosts))
 
-    config = create_input_data_config(data_dir)
+    config = create_input_data_config(data_dir, **kwargs)
 
     if not customer_script:
         hyperparameters = read_hyperparameters(additional_hps, use_default_hyperparameters=False)
@@ -261,7 +261,22 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
         if debughookconfig is not None:
             write_debughookconfig(tmpdir, host, debughookconfig)
 
-        shutil.copytree(data_dir, os.path.join(tmpdir, host, 'input', 'data'))
+    distribution_type = kwargs.pop("distribution_type", None)
+    if distribution_type == "ShardedByS3Key":
+        channels = []
+        for _, dirs, _ in os.walk(data_dir):
+            channels.extend(dirs)
+        for channel in channels:
+            channel_dir = os.path.join(data_dir, channel)
+            for host, filename in zip(hosts, os.listdir(channel_dir)):
+                source_file = os.path.join(channel_dir, filename)
+                destination_dir = os.path.join(tmpdir, host, 'input', 'data', channel)
+                destination_file = os.path.join(destination_dir, filename)
+                os.makedirs(destination_dir)
+                shutil.copyfile(source_file, destination_file)
+    else:
+        for host in hosts:
+            shutil.copytree(data_dir, os.path.join(tmpdir, host, 'input', 'data'))
 
     write_docker_file('train', tmpdir, hosts, image, additional_volumes, additional_env_vars,
                       customer_script, source_dir, entrypoint, use_gpu)
