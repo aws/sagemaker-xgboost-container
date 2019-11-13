@@ -12,6 +12,7 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 import logging
+from math import ceil
 import multiprocessing
 import os
 import subprocess
@@ -30,6 +31,7 @@ USER_HANDLER_SERVICE = user_module_handler_service.__name__
 
 PORT = 8080
 DEFAULT_MAX_CONTENT_LEN = 6 * 1024**2
+MAX_CONTENT_LEN_LIMIT = 20 * 1024**2
 
 
 def _retry_if_error(exception):
@@ -65,21 +67,45 @@ def _set_mms_configs(is_multi_model, handler):
     Note: Ideally, instead of relying on env vars, this should be written directly to a config file.
     """
     max_content_length = os.getenv("MAX_CONTENT_LENGTH", DEFAULT_MAX_CONTENT_LEN)
+    if int(max_content_length) > MAX_CONTENT_LEN_LIMIT:
+        # Cap at 20mb
+        max_content_length = MAX_CONTENT_LEN_LIMIT
+
+    max_workers = multiprocessing.cpu_count()
 
     if is_multi_model:
         os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
         os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
         os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
     else:
-        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(multiprocessing.cpu_count())
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(max_workers)
         os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/opt/ml/model'
         os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = 'ALL'
 
     if not os.getenv("SAGEMAKER_BIND_TO_PORT", None):
         os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
 
+    # Max heap size = max workers * max payload size * 1.2 (20% buffer) + 128 (base amount)
+    max_heap_size = ceil(max_workers * (int(max_content_length) / 1024**2) * 1.2) + 128
+    os.environ["SAGEMAKER_MAX_HEAP_SIZE"] = str(max_heap_size) + 'm'
+    os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] = os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
+
     os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(max_content_length)
     os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] = handler
+
+    # TODO: Revert config.properties.tmp to config.properties and add back in vmargs
+    # set with environment variables after MMS implements parsing environment variables
+    # for vmargs, update MMS section of final/Dockerfile.cpu to match, and remove the
+    # following code.
+    try:
+        with open('/home/model-server/config.properties.tmp', 'r') as f:
+            with open('/home/model-server/config.properties', 'w+') as g:
+                g.write("vmargs=-XX:-UseLargePages -XX:+UseG1GC -XX:MaxMetaspaceSize=32M -XX:+ExitOnOutOfMemoryError "
+                        + "-Xmx" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
+                        + " -XX:MaxDirectMemorySize=" + os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] + "\n")
+                g.write(f.read())
+    except Exception:
+        pass
 
 
 def main():

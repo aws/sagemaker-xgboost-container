@@ -30,7 +30,7 @@ RUN mkdir -p /home/model-server/tmp
 RUN chown -R model-server /home/model-server
 
 # Copy MMS configs
-COPY docker/$SAGEMAKER_XGBOOST_VERSION/resources/mms/config.properties /home/model-server
+COPY docker/$SAGEMAKER_XGBOOST_VERSION/resources/mms/config.properties.tmp /home/model-server
 ENV XGBOOST_MMS_CONFIG=/home/model-server/config.properties
 
 # Copy execution parameters endpoint plugin for MMS
