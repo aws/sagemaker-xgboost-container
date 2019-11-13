@@ -25,7 +25,7 @@ from sagemaker_xgboost_container import encoder as xgb_encoder
 from sagemaker_xgboost_container.algorithm_mode.inference_errors import NoContentInferenceError, \
     UnsupportedMediaTypeInferenceError, ModelLoadInferenceError, BadRequestInferenceError
 from sagemaker_xgboost_container.data_utils import get_content_type
-from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, PARQUET, RECORDIO_PROTOBUF
+from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF
 
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
@@ -62,7 +62,11 @@ def predict(booster, model_format, dtest, input_content_type):
         x = len(booster.feature_names)
         y = len(dtest.feature_names)
 
-        content_type = get_content_type(input_content_type)
+        try:
+            content_type = get_content_type(input_content_type)
+        except Exception:
+            raise ValueError('Content type {} is not supported'.format(input_content_type))
+
         if content_type == LIBSVM:
             if y > x + 1:
                 raise ValueError('Feature size of libsvm inference data {} is larger than '
@@ -129,7 +133,13 @@ class HandlerService(DefaultHandlerService):
             """
             if len(input_data) == 0:
                 raise NoContentInferenceError()
-            content_type = get_content_type(input_content_type)
+
+            try:
+                content_type = get_content_type(input_content_type)
+            except Exception:
+                raise UnsupportedMediaTypeInferenceError(
+                    "Content type must be csv, libsvm, or recordio-protobuf.")
+
             if content_type == CSV:
                 try:
                     input_data = input_data.decode('utf-8')
@@ -193,7 +203,7 @@ class HandlerService(DefaultHandlerService):
                     if SAGEMAKER_BATCH:
                         return_data = "\n".join(map(str, prediction.tolist())) + '\n'
                     else:
-                        #FIXME: this is invalid CSV and is only retained for backwards compatibility
+                        # FIXME: this is invalid CSV and is only retained for backwards compatibility
                         return_data = ",".join(map(str, prediction.tolist()))
                     encoded_prediction = return_data.encode("utf-8")
                 elif accept_type == content_types.JSON or accept_type == 'json':
