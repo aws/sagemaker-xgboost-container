@@ -84,7 +84,7 @@ def test_smdebug_algorithm_mode_default_positive_null_params(docker_image, opt_m
         "S3OutputPath": "s3://bucket/prefix",
         "LocalPath": "/opt/ml/output/tensors",
         "HookParameters": None,
-        "CollectionConfiguration": None
+        "CollectionConfigurations": None
     }
 
     local_mode.train(customer_script, data_dir, docker_image, opt_ml,
@@ -110,7 +110,7 @@ def test_smdebug_algorithm_mode_hook_parameters(docker_image, opt_ml):
             "save_interval": 7,
             "save_steps": "0,1,2,3"
         },
-        "CollectionConfiguration": None
+        "CollectionConfigurations": None
     }
  
     local_mode.train(customer_script, data_dir, docker_image, opt_ml,
@@ -133,7 +133,7 @@ def test_smdebug_algorithm_mode_collection_configurations(docker_image, opt_ml):
         "S3OutputPath": "s3://bucket/prefix",
         "LocalPath": "/opt/ml/output/tensors",
         "HookParameters": None,
-        "CollectionConfiguration": [
+        "CollectionConfigurations": [
             {"CollectionName": "hyperparameters"},
             {"CollectionName": "average_shap"},
             {"CollectionName": "predictions"}
@@ -181,7 +181,7 @@ def test_smdebug_distributed_fully_replicated(docker_image, opt_ml, tmpdir):
         "HookParameters": {
             "save_interval": 10,
         },
-        "CollectionConfiguration": [
+        "CollectionConfigurations": [
             {"CollectionName": "predictions"}
         ]
     }
@@ -208,7 +208,7 @@ def test_smdebug_distributed_fully_replicated(docker_image, opt_ml, tmpdir):
     worker_0_value = tensor.value(0, worker="worker_0")
     worker_1_value = tensor.value(0, worker="worker_1")
     # FullyReplicated => predictions should be equal across workers
-    assert np.all(worker_0_value == worker_1_value) is True
+    assert np.allclose(worker_0_value, worker_1_value) is True
 
 
 def test_smdebug_distributed_sharded_by_s3_key(docker_image, opt_ml, tmpdir):
@@ -222,7 +222,7 @@ def test_smdebug_distributed_sharded_by_s3_key(docker_image, opt_ml, tmpdir):
         "HookParameters": {
             "save_interval": 10,
         },
-        "CollectionConfiguration": [
+        "CollectionConfigurations": [
             {"CollectionName": "predictions"}
         ]
     }
@@ -251,4 +251,4 @@ def test_smdebug_distributed_sharded_by_s3_key(docker_image, opt_ml, tmpdir):
     worker_0_value = tensor.value(0, worker="worker_0")
     worker_1_value = tensor.value(0, worker="worker_1")
     # ShardedByS3Key => each prediction is from different data sets
-    assert worker_0_value.shape != worker_1_value.shape
+    assert not np.allclose(worker_0_value.shape, worker_1_value.shape)
