@@ -24,6 +24,8 @@ from sagemaker_xgboost_container.algorithm_mode.mms_transformer import Transform
 from sagemaker_xgboost_container import encoder as xgb_encoder
 from sagemaker_xgboost_container.algorithm_mode.inference_errors import NoContentInferenceError, \
     UnsupportedMediaTypeInferenceError, ModelLoadInferenceError, BadRequestInferenceError
+from sagemaker_xgboost_container.data_utils import get_content_type
+from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF
 
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
@@ -55,23 +57,25 @@ def _get_sparse_matrix_from_libsvm(payload):
     return csr_matrix((data, (row, col)))
 
 
-def predict(booster, model_format, dtest, content_type):
+def predict(booster, model_format, dtest, input_content_type):
     if model_format == 'pkl_format':
         x = len(booster.feature_names)
         y = len(dtest.feature_names)
 
-        if content_type == 'text/x-libsvm' or content_type == 'text/libsvm':
+        try:
+            content_type = get_content_type(input_content_type)
+        except Exception:
+            raise ValueError('Content type {} is not supported'.format(input_content_type))
+
+        if content_type == LIBSVM:
             if y > x + 1:
                 raise ValueError('Feature size of libsvm inference data {} is larger than '
                                  'feature size of trained model {}.'.format(y, x))
-        elif content_type == 'application/x-recordio-protobuf':
+        elif content_type in [CSV, RECORDIO_PROTOBUF]:
             if not ((x == y) or (x == y + 1)):
-                raise ValueError('Feature size of recordio-protobuf inference data {} is not consistent '
-                                 'with feature size of trained model {}.'.format(y, x))
-        elif content_type == 'text/csv':
-            if not ((x == y) or (x == y + 1)):
-                raise ValueError('Feature size of csv inference data {} is not consistent '
-                                 'with feature size of trained model {}'.format(y, x))
+                raise ValueError('Feature size of {} inference data {} is not consistent '
+                                 'with feature size of trained model {}.'.
+                                 format(content_type, y, x))
         else:
             raise ValueError('Content type {} is not supported'.format(content_type))
     return booster.predict(dtest,
@@ -114,7 +118,7 @@ class HandlerService(DefaultHandlerService):
             booster.set_param('nthread', 1)
             return booster, format
 
-        def default_input_fn(self, input_data, content_type):
+        def default_input_fn(self, input_data, input_content_type):
             """Take request data and de-serializes the data into an object for prediction.
                 When an InvokeEndpoint operation is made against an Endpoint running SageMaker model server,
                 the model server receives two pieces of information:
@@ -123,45 +127,51 @@ class HandlerService(DefaultHandlerService):
                 The input_fn is responsible to take the request data and pre-process it before prediction.
             Args:
                 input_data (obj): the request data.
-                content_type (str): the request Content-Type. XGBoost accepts CSV, LIBSVM, and RECORDIO-PROTOBUF.
+                input_content_type (str): the request Content-Type. XGBoost accepts CSV, LIBSVM, and RECORDIO-PROTOBUF.
             Returns:
                 (obj): data ready for prediction. For XGBoost, this defaults to DMatrix.
             """
             if len(input_data) == 0:
                 raise NoContentInferenceError()
 
-            if content_type == "text/csv":
+            try:
+                content_type = get_content_type(input_content_type)
+            except Exception:
+                raise UnsupportedMediaTypeInferenceError(
+                    "Content type must be csv, libsvm, or recordio-protobuf.")
+
+            if content_type == CSV:
                 try:
                     input_data = input_data.decode('utf-8')
                     payload = input_data.strip()
                     dtest = xgb_encoder.csv_to_dmatrix(payload, dtype=np.float)
                 except Exception as e:
-                    raise UnsupportedMediaTypeInferenceError("Loading csv data failed with "
-                                                             "Exception, please ensure data "
-                                                             "is in csv format: {} {}".format(type(e),
-                                                                                              e))
-            elif content_type == "text/x-libsvm" or content_type == 'text/libsvm':
+                    raise UnsupportedMediaTypeInferenceError(
+                        "Loading csv data failed with "
+                        "Exception, please ensure data "
+                        "is in csv format: {} {}".format(type(e), e))
+            elif content_type == LIBSVM:
                 try:
-                    # if not isinstance(input_data, str):
                     input_data = input_data.decode('utf-8')
                     payload = input_data.strip()
                     dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(payload))
                 except Exception as e:
-                    raise UnsupportedMediaTypeInferenceError("Loading libsvm data failed with "
-                                                             "Exception, please ensure data "
-                                                             "is in libsvm format: {} {}".format(type(e),
-                                                                                                 e))
-            elif content_type == "application/x-recordio-protobuf":
+                    raise UnsupportedMediaTypeInferenceError(
+                        "Loading libsvm data failed with "
+                        "Exception, please ensure data "
+                        "is in libsvm format: {} {}".format(type(e), e))
+            elif content_type == RECORDIO_PROTOBUF:
                 try:
                     payload = input_data
                     dtest = xgb_encoder.recordio_protobuf_to_dmatrix(payload)
                 except Exception as e:
-                    raise UnsupportedMediaTypeInferenceError("Loading recordio-protobuf data failed with "
-                                                             "Exception, please ensure data is in "
-                                                             "recordio-protobuf format: {} {}".format(type(e),
-                                                                                                      e))
+                    raise UnsupportedMediaTypeInferenceError(
+                        "Loading recordio-protobuf data failed with "
+                        "Exception, please ensure data is in "
+                        "recordio-protobuf format: {} {}".format(type(e), e))
             else:
-                raise UnsupportedMediaTypeInferenceError("Content type must be csv, libsvm, or recordio-protobuf.")
+                raise UnsupportedMediaTypeInferenceError(
+                    "Content type must be csv, libsvm, or recordio-protobuf.")
 
             return dtest, content_type
 
@@ -187,15 +197,17 @@ class HandlerService(DefaultHandlerService):
             Returns:
                 encoded response for MMS to return to client
             """
+            accept_type = accept.lower()
             try:
-                if accept == content_types.CSV or accept == 'csv':
+                if accept_type == content_types.CSV or accept_type == 'csv':
                     if SAGEMAKER_BATCH:
                         return_data = "\n".join(map(str, prediction.tolist())) + '\n'
                     else:
+                        # FIXME: this is invalid CSV and is only retained for backwards compatibility
                         return_data = ",".join(map(str, prediction.tolist()))
                     encoded_prediction = return_data.encode("utf-8")
-                elif accept == content_types.JSON or accept == 'json':
-                    encoded_prediction = encoder.encode(prediction, accept)
+                elif accept_type == content_types.JSON or accept_type == 'json':
+                    encoded_prediction = encoder.encode(prediction, accept_type)
                 else:
                     raise ValueError("{} is not an accepted Accept type. Please choose one of the following:"
                                      " ['{}', '{}'].".format(accept, content_types.CSV, content_types.JSON))
