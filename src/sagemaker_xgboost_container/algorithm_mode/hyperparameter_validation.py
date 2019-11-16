@@ -204,6 +204,8 @@ def initialize(metrics):
                                   required=False),
 
         # For internal use only!
-        hpv.ContinuousHyperparameter(name="_subsample_ratio_on_read", range=hpv.Interval(min_open=0, max_open=1), required=False),
+        hpv.ContinuousHyperparameter(name="_subsample_ratio_on_read",
+                                     range=hpv.Interval(min_open=0, max_open=1),
+                                     required=False),
         )
     return hyperparameters
