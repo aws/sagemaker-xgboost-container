@@ -25,7 +25,7 @@ source_dir = os.path.join(path, '..', '..', 'resources', 'smdebug')
 data_dir = os.path.join(path, '..', '..', 'resources', 'abalone', 'data')
 
 
-def get_abalone_hyperparameters():
+def get_abalone_hyperparameters(num_round=10):
 
     hyperparameters = {
         "max_depth": 5,
@@ -34,7 +34,7 @@ def get_abalone_hyperparameters():
         "min_child_weight": 6,
         "subsample": 0.7,
         "silent": 0,
-        "num_round": 20,
+        "num_round": num_round,
     }
 
     return hyperparameters
