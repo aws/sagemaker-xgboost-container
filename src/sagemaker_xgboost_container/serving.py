@@ -72,21 +72,25 @@ def _set_mms_configs(is_multi_model, handler):
         max_content_length = MAX_CONTENT_LEN_LIMIT
 
     max_workers = multiprocessing.cpu_count()
+    max_job_queue_size = 2*max_workers
+    
+    # Max heap size = (max workers + max job queue size) * max payload size * 1.2 (20% buffer) + 128 (base amount)
+    max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024**2) * 1.2) + 128
 
     if is_multi_model:
         os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
+        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = '2'
         os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
         os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
     else:
         os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(max_workers)
+        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = str(max_job_queue_size)
         os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/opt/ml/model'
         os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = 'ALL'
 
     if not os.getenv("SAGEMAKER_BIND_TO_PORT", None):
         os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
 
-    # Max heap size = max workers * max payload size * 1.2 (20% buffer) + 128 (base amount)
-    max_heap_size = ceil(max_workers * (int(max_content_length) / 1024**2) * 1.2) + 128
     os.environ["SAGEMAKER_MAX_HEAP_SIZE"] = str(max_heap_size) + 'm'
     os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] = os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
 
