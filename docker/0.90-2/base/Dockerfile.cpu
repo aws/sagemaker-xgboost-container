@@ -19,8 +19,8 @@ RUN bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3
 RUN rm Miniconda3-latest-Linux-x86_64.sh
 ENV PATH=/miniconda3/bin:${PATH}
 RUN conda update -y conda
-RUN conda install -c conda-forge pyarrow=0.14.1
-RUN conda install -c mlio -c conda-forge mlio-py=0.1
+RUN conda install -c conda-forge pyarrow=0.15.1
+RUN conda install -c mlio -c conda-forge mlio-py=0.2
 
 # Python won’t try to write .pyc or .pyo files on the import of source modules
 # Force stdin, stdout and stderr to be totally unbuffered. Good for logging
