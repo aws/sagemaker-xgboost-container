@@ -15,7 +15,6 @@ from mock import patch
 import os
 import pytest
 
-from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import serving
 from sagemaker_xgboost_container import handler_service as user_module_handler_service
 from sagemaker_xgboost_container.algorithm_mode import handler_service as algo_handler_service
@@ -74,10 +73,22 @@ def test_single_model_user_mode_hosting(
     import_module.assert_called_with(module_dir, user_module_name)
 
 
+@patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')
+@patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_dir')
 @patch('sagemaker_xgboost_container.serving.env.ServingEnv.module_name')
-def test_multi_model_user_mode_hosting_error(user_module_name, mock_set_multi_model_env):
-    with pytest.raises(exc.PlatformError):
-        serving.main()
+@patch('sagemaker_containers.beta.framework.modules.import_module')
+def test_multi_model_user_mode_hosting_error(
+        import_module,
+        user_module_name,
+        module_dir,
+        start_model_server,
+        mock_set_mms_config_file,
+        mock_set_multi_model_env):
+    serving.main()
+    start_model_server.assert_called_with(
+        is_multi_model=True,
+        handler_service='sagemaker_xgboost_container.handler_service',
+        config_file=TEST_CONFIG_FILE)
 
 
 @patch('sagemaker_xgboost_container.mms_patch.model_server.start_model_server')

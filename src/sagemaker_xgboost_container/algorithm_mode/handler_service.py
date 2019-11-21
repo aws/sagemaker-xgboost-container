@@ -20,7 +20,7 @@ import xgboost as xgb
 from sagemaker_inference import content_types, default_inference_handler, encoder
 from sagemaker_inference.default_handler_service import DefaultHandlerService
 
-from sagemaker_xgboost_container.algorithm_mode.mms_transformer import Transformer
+from sagemaker_xgboost_container.mms_patch.mms_transformer import Transformer
 from sagemaker_xgboost_container import encoder as xgb_encoder
 from sagemaker_xgboost_container.algorithm_mode.inference_errors import NoContentInferenceError, \
     UnsupportedMediaTypeInferenceError, ModelLoadInferenceError, BadRequestInferenceError

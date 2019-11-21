@@ -19,7 +19,6 @@ import subprocess
 from retrying import retry
 from sagemaker_containers.beta.framework import env, modules
 
-from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.mms_patch import model_server
 from sagemaker_xgboost_container.algorithm_mode import handler_service as algo_handler_service
 from sagemaker_xgboost_container import handler_service as user_module_handler_service
@@ -90,9 +89,7 @@ def main():
         logging.info("Starting MXNet server in algorithm mode.")
         _start_model_server(is_multi_model, ALGO_HANDLER_SERVICE)
     else:
-        if is_multi_model:
-            raise exc.PlatformError("Multi model not supported in script mode.")
         logging.info("Staring MXNet Model Server with user module.")
         # Install user module from s3 to import
         modules.import_module(serving_env.module_dir, serving_env.module_name)
-        _start_model_server(False, USER_HANDLER_SERVICE)
+        _start_model_server(is_multi_model, USER_HANDLER_SERVICE)
