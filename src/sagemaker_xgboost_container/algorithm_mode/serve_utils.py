@@ -18,7 +18,8 @@ def get_content_type(request):
     content_type = content_type.lower()
     tokens = content_type.split(";")
     content_type = tokens[0].strip()
-    if content_type not in ['text/csv', 'text/libsvm', 'text/x-libsvm']:
+    if content_type not in ['text/csv', 'text/libsvm', 'text/x-libsvm', 'application/x-recordio-protobuf']:
         raise exceptions.UserError("Content-type {} not supported. "
-                                   "Supported content-type is text/csv, text/libsvm".format(content_type))
+                                   "Supported content-type is text/csv, text/libsvm,"
+                                   " application/x-recordio-protobuf".format(content_type))
     return content_type

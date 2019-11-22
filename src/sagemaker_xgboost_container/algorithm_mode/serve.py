@@ -97,6 +97,10 @@ class ScoringService(object):
                 if not ((x == y) or (x == y + 1)):
                     raise ValueError('Feature size of csv inference data {} is not consistent '
                                      'with feature size of trained model {}'.format(y, x))
+            elif content_type == 'application/x-recordio-protobuf':
+                if not ((x == y) or (x == y + 1)):
+                    raise ValueError('Feature size of recordio-protobuf inference data {} is not consistent '
+                                     'with feature size of trained model {}.'.format(y, x))
             else:
                 raise ValueError('Content type {} is not supported'.format(content_type))
         return cls.booster.predict(data,
@@ -197,21 +201,28 @@ def _get_sparse_matrix_from_libsvm(payload):
 def _parse_content_data(request):
     dtest = None
     content_type = serve_utils.get_content_type(request)
-    payload = request.data.strip()
+    payload = request.data
     if content_type == "text/csv":
         try:
-            payload = payload.decode("utf-8")
-            dtest = encoder.csv_to_dmatrix(payload, dtype=np.float)
+            decoded_payload = payload.strip().decode("utf-8")
+            dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
         except Exception as e:
             raise RuntimeError("Loading csv data failed with Exception, "
                                "please ensure data is in csv format:\n {}\n {}".format(type(e), e))
     elif content_type == "text/x-libsvm" or content_type == 'text/libsvm':
         try:
-            payload = payload.decode("utf-8")
-            dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(payload))
+            decoded_payload = payload.strip().decode("utf-8")
+            dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(decoded_payload))
         except Exception as e:
             raise RuntimeError("Loading libsvm data failed with Exception, "
                                "please ensure data is in libsvm format:\n {}\n {}".format(type(e), e))
+    elif content_type == "application/x-recordio-protobuf":
+        try:
+            dtest = encoder.recordio_protobuf_to_dmatrix(payload)
+        except Exception as e:
+            raise RuntimeError("Loading recordio-protobuf data failed with "
+                               "Exception, please ensure data is in "
+                               "recordio-protobuf format: {} {}".format(type(e), e))
 
     return dtest, content_type
 
