@@ -26,9 +26,11 @@ import numpy as np
 import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
-from sagemaker_xgboost_container.constants import sm_env_constants
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
+from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.data_utils import get_content_type
+from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF
 
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
@@ -85,22 +87,24 @@ class ScoringService(object):
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
+        try:
+            parsed_content_type = get_content_type(content_type)
+        except Exception:
+            raise ValueError('Content type {} is not supported'.format(content_type))
+
         if model_format == 'pkl_format':
             x = len(cls.booster.feature_names)
             y = len(data.feature_names)
 
-            if content_type == 'text/x-libsvm' or content_type == 'text/libsvm':
+            if parsed_content_type == LIBSVM:
                 if y > x + 1:
                     raise ValueError('Feature size of libsvm inference data {} is larger than '
                                      'feature size of trained model {}.'.format(y, x))
-            elif content_type == 'text/csv':
+            elif parsed_content_type in [CSV, RECORDIO_PROTOBUF]:
                 if not ((x == y) or (x == y + 1)):
-                    raise ValueError('Feature size of csv inference data {} is not consistent '
-                                     'with feature size of trained model {}'.format(y, x))
-            elif content_type == 'application/x-recordio-protobuf':
-                if not ((x == y) or (x == y + 1)):
-                    raise ValueError('Feature size of recordio-protobuf inference data {} is not consistent '
-                                     'with feature size of trained model {}.'.format(y, x))
+                    raise ValueError('Feature size of {} inference data {} is not consistent '
+                                     'with feature size of trained model {}.'.
+                                     format(content_type, y, x))
             else:
                 raise ValueError('Content type {} is not supported'.format(content_type))
         return cls.booster.predict(data,
