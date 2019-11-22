@@ -25,10 +25,11 @@ import gunicorn.app.base
 import numpy as np
 import xgboost as xgb
 
-from sagemaker_xgboost_container import encoder
-from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container import encoder, data_utils
 from sagemaker_xgboost_container.algorithm_mode import integration
-from sagemaker_xgboost_container.algorithm_mode import serve_utils
+from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.data_utils import get_content_type
+from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF
 
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
@@ -85,22 +86,24 @@ class ScoringService(object):
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
+        try:
+            parsed_content_type = get_content_type(content_type)
+        except Exception:
+            raise ValueError('Content type {} is not supported'.format(content_type))
+
         if model_format == 'pkl_format':
             x = len(cls.booster.feature_names)
             y = len(data.feature_names)
 
-            if content_type == 'text/x-libsvm' or content_type == 'text/libsvm':
+            if parsed_content_type == LIBSVM:
                 if y > x + 1:
                     raise ValueError('Feature size of libsvm inference data {} is larger than '
                                      'feature size of trained model {}.'.format(y, x))
-            elif content_type == 'text/csv':
+            elif parsed_content_type in [CSV, RECORDIO_PROTOBUF]:
                 if not ((x == y) or (x == y + 1)):
-                    raise ValueError('Feature size of csv inference data {} is not consistent '
-                                     'with feature size of trained model {}'.format(y, x))
-            elif content_type == 'application/x-recordio-protobuf':
-                if not ((x == y) or (x == y + 1)):
-                    raise ValueError('Feature size of recordio-protobuf inference data {} is not consistent '
-                                     'with feature size of trained model {}.'.format(y, x))
+                    raise ValueError('Feature size of {} inference data {} is not consistent '
+                                     'with feature size of trained model {}.'.
+                                     format(content_type, y, x))
             else:
                 raise ValueError('Content type {} is not supported'.format(content_type))
         return cls.booster.predict(data,
@@ -200,29 +203,31 @@ def _get_sparse_matrix_from_libsvm(payload):
 
 def _parse_content_data(request):
     dtest = None
-    content_type = serve_utils.get_content_type(request)
+    content_type = data_utils.get_content_type(request.content_type)
     payload = request.data
-    if content_type == "text/csv":
+    if content_type == data_utils.CSV:
         try:
             decoded_payload = payload.strip().decode("utf-8")
             dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
         except Exception as e:
             raise RuntimeError("Loading csv data failed with Exception, "
                                "please ensure data is in csv format:\n {}\n {}".format(type(e), e))
-    elif content_type == "text/x-libsvm" or content_type == 'text/libsvm':
+    elif content_type == data_utils.LIBSVM:
         try:
             decoded_payload = payload.strip().decode("utf-8")
             dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(decoded_payload))
         except Exception as e:
             raise RuntimeError("Loading libsvm data failed with Exception, "
                                "please ensure data is in libsvm format:\n {}\n {}".format(type(e), e))
-    elif content_type == "application/x-recordio-protobuf":
+    elif content_type == data_utils.RECORDIO_PROTOBUF:
         try:
             dtest = encoder.recordio_protobuf_to_dmatrix(payload)
         except Exception as e:
             raise RuntimeError("Loading recordio-protobuf data failed with "
                                "Exception, please ensure data is in "
                                "recordio-protobuf format: {} {}".format(type(e), e))
+    else:
+        raise RuntimeError("Content-type {} is not supported.".format(request.content_type))
 
     return dtest, content_type
 
