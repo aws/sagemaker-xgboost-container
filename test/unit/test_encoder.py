@@ -13,12 +13,13 @@
 from mock import Mock, patch
 import mock
 import os
+from pathlib import Path
 import pytest
 import tempfile
 
+from sagemaker_containers import _content_types, _errors
 import xgboost as xgb
 
-from sagemaker_containers import _content_types, _errors
 from sagemaker_xgboost_container import encoder
 
 
@@ -26,6 +27,21 @@ from sagemaker_xgboost_container import encoder
 def test_csv_to_dmatrix(target):
     actual = encoder.csv_to_dmatrix(target)
     assert type(actual) is xgb.DMatrix
+
+
+@pytest.mark.parametrize(
+    'target', ('1,2,3,12:12:12',
+               '1,2,3,2019-1-1',
+               '1,2,3,2019-1-1 12:12:12',
+               '1,2,3,2019-1-1 12:12:12+00',
+               '1,2,3,-14 days',
+               '1,2,3\n1,2,c'))
+def test_csv_to_dmatrix_error(target):
+    try:
+        encoder.csv_to_dmatrix(target)
+        assert False
+    except Exception as e:
+        assert type(e) is ValueError
 
 
 @pytest.mark.parametrize('target', (b'0 0:1 5:1', b'0:1 5:1'))
@@ -40,6 +56,30 @@ def test_libsvm_to_dmatrix(target):
 
     assert type(actual) is xgb.DMatrix
     assert not os.path.exists(temp_libsvm_file_name)
+
+
+@pytest.mark.parametrize(
+    'target', (b'\n#\xd7\xce\x13\x00\x00\x00\n\x11\n\x06values\x12\x07:\x05\n\x03*\x06\t\x00',  # 42,6,9
+               b'\n#\xd7\xce(\x00\x00\x00\n&\n\x06values\x12\x1c\x1a\x1a\n\x18\x00\x00\x00'  # 42.0,6.0,9.0
+               b'\x00\x00\x00E@\x00\x00\x00\x00\x00\x00\x18@\x00\x00\x00\x00\x00\x00"@',
+               b'\n#\xd7\xce\x19\x00\x00\x00\n\x17\n\x06values\x12\r:\x0b\n\x02\x01\x01\x12'  # 0:1 5:1
+               b'\x02\x00\x05\x1a\x01\x06\x00\x00\x00'))
+def test_recordio_protobuf_to_dmatrix(target):
+    actual = encoder.recordio_protobuf_to_dmatrix(target)
+    assert type(actual) is xgb.DMatrix
+
+
+def test_sparse_recordio_protobuf_to_dmatrix():
+    current_path = Path(os.path.abspath(__file__))
+    data_path = os.path.join(str(current_path.parent.parent), 'resources', 'data')
+    files_path = os.path.join(data_path, 'recordio_protobuf', 'sparse_edge_cases')
+
+    for filename in os.listdir(files_path):
+        file_path = os.path.join(files_path, filename)
+        with open(file_path, 'rb') as f:
+            target = f.read()
+            actual = encoder.recordio_protobuf_to_dmatrix(target)
+            assert type(actual) is xgb.DMatrix
 
 
 def test_decode_error():
