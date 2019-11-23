@@ -11,3 +11,4 @@ pytest-xdist
 sagemaker>=1.3.0
 tox
 tox-conda
+smdebug==0.4.5

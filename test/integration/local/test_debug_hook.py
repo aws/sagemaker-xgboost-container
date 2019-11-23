@@ -25,7 +25,7 @@ source_dir = os.path.join(path, '..', '..', 'resources', 'smdebug')
 data_dir = os.path.join(path, '..', '..', 'resources', 'abalone', 'data')
 
 
-def get_abalone_hyperparameters(num_round=10):
+def get_abalone_hyperparameters(num_round=20):
 
     hyperparameters = {
         "max_depth": 5,
@@ -179,7 +179,8 @@ def test_smdebug_distributed_fully_replicated(docker_image, opt_ml, tmpdir):
         "S3OutputPath": "s3://bucket/prefix",
         "LocalPath": "/opt/ml/output/tensors",
         "HookParameters": {
-            "save_interval": 10,
+            "save_interval": "10",
+            "include_workers": "all",
         },
         "CollectionConfigurations": [
             {"CollectionName": "predictions"}
@@ -195,6 +196,7 @@ def test_smdebug_distributed_fully_replicated(docker_image, opt_ml, tmpdir):
 
     tensors_dir_1 = os.path.join(opt_ml, 'algo-1', 'output', 'tensors')
     tensors_dir_2 = os.path.join(opt_ml, 'algo-2', 'output', 'tensors')
+
     # emulate sagemaker upload.
     # sagemaker will upload tensors from both workers to the same S3 location.
     copy_tree(tensors_dir_1, str(tmpdir))
@@ -220,7 +222,8 @@ def test_smdebug_distributed_sharded_by_s3_key(docker_image, opt_ml, tmpdir):
         "S3OutputPath": "s3://bucket/prefix",
         "LocalPath": "/opt/ml/output/tensors",
         "HookParameters": {
-            "save_interval": 10,
+            "save_interval": "10",
+            "include_workers": "all",
         },
         "CollectionConfigurations": [
             {"CollectionName": "predictions"}

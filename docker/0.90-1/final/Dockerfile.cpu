@@ -31,6 +31,6 @@ RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
 
 # Tornasole
 # Will install from pypi once packages are released there. For now, copy from local file system.
-ARG smdebug_installable=smdebug-0.4.3-py2.py3-none-any.whl
+ARG smdebug_installable=smdebug-0.4.5-py2.py3-none-any.whl
 COPY $smdebug_installable /tmp/.
 RUN pip install --force-reinstall /tmp/$smdebug_installable
