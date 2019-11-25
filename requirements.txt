@@ -1,9 +1,10 @@
 PyYAML<4.3
+gunicorn<20.0.0
 matplotlib
 numpy
 pandas>=0.24.0
 psutil==5.4.8  # sagemaker-containers requires psutil 5.4.8
-python-dateutil==2.8.0
+python-dateutil<2.8.1
 requests<2.21
 retrying==1.3.3
 sagemaker-containers>=2.5.6
