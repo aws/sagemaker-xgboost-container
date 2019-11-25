@@ -12,7 +12,8 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 
-from mock import MagicMock
+import json
+from mock import MagicMock, patch
 import pytest
 
 from sagemaker_algorithm_toolkit import exceptions as exc
@@ -57,3 +58,20 @@ def test_incorrect_content_type(incorrect_content_type):
 
     with pytest.raises(exc.UserError):
         serve._parse_content_data(mock_request)
+
+
+def test_default_execution_parameters():
+    execution_parameters_response = serve.execution_parameters()
+
+    parsed_exec_params_response = json.loads(execution_parameters_response.response[0])
+    assert parsed_exec_params_response['MaxPayloadInMB'] == 6
+    assert parsed_exec_params_response["BatchStrategy"] == "MULTI_RECORD"
+
+
+@patch('sagemaker_xgboost_container.algorithm_mode.serve.PARSED_MAX_CONTENT_LENGTH', 19 * 1024 ** 2)
+def test_max_execution_parameters():
+    execution_parameters_response = serve.execution_parameters()
+
+    parsed_exec_params_response = json.loads(execution_parameters_response.response[0])
+    assert parsed_exec_params_response['MaxPayloadInMB'] == 19
+    assert parsed_exec_params_response["BatchStrategy"] == "MULTI_RECORD"
