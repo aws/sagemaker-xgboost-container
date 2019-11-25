@@ -1,7 +1,7 @@
 PyYAML<4.3
 matplotlib
 model-archiver
-mxnet-model-server==1.0.8
+multi-model-server==1.0.8.1
 numpy
 pandas>=0.24.0
 psutil==5.4.8  # sagemaker-containers requires psutil 5.4.8
@@ -9,7 +9,7 @@ python-dateutil==2.8.0
 requests<2.21
 retrying==1.3.3
 sagemaker-containers>=2.5.6
-sagemaker-inference==1.0.5
+sagemaker-inference==1.1.2
 scikit-learn
 scipy
 urllib3<1.25
