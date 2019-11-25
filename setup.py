@@ -37,9 +37,5 @@ setup(
         'test': read("test-requirements.txt")
     },
 
-    entry_points={
-        'console_scripts': 'serve=sagemaker_xgboost_container.serving:main'
-    },
-
     python_requires='>=3.5',
 )
