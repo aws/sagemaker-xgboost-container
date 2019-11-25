@@ -35,7 +35,7 @@ SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
 logging = integration.setup_main_logger(__name__)
 
 
-def _get_max_content_size():
+def _get_max_content_length():
     max_payload_size = 20 * 1024 ** 2
     # NOTE: 6 MB max content length = 6 * 1024 ** 2
     content_len = int(os.getenv("MAX_CONTENT_LENGTH", '6291456'))
@@ -45,7 +45,7 @@ def _get_max_content_size():
         return max_payload_size
 
 
-PARSED_MAX_CONTENT_LENGTH = _get_max_content_size()
+PARSED_MAX_CONTENT_LENGTH = _get_max_content_length()
 
 
 def number_of_workers():
