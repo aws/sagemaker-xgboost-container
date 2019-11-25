@@ -58,7 +58,8 @@ class GunicornApplication(gunicorn.app.base.BaseApplication):
 class ScoringService(object):
     PORT = os.getenv("SAGEMAKER_BIND_TO_PORT", 8080)
     # NOTE: 6 MB max content length
-    MAX_CONTENT_LENGTH = os.getenv("MAX_CONTENT_LENGTH", 6 * 1024 * 1024)
+    MAX_CONTENT_LENGTH_MB = int(os.getenv("MAX_CONTENT_LENGTH", '6'))
+    MAX_CONTENT_LENGTH = MAX_CONTENT_LENGTH_MB * 1024 ** 2
 
     MODEL_PATH = os.getenv(sm_env_constants.SM_MODEL_DIR)
     app = flask.Flask(__name__)
