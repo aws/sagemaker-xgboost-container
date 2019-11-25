@@ -35,6 +35,19 @@ SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
 logging = integration.setup_main_logger(__name__)
 
 
+def _get_max_content_size():
+    max_payload_size = 20 * 1024 ** 2
+    # NOTE: 6 MB max content length = 6 * 1024 ** 2
+    content_len = int(os.getenv("MAX_CONTENT_LENGTH", '6291456'))
+    if content_len < max_payload_size:
+        return content_len
+    else:
+        return max_payload_size
+
+
+PARSED_MAX_CONTENT_LENGTH = _get_max_content_size()
+
+
 def number_of_workers():
     return multiprocessing.cpu_count()
 
@@ -57,11 +70,8 @@ class GunicornApplication(gunicorn.app.base.BaseApplication):
 
 class ScoringService(object):
     PORT = os.getenv("SAGEMAKER_BIND_TO_PORT", 8080)
-    # NOTE: 6 MB max content length
-    MAX_CONTENT_LENGTH_MB = int(os.getenv("MAX_CONTENT_LENGTH", '6'))
-    MAX_CONTENT_LENGTH = MAX_CONTENT_LENGTH_MB * 1024 ** 2
-
     MODEL_PATH = os.getenv(sm_env_constants.SM_MODEL_DIR)
+    MAX_CONTENT_LENGTH = PARSED_MAX_CONTENT_LENGTH
     app = flask.Flask(__name__)
     booster = None
     format = None
@@ -166,7 +176,7 @@ def execution_parameters():
         parameters = {
             "MaxConcurrentTransforms": number_of_workers(),
             "BatchStrategy": "MULTI_RECORD",
-            "MaxPayloadInMB": 6
+            "MaxPayloadInMB": PARSED_MAX_CONTENT_LENGTH / (1024 ** 2)
         }
     except Exception as e:
         return flask.Response(response="Unable to determine execution parameters: %s" % e,
