@@ -25,11 +25,10 @@ import gunicorn.app.base
 import numpy as np
 import xgboost as xgb
 
-from sagemaker_xgboost_container import encoder, data_utils
+from sagemaker_xgboost_container import encoder
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.constants import sm_env_constants
-from sagemaker_xgboost_container.data_utils import get_content_type
-from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF
+from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
 
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
@@ -161,12 +160,16 @@ def ping():
 
 @ScoringService.app.route("/execution-parameters", methods=["GET"])
 def execution_parameters():
+    max_content_length = int(os.getenv("MAX_CONTENT_LENGTH", '6'))
+    if max_content_length > 20:
+        # Cap at 20mb
+        max_content_length = 20
     try:
         # TODO: implement logics to find optimal/sub-optimal parameters
         parameters = {
             "MaxConcurrentTransforms": number_of_workers(),
             "BatchStrategy": "MULTI_RECORD",
-            "MaxPayloadInMB": 6
+            "MaxPayloadInMB": max_content_length
         }
     except Exception as e:
         return flask.Response(response="Unable to determine execution parameters: %s" % e,
@@ -203,23 +206,23 @@ def _get_sparse_matrix_from_libsvm(payload):
 
 def _parse_content_data(request):
     dtest = None
-    content_type = data_utils.get_content_type(request.content_type)
+    content_type = get_content_type(request.content_type)
     payload = request.data
-    if content_type == data_utils.CSV:
+    if content_type == CSV:
         try:
             decoded_payload = payload.strip().decode("utf-8")
             dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
         except Exception as e:
             raise RuntimeError("Loading csv data failed with Exception, "
                                "please ensure data is in csv format:\n {}\n {}".format(type(e), e))
-    elif content_type == data_utils.LIBSVM:
+    elif content_type == LIBSVM:
         try:
             decoded_payload = payload.strip().decode("utf-8")
             dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(decoded_payload))
         except Exception as e:
             raise RuntimeError("Loading libsvm data failed with Exception, "
                                "please ensure data is in libsvm format:\n {}\n {}".format(type(e), e))
-    elif content_type == data_utils.RECORDIO_PROTOBUF:
+    elif content_type == RECORDIO_PROTOBUF:
         try:
             dtest = encoder.recordio_protobuf_to_dmatrix(payload)
         except Exception as e:
