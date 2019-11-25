@@ -161,16 +161,12 @@ def ping():
 
 @ScoringService.app.route("/execution-parameters", methods=["GET"])
 def execution_parameters():
-    max_content_length = int(os.getenv("MAX_CONTENT_LENGTH", '6'))
-    if max_content_length > 20:
-        # Cap at 20mb
-        max_content_length = 20
     try:
         # TODO: implement logics to find optimal/sub-optimal parameters
         parameters = {
             "MaxConcurrentTransforms": number_of_workers(),
             "BatchStrategy": "MULTI_RECORD",
-            "MaxPayloadInMB": max_content_length
+            "MaxPayloadInMB": 6
         }
     except Exception as e:
         return flask.Response(response="Unable to determine execution parameters: %s" % e,
