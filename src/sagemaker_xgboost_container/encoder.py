@@ -18,14 +18,10 @@ import os
 import tempfile
 from typing import Iterable
 
-import mlio
-from mlio.integ.numpy import as_numpy
-from mlio.integ.scipy import to_coo_matrix
 import numpy as np
-from sagemaker_containers import _content_types, _errors
-from scipy.sparse import vstack as scipy_vstack
 import xgboost as xgb
 
+from sagemaker_containers import _content_types, _errors
 from sagemaker_xgboost_container.constants import xgb_content_types
 
 
@@ -72,39 +68,10 @@ def libsvm_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
     return dmatrix
 
 
-def recordio_protobuf_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
-    """Convert a RecordIO-Protobuf byte representation to a DMatrix object.
-    Args:
-        string_like (bytes): RecordIO-Protobuf bytes.
-    Returns:
-    (xgb.DMatrix): XGBoost DataMatrix
-    """
-    buf = bytes(string_like)
-    dataset = [mlio.InMemoryStore(buf)]
-    reader = mlio.RecordIOProtobufReader(dataset=dataset, batch_size=100)
-
-    if type(reader.peek_example()['values']) is mlio.core.DenseTensor:
-        to_matrix = as_numpy
-        vstack = np.vstack
-    else:
-        to_matrix = to_coo_matrix
-        vstack = scipy_vstack
-
-    examples = []
-    for example in reader:
-        tmp = to_matrix(example['values'])  # Ignore labels if present
-        examples.append(tmp)
-
-    data = vstack(examples)
-    dmatrix = xgb.DMatrix(data)
-    return dmatrix
-
-
 _dmatrix_decoders_map = {
     _content_types.CSV: csv_to_dmatrix,
     xgb_content_types.LIBSVM: libsvm_to_dmatrix,
-    xgb_content_types.X_LIBSVM: libsvm_to_dmatrix,
-    xgb_content_types.X_RECORDIO_PROTOBUF: recordio_protobuf_to_dmatrix}
+    xgb_content_types.X_LIBSVM: libsvm_to_dmatrix}
 
 
 def decode(obj, content_type):

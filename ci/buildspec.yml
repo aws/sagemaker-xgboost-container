@@ -9,12 +9,12 @@ phases:
     commands:
     - echo Build started on `date`
     - echo Building the Docker image...
-    - docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
+    - docker build -t xgboost-container-base:0.90-1-cpu-py3 -f docker/0.90-1/base/Dockerfile.cpu .
     - python setup.py bdist_wheel --universal
-    - docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
-    - docker tag preprod-xgboost-container:0.90-2-cpu-py3 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-2-cpu-py3
+    - docker build -t preprod-xgboost-container:0.90-1-cpu-py3 -f docker/0.90-1/final/Dockerfile.cpu .
+    - docker tag preprod-xgboost-container:0.90-1-cpu-py3 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-1-cpu-py3
   post_build:
     commands:
     - echo Build completed on `date`
     - echo Pushing the Docker image...
-    - docker push 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-2-cpu-py3
+    - docker push 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-1-cpu-py3

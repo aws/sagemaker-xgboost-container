@@ -202,11 +202,5 @@ def initialize(metrics):
                                              required=False),
         hpv.IntegerHyperparameter(name="seed", range=hpv.Interval(min_open=-2**31, max_open=2**31-1),
                                   required=False),
-
-        # For internal use only!
-        hpv.ContinuousHyperparameter(name="_subsample_ratio_on_read",
-                                     range=hpv.Interval(min_open=0,
-                                                        max_open=1),
-                                     required=False),
         )
     return hyperparameters
