@@ -11,6 +11,7 @@ phases:
     - echo Building the Docker image...
     - docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
     - python setup.py bdist_wheel --universal
+    - aws s3 cp s3://smdebug-binaries/smdebug/smdebug-0.4.11-py2.py3-none-any.whl .  # TODO-reinvent-2019: remove and replace with pip install in dockerfile
     - docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
     - docker tag preprod-xgboost-container:0.90-2-cpu-py3 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-2-cpu-py3
   post_build:
