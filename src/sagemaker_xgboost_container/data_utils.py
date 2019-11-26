@@ -323,7 +323,7 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
             del examples
 
             if csv_weights == 1:
-                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weights=data[:, 1])
+                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weight=data[:, 1])
             else:
                 dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
 
