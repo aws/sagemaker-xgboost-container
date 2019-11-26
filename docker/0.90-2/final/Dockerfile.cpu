@@ -24,6 +24,6 @@ RUN pip install -r /requirements.txt && rm /requirements.txt
 COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
    /miniconda3/lib/python3.6/site-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
 
-COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
-RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
-    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
+RUN pip install --no-cache /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl && \
+    rm /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
