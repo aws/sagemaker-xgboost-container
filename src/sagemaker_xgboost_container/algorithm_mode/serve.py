@@ -26,13 +26,26 @@ import numpy as np
 import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
-from sagemaker_xgboost_container.constants import sm_env_constants
 from sagemaker_xgboost_container.algorithm_mode import integration
-from sagemaker_xgboost_container.algorithm_mode import serve_utils
+from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
 
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
 logging = integration.setup_main_logger(__name__)
+
+
+def _get_max_content_length():
+    max_payload_size = 20 * 1024 ** 2
+    # NOTE: 6 MB max content length = 6 * 1024 ** 2
+    content_len = int(os.getenv("MAX_CONTENT_LENGTH", '6291456'))
+    if content_len < max_payload_size:
+        return content_len
+    else:
+        return max_payload_size
+
+
+PARSED_MAX_CONTENT_LENGTH = _get_max_content_length()
 
 
 def number_of_workers():
@@ -57,10 +70,8 @@ class GunicornApplication(gunicorn.app.base.BaseApplication):
 
 class ScoringService(object):
     PORT = os.getenv("SAGEMAKER_BIND_TO_PORT", 8080)
-    # NOTE: 6 MB max content length
-    MAX_CONTENT_LENGTH = os.getenv("MAX_CONTENT_LENGTH", 6 * 1024 * 1024)
-
     MODEL_PATH = os.getenv(sm_env_constants.SM_MODEL_DIR)
+    MAX_CONTENT_LENGTH = PARSED_MAX_CONTENT_LENGTH
     app = flask.Flask(__name__)
     booster = None
     format = None
@@ -85,18 +96,24 @@ class ScoringService(object):
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
+        try:
+            parsed_content_type = get_content_type(content_type)
+        except Exception:
+            raise ValueError('Content type {} is not supported'.format(content_type))
+
         if model_format == 'pkl_format':
             x = len(cls.booster.feature_names)
             y = len(data.feature_names)
 
-            if content_type == 'text/x-libsvm' or content_type == 'text/libsvm':
+            if parsed_content_type == LIBSVM:
                 if y > x + 1:
                     raise ValueError('Feature size of libsvm inference data {} is larger than '
                                      'feature size of trained model {}.'.format(y, x))
-            elif content_type == 'text/csv':
+            elif parsed_content_type in [CSV, RECORDIO_PROTOBUF]:
                 if not ((x == y) or (x == y + 1)):
-                    raise ValueError('Feature size of csv inference data {} is not consistent '
-                                     'with feature size of trained model {}'.format(y, x))
+                    raise ValueError('Feature size of {} inference data {} is not consistent '
+                                     'with feature size of trained model {}.'.
+                                     format(content_type, y, x))
             else:
                 raise ValueError('Content type {} is not supported'.format(content_type))
         return cls.booster.predict(data,
@@ -159,7 +176,7 @@ def execution_parameters():
         parameters = {
             "MaxConcurrentTransforms": number_of_workers(),
             "BatchStrategy": "MULTI_RECORD",
-            "MaxPayloadInMB": 6
+            "MaxPayloadInMB": int(PARSED_MAX_CONTENT_LENGTH / (1024 ** 2))
         }
     except Exception as e:
         return flask.Response(response="Unable to determine execution parameters: %s" % e,
@@ -196,22 +213,31 @@ def _get_sparse_matrix_from_libsvm(payload):
 
 def _parse_content_data(request):
     dtest = None
-    content_type = serve_utils.get_content_type(request)
-    payload = request.data.strip()
-    if content_type == "text/csv":
+    content_type = get_content_type(request.content_type)
+    payload = request.data
+    if content_type == CSV:
         try:
-            payload = payload.decode("utf-8")
-            dtest = encoder.csv_to_dmatrix(payload, dtype=np.float)
+            decoded_payload = payload.strip().decode("utf-8")
+            dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
         except Exception as e:
             raise RuntimeError("Loading csv data failed with Exception, "
                                "please ensure data is in csv format:\n {}\n {}".format(type(e), e))
-    elif content_type == "text/x-libsvm" or content_type == 'text/libsvm':
+    elif content_type == LIBSVM:
         try:
-            payload = payload.decode("utf-8")
-            dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(payload))
+            decoded_payload = payload.strip().decode("utf-8")
+            dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(decoded_payload))
         except Exception as e:
             raise RuntimeError("Loading libsvm data failed with Exception, "
                                "please ensure data is in libsvm format:\n {}\n {}".format(type(e), e))
+    elif content_type == RECORDIO_PROTOBUF:
+        try:
+            dtest = encoder.recordio_protobuf_to_dmatrix(payload)
+        except Exception as e:
+            raise RuntimeError("Loading recordio-protobuf data failed with "
+                               "Exception, please ensure data is in "
+                               "recordio-protobuf format: {} {}".format(type(e), e))
+    else:
+        raise RuntimeError("Content-type {} is not supported.".format(request.content_type))
 
     return dtest, content_type
 
