@@ -2,28 +2,32 @@ FROM ubuntu:16.04
 
 # Install python and other runtime dependencies
 RUN apt-get update && \
-    apt-get -y install build-essential libatlas-dev git wget curl nginx jq && \
-    apt-get -y install python3-dev python3-setuptools
-
-# Install pip
-RUN cd /tmp && \
-     curl -O https://bootstrap.pypa.io/get-pip.py && \
-     python3 get-pip.py && \
-     rm get-pip.py
+    apt-get -y install \
+        build-essential \
+        libatlas-dev \
+        git \
+        wget \
+        curl \
+        nginx \
+        jq
 
 # Install mlio
-RUN echo 'installing miniconda'
-RUN curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
-RUN bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3
-RUN rm Miniconda3-latest-Linux-x86_64.sh
+RUN echo 'installing miniconda' && \
+    curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3 && \
+    rm Miniconda3-latest-Linux-x86_64.sh
+
 ENV PATH=/miniconda3/bin:${PATH}
-RUN conda update -y conda
-RUN conda install -c conda-forge pyarrow=0.14.1
-RUN conda install -c mlio -c conda-forge mlio-py=0.1
+
+RUN conda install python=3.6 && \
+    conda update -y conda && \
+    conda install -c conda-forge pyarrow=0.14.1 && \
+    conda install -c mlio -c conda-forge mlio-py=0.1
 
 # Python won’t try to write .pyc or .pyo files on the import of source modules
 # Force stdin, stdout and stderr to be totally unbuffered. Good for logging
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING='utf-8'
 
 # Install latest version of XGBoost
