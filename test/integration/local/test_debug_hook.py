@@ -71,7 +71,7 @@ def test_smdebug_algorithm_mode_default_positive_no_params(docker_image, opt_ml)
 
     tensors_dir = os.path.join(opt_ml, 'algo-1', 'output', 'tensors')
     trial = create_trial(tensors_dir)
-    assert trial.tensors() == ["train-rmse", "validation-rmse"]
+    assert trial.tensor_names() == ["train-rmse", "validation-rmse"]
     assert trial.steps() == list(range(0, 20, DEFAULT_SAVE_CONFIG_INTERVAL))
 
 
@@ -94,7 +94,7 @@ def test_smdebug_algorithm_mode_default_positive_null_params(docker_image, opt_m
 
     tensors_dir = os.path.join(opt_ml, 'algo-1', 'output', 'tensors')
     trial = create_trial(tensors_dir)
-    assert trial.tensors() == ["train-rmse", "validation-rmse"]
+    assert trial.tensor_names() == ["train-rmse", "validation-rmse"]
     assert trial.steps() == list(range(0, 20, DEFAULT_SAVE_CONFIG_INTERVAL))
 
 
@@ -120,7 +120,7 @@ def test_smdebug_algorithm_mode_hook_parameters(docker_image, opt_ml):
  
     tensors_dir = os.path.join(opt_ml, 'algo-1', 'output', 'tensors')
     trial = create_trial(tensors_dir)
-    assert trial.tensors() == ["train-rmse", "validation-rmse"]
+    assert trial.tensor_names() == ["train-rmse", "validation-rmse"]
     assert trial.steps() == [0, 1, 2, 3, 7, 14]
 
 
@@ -147,7 +147,7 @@ def test_smdebug_algorithm_mode_collection_configurations(docker_image, opt_ml):
 
     tensors_dir = os.path.join(opt_ml, 'algo-1', 'output', 'tensors')
     trial = create_trial(tensors_dir)
-    tensors = trial.tensors()
+    tensors = trial.tensor_names()
     assert any("average_shap" in tensor for tensor in tensors)
     expected_hp = ["hyperparameters/{}".format(hp) for hp in hyperparameters.keys()]
     assert all(hp in tensors for hp in expected_hp)
@@ -166,7 +166,7 @@ def test_smdebug_script_mode_single_machine(docker_image, opt_ml):
 
     tensors_dir = os.path.join(opt_ml, 'algo-1', 'output', 'tensors')
     trial = create_trial(tensors_dir)
-    assert trial.tensors() == ["train-rmse", "validation-rmse"]
+    assert trial.tensor_names() == ["train-rmse", "validation-rmse"]
     assert trial.steps() == list(range(0, 20))
 
 
@@ -202,7 +202,7 @@ def test_smdebug_distributed_fully_replicated(docker_image, opt_ml, tmpdir):
     copy_tree(tensors_dir_1, str(tmpdir))
     copy_tree(tensors_dir_2, str(tmpdir))
     trial = create_trial(str(tmpdir))
-    tensors = trial.tensors()
+    tensors = trial.tensor_names()
     assert len(trial.workers()) == 2
     assert trial.steps() == list(range(0, 20, 10))
     assert "predictions" in tensors
@@ -246,7 +246,7 @@ def test_smdebug_distributed_sharded_by_s3_key(docker_image, opt_ml, tmpdir):
     copy_tree(tensors_dir_1, str(tmpdir))
     copy_tree(tensors_dir_2, str(tmpdir))
     trial = create_trial(str(tmpdir))
-    tensors = trial.tensors()
+    tensors = trial.tensor_names()
     assert len(trial.workers()) == 2
     assert trial.steps() == list(range(0, 20, 10))
     assert "predictions" in tensors
