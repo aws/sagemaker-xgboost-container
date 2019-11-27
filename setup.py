@@ -28,7 +28,6 @@ setup(
         "Natural Language :: English",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
 
@@ -38,5 +37,5 @@ setup(
         'test': read("test-requirements.txt")
     },
 
-    python_requires='>=3.5',
+    python_requires='>=3.6',
 )
