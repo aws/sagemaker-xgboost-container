@@ -27,9 +27,3 @@ COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
 COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
 RUN pip install --no-cache /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl && \
     rm /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
-
-# TODO-reinvent-2019: replace the following with pip install from pypi
-# Will install from pypi once packages are released there. For now, copy from local file system
-ARG smdebug_installable=smdebug-0.4.12-py2.py3-none-any.whl
-COPY $smdebug_installable /tmp/.
-RUN pip install /tmp/$smdebug_installable
