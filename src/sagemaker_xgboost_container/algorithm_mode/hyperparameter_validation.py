@@ -69,9 +69,9 @@ def initialize(metrics):
             raise exc.UserError("Do not need to setup parameter 'num_class' for learning task other than "
                                 "multi-classification.")
 
-    @hpv.range_validator(["rmse", "mae", "logloss", "error", "merror", "mlogloss", "auc",
-                          "ndcg", "map", "poisson-nloglik", "gamma-nloglik", "gamma-deviance",
-                          "tweedie-nloglik", "accuracy", "f1", "mse"])
+    @hpv.range_validator(["rmse", "mae", "logloss", "error", "merror", "mlogloss", "auc", "aucpr",
+                          "ndcg", "map", "poisson-nloglik", "gamma-nloglik", "cox-nloglik",
+                          "gamma-deviance", "tweedie-nloglik", "accuracy", "f1", "mse"])
     def eval_metric_range_validator(SUPPORTED_METRIC, metric):
         if "<function" in metric:
             raise exc.UserError("User defined evaluation metric {} is not supported yet.".format(metric))
