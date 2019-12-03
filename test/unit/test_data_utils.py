@@ -120,7 +120,6 @@ class TestTrainUtils(unittest.TestCase):
                 is_pipe = True
                 self._check_piped_dmatrix(csv_path, pipe_path, pipe_dir, reader, 5, 5, csv_weight, is_pipe)
 
-
     def test_parse_libsvm_dmatrix(self):
         libsvm_file_paths = ['train.libsvm', 'train.libsvm.weights', 'libsvm_files']
 
