@@ -109,12 +109,12 @@ class TestTrainUtils(unittest.TestCase):
                 self._check_dmatrix(reader, csv_path, 5, 5, csv_weight)
 
     def test_parse_csv_dmatrix_pipe(self):
-        csv_file_paths_and_weight = [('csv_files', 0)]
+        csv_file_paths_and_weight = [('csv_files', 0), ('weighted_csv_files', 1)]
 
         for file_path, csv_weight in csv_file_paths_and_weight:
             with self.subTest(file_path=file_path, csv_weight=csv_weight):
                 csv_path = os.path.join(self.data_path, 'csv', file_path)
-                pipe_dir = os.path.join(self.data_path, 'csv', 'pipe_path')
+                pipe_dir = os.path.join(self.data_path, 'csv', 'pipe_path', file_path)
                 pipe_path = os.path.join(pipe_dir, 'train')
                 reader = data_utils.get_csv_dmatrix
                 is_pipe = True
