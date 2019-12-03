@@ -12,3 +12,4 @@ scikit-learn
 scipy
 urllib3<1.25
 wheel
+smdebug==0.4.13
