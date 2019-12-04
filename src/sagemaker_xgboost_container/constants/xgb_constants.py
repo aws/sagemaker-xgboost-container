@@ -10,6 +10,27 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+XGB_METRIC_NAMES = [
+    "accuracy",
+    "auc",
+    "aucpr",
+    "cox-nloglik",
+    "error",
+    "f1",
+    "gamma-deviance",
+    "gamma-nloglik",
+    "logloss",
+    "mae",
+    "map",
+    "merror",
+    "mlogloss",
+    "mse",
+    "ndcg",
+    "poisson-nloglik",
+    "rmse",
+    "tweedie-nloglik"
+]
+
 LOGISTIC_REGRESSION_LABEL_RANGE_ERROR = "label must be in [0,1] for logistic regression"
 MULTI_CLASS_LABEL_RANGE_ERROR = "label must be in [0, num_class)"
 FEATURE_MISMATCH_ERROR = "feature_names mismatch"

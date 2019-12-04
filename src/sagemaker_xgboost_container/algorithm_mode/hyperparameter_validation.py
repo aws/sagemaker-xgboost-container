@@ -13,6 +13,8 @@
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit import hyperparameter_validation as hpv
 
+from sagemaker_xgboost_container.constants.xgb_constants import XGB_METRIC_NAMES
+
 
 def initialize(metrics):
     @hpv.range_validator(["auto", "exact", "approx", "hist"])
@@ -69,9 +71,7 @@ def initialize(metrics):
             raise exc.UserError("Do not need to setup parameter 'num_class' for learning task other than "
                                 "multi-classification.")
 
-    @hpv.range_validator(["rmse", "mae", "logloss", "error", "merror", "mlogloss", "auc", "aucpr",
-                          "ndcg", "map", "poisson-nloglik", "gamma-nloglik", "cox-nloglik",
-                          "gamma-deviance", "tweedie-nloglik", "accuracy", "f1", "mse"])
+    @hpv.range_validator(XGB_METRIC_NAMES)
     def eval_metric_range_validator(SUPPORTED_METRIC, metric):
         if "<function" in metric:
             raise exc.UserError("User defined evaluation metric {} is not supported yet.".format(metric))
