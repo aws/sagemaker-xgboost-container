@@ -30,7 +30,7 @@ class TestTraining(unittest.TestCase):
         training.train(env)
 
         mock_run_module.assert_called_with(
-            's3://my/script', env.to_cmd_args(), env.to_env_vars(), 'svm', capture_error=True)
+            's3://my/script', env.to_cmd_args(), env.to_env_vars(), 'svm', capture_error=False)
 
     @patch('sagemaker_xgboost_container.training.run_algorithm_mode')
     def test_algorithm_mode(self, mock_algorithm_mode_train):
