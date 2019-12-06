@@ -180,3 +180,12 @@ class TestTrainUtils(unittest.TestCase):
                 pb_path = os.path.join(self.data_path, 'recordio_protobuf', file_path)
                 reader = data_utils.get_recordio_protobuf_dmatrix
                 self._check_dmatrix(reader, pb_path, dims[0], dims[1])
+
+    def test_parse_protobuf_dmatrix_single_feature_label(self):
+        pb_file_paths = ['single_feature_label.pb']
+
+        for file_path in pb_file_paths:
+            with self.subTest(file_path=file_path):
+                pb_path = os.path.join(self.data_path, 'recordio_protobuf', file_path)
+                reader = data_utils.get_recordio_protobuf_dmatrix
+                self._check_dmatrix(reader, pb_path, 1, 1)
