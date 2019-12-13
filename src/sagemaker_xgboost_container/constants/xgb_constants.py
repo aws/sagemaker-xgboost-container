@@ -10,25 +10,29 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-XGB_METRIC_NAMES = [
-    "accuracy",
-    "auc",
-    "aucpr",
+
+XGB_MAXIMIZE_METRICS = [
+    'accuracy',
+    'auc',
+    'aucpr',
     "cox-nloglik",
-    "error",
-    "f1",
-    "gamma-deviance",
+    'f1',
     "gamma-nloglik",
-    "logloss",
-    "mae",
-    "map",
-    "merror",
-    "mlogloss",
-    "mse",
-    "ndcg",
+    'map',
+    'ndcg',
     "poisson-nloglik",
-    "rmse",
     "tweedie-nloglik"
+]
+
+XGB_MINIMIZE_METRICS = [
+    'error',
+    "gamma-deviance",
+    'logloss',
+    'mae',
+    'merror',
+    'mlogloss',
+    'mse',
+    'rmse'
 ]
 
 LOGISTIC_REGRESSION_LABEL_RANGE_ERROR = "label must be in [0,1] for logistic regression"
