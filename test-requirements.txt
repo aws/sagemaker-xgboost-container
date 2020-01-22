@@ -1,4 +1,4 @@
-Flask
+flask==1.1.1  # sagemaker-containers requires flask==1.1.1
 PyYAML<4.3
 boto3>=1.4.8
 coverage

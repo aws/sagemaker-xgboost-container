@@ -1,20 +1,47 @@
 version: 0.2
 
 phases:
+  install:
+    runtime-versions:
+      docker: 17
   pre_build:
     commands:
-    - echo Logging in to Amazon ECR...
-    - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+    - echo Installing dependencies...
+    - curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    - bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3
+    - export PATH=/miniconda3/bin:${PATH}
+    - conda update -y conda
+    - conda install -y 'requests<2.21'  # sagemaker-python-sdk requires requests<2.21
+    - pip install -e .[test]
   build:
     commands:
     - echo Build started on `date`
     - echo Building the Docker image...
-    - docker build -t xgboost-container-base:0.90-1-cpu-py3 -f docker/0.90-1/base/Dockerfile.cpu .
+    - docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
     - python setup.py bdist_wheel --universal
-    - docker build -t preprod-xgboost-container:0.90-1-cpu-py3 -f docker/0.90-1/final/Dockerfile.cpu .
-    - docker tag preprod-xgboost-container:0.90-1-cpu-py3 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-1-cpu-py3
+    - docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
+    - echo Running unit tests
+    - tox
+    - echo Running local integration tests
+    - pytest test/integration/local --docker-base-name preprod-xgboost-container --tag 0.90-2-cpu-py3 --py-version 3 --framework-version 0.90-2
+    - echo Build completed on `date`
   post_build:
     commands:
-    - echo Build completed on `date`
-    - echo Pushing the Docker image...
-    - docker push 515193369038.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-1-cpu-py3
+    - |
+      if [ $CODEBUILD_WEBHOOK_EVENT = "PULL_REQUEST_MERGED" ]; then
+         echo Image deployment started on `data`
+         echo Pushing the Docker image to $SM_ALPHA...
+         docker push $SM_ALPHA.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-1-cpu-py3
+       fi
+    - |
+      if [ $CODEBUILD_WEBHOOK_EVENT = "PULL_REQUEST_CREATED" ]; then
+        echo "pull request created"
+      fi
+    - |
+      if [ $CODEBUILD_WEBHOOK_EVENT = "PULL_REQUEST_UPDATED" ]; then
+        echo "pull request updated"
+      fi
+    - |
+      if [ $CODEBUILD_WEBHOOK_EVENT = "PULL_REQUEST_REOPENED" ]; then
+        echo "pull request reopened"
+      fi
