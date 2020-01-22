@@ -1,5 +1,10 @@
 version: 0.2
 
+env:
+  variables:
+    FRAMEWORK_VERSION: "0.90-1"
+    DOCKER_IMAGE_TAG: "0.90-1-cpu-py3"
+
 phases:
   install:
     runtime-versions:
@@ -17,21 +22,21 @@ phases:
     commands:
     - echo Build started on `date`
     - echo Building the Docker image...
-    - docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
+    - docker build -t xgboost-container-base:$DOCKER_IMAGE_TAG -f docker/$FRAMEWORK_VERSION/base/Dockerfile.cpu .
     - python setup.py bdist_wheel --universal
-    - docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
-    - echo Running unit tests
+    - docker build -t preprod-xgboost-container:$DOCKER_IMAGE_TAG -f docker/$FRAMEWORK_VERSION/final/Dockerfile.cpu .
+    - echo Running unit tests...
     - tox
-    - echo Running local integration tests
-    - pytest test/integration/local --docker-base-name preprod-xgboost-container --tag 0.90-2-cpu-py3 --py-version 3 --framework-version 0.90-2
+    - echo Running local integration tests...
+    - pytest test/integration/local --docker-base-name preprod-xgboost-container --tag $DOCKER_IMAGE_TAG --py-version 3 --framework-version $FRAMEWORK_VERSION
     - echo Build completed on `date`
   post_build:
     commands:
     - |
       if [ $CODEBUILD_WEBHOOK_EVENT = "PULL_REQUEST_MERGED" ]; then
          echo Image deployment started on `data`
-         echo Pushing the Docker image to $SM_ALPHA...
-         docker push $SM_ALPHA.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:0.90-1-cpu-py3
+         echo Pushing the Docker image...
+         docker push $SM_ALPHA.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:$DOCKER_IMAGE_TAG
        fi
     - |
       if [ $CODEBUILD_WEBHOOK_EVENT = "PULL_REQUEST_CREATED" ]; then
