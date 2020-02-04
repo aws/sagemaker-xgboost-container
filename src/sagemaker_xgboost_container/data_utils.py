@@ -65,7 +65,7 @@ def _get_invalid_csv_error_msg(line_snippet, file_name):
     return INVALID_CONTENT_FORMAT_ERROR.format(line_snippet=line_snippet, file_name=file_name, content_type='CSV')
 
 
-def get_content_type(content_type_cfg_val):
+def get_content_type(request):
     """Get content type from data config.
 
     Assumes that training and validation data have the same content type.
@@ -76,30 +76,39 @@ def get_content_type(content_type_cfg_val):
     :param content_type_cfg_val
     :return: Parsed content type
     """
-    if content_type_cfg_val is None:
-        return LIBSVM
-    else:
-        # cgi.parse_header extracts all arguments after ';' as key-value pairs
-        # e.g. cgi.parse_header('text/csv;label_size=1;charset=utf8') returns
-        # the tuple ('text/csv', {'label_size': '1', 'charset': 'utf8'})
-        content_type, params = cgi.parse_header(content_type_cfg_val.lower())
-
-        if content_type in [CSV, _content_types.CSV]:
-            # CSV content type allows a label_size parameter
-            # that should be 1 for XGBoost
-            if (params and 'label_size' in params and params['label_size'] != '1'):
-                msg = "{} is not an accepted csv ContentType. "\
-                        "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
-                raise exc.UserError(msg)
-            return CSV
-        elif content_type in [LIBSVM, xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]:
-            return LIBSVM
-        elif content_type in [PARQUET, xgb_content_types.X_PARQUET]:
-            return PARQUET
-        elif content_type in [RECORDIO_PROTOBUF, xgb_content_types.X_RECORDIO_PROTOBUF]:
-            return RECORDIO_PROTOBUF
-        else:
-            raise exc.UserError(_get_invalid_content_type_error_msg(content_type_cfg_val))
+    # if content_type_cfg_val is None:
+    #     return LIBSVM
+    # else:
+    #     # cgi.parse_header extracts all arguments after ';' as key-value pairs
+    #     # e.g. cgi.parse_header('text/csv;label_size=1;charset=utf8') returns
+    #     # the tuple ('text/csv', {'label_size': '1', 'charset': 'utf8'})
+    #     content_type, params = cgi.parse_header(content_type_cfg_val.lower())
+    #
+    #     if content_type in [CSV, _content_types.CSV]:
+    #         # CSV content type allows a label_size parameter
+    #         # that should be 1 for XGBoost
+    #         if (params and 'label_size' in params and params['label_size'] != '1'):
+    #             msg = "{} is not an accepted csv ContentType. "\
+    #                     "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
+    #             raise exc.UserError(msg)
+    #         return CSV
+    #     elif content_type in [LIBSVM, xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]:
+    #         return LIBSVM
+    #     elif content_type in [PARQUET, xgb_content_types.X_PARQUET]:
+    #         return PARQUET
+    #     elif content_type in [RECORDIO_PROTOBUF, xgb_content_types.X_RECORDIO_PROTOBUF]:
+    #         return RECORDIO_PROTOBUF
+    #     else:
+    #         raise exc.UserError(_get_invalid_content_type_error_msg(content_type_cfg_val))
+    content_type = request.content_type or "text/csv"
+    content_type = content_type.lower()
+    tokens = content_type.split(";")
+    content_type = tokens[0].strip()
+    if content_type not in ['text/csv', 'text/libsvm', 'text/x-libsvm']:
+        raise exc.UserError("Content-type {} not supported. "
+                           "Supported content-type is text/csv, text/libsvm"
+                           .format(content_type))
+    return content_type
 
 
 def _is_data_file(file_path, file_name):

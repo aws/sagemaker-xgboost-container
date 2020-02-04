@@ -30,8 +30,10 @@ from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.constants import sm_env_constants
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
 
+import datetime
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
+XGBOOST_NTHREADS = os.getenv("SM_XGB_NTHREADS")
 logging = integration.setup_main_logger(__name__)
 
 
@@ -83,6 +85,7 @@ class ScoringService(object):
                 model_file = os.listdir(ScoringService.MODEL_PATH)[0]
                 cls.booster = pkl.load(open(os.path.join(ScoringService.MODEL_PATH, model_file), 'rb'))
                 cls.format = 'pkl_format'
+                print("PICKLE FORMAT! DOUBLE CHECK THIS")
             except Exception as exp_pkl:
                 try:
                     model_file = os.listdir(ScoringService.MODEL_PATH)[0]
@@ -91,25 +94,26 @@ class ScoringService(object):
                     cls.format = 'xgb_format'
                 except Exception as exp_xgb:
                     raise RuntimeError("Unable to load model: %s %s", exp_pkl, exp_xgb)
-        cls.booster.set_param('nthread', 1)
+            if XGBOOST_NTHREADS:
+                cls.booster.set_param('nthread', int(XGBOOST_NTHREADS))
         return cls.format
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
-        try:
-            parsed_content_type = get_content_type(content_type)
-        except Exception:
-            raise ValueError('Content type {} is not supported'.format(content_type))
+        # try:
+        #     parsed_content_type = get_content_type(content_type)
+        # except Exception:
+        #     raise ValueError('Content type {} is not supported'.format(content_type))
 
         if model_format == 'pkl_format':
             x = len(cls.booster.feature_names)
             y = len(data.feature_names)
 
-            if parsed_content_type == LIBSVM:
+            if content_type == 'text/x-libsvm' or content_type == 'text/libsvm':
                 if y > x + 1:
                     raise ValueError('Feature size of libsvm inference data {} is larger than '
                                      'feature size of trained model {}.'.format(y, x))
-            elif parsed_content_type in [CSV, RECORDIO_PROTOBUF]:
+            elif content_type == 'text/csv':
                 if not ((x == y) or (x == y + 1)):
                     raise ValueError('Feature size of {} inference data {} is not consistent '
                                      'with feature size of trained model {}.'.
@@ -213,9 +217,9 @@ def _get_sparse_matrix_from_libsvm(payload):
 
 def _parse_content_data(request):
     dtest = None
-    content_type = get_content_type(request.content_type)
+    content_type = get_content_type(request)
     payload = request.data
-    if content_type == CSV:
+    if content_type == 'text/csv':
         try:
             decoded_payload = payload.strip().decode("utf-8")
             dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
@@ -244,6 +248,11 @@ def _parse_content_data(request):
 
 @ScoringService.app.route("/invocations", methods=["POST"])
 def invocations():
+    if not os.path.exists('/tmp'):
+        os.mkdir('tmp')
+    if not os.path.exists('/tmp/inf_metrics'):
+        os.mkdir('/tmp/inf_metrics')
+
     payload = flask.request.data
     if len(payload) == 0:
         return flask.Response(response="", status=http.client.NO_CONTENT)
@@ -260,16 +269,23 @@ def invocations():
         logging.exception(e)
         return flask.Response(response="Unable to load model: %s" % e, status=http.client.INTERNAL_SERVER_ERROR)
 
+    start_time = datetime.datetime.now()
     try:
         preds = ScoringService.predict(data=dtest, content_type=content_type, model_format=format)
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
+    end_time = datetime.datetime.now()
 
     return_data = ",".join(map(str, preds.tolist()))
     if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'
 
+    end_time = datetime.datetime.now()
+    latency = end_time - start_time
+
+    with open('/tmp/inf_metrics/{}'.format(end_time.isoformat()), 'w') as metric_file:
+        metric_file.write("{}".format(latency.total_seconds()))
     return flask.Response(response=return_data, status=http.client.OK, mimetype="text/csv")
 
 

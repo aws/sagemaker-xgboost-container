@@ -31,34 +31,34 @@ class TestTrainUtils(unittest.TestCase):
         self.data_path = os.path.join(str(current_path.parent.parent), 'resources', 'data')
         self.utils_path = os.path.join(str(current_path.parent.parent), 'utils')
 
-    def test_get_content_type(self):
-        self.assertEqual('libsvm', data_utils.get_content_type('libsvm'))
-        self.assertEqual('libsvm', data_utils.get_content_type('text/libsvm'))
-        self.assertEqual('libsvm', data_utils.get_content_type('text/x-libsvm'))
-
-        self.assertEqual('csv', data_utils.get_content_type('csv'))
-        self.assertEqual('csv', data_utils.get_content_type('text/csv'))
-        self.assertEqual('csv', data_utils.get_content_type('text/csv; label_size=1'))
-        self.assertEqual('csv', data_utils.get_content_type('text/csv;label_size = 1'))
-        self.assertEqual('csv', data_utils.get_content_type('text/csv; charset=utf-8'))
-        self.assertEqual('csv', data_utils.get_content_type('text/csv; label_size=1; charset=utf-8'))
-
-        self.assertEqual('parquet', data_utils.get_content_type('parquet'))
-        self.assertEqual('parquet', data_utils.get_content_type('application/x-parquet'))
-
-        self.assertEqual('recordio-protobuf', data_utils.get_content_type('recordio-protobuf'))
-        self.assertEqual('recordio-protobuf', data_utils.get_content_type('application/x-recordio-protobuf'))
-
-        with self.assertRaises(exc.UserError):
-            data_utils.get_content_type('incorrect_format')
-        with self.assertRaises(exc.UserError):
-            data_utils.get_content_type('text/csv; label_size=5')
-        with self.assertRaises(exc.UserError):
-            data_utils.get_content_type('text/csv; label_size=1=1')
-        with self.assertRaises(exc.UserError):
-            data_utils.get_content_type('text/csv; label_size=1; label_size=2')
-        with self.assertRaises(exc.UserError):
-            data_utils.get_content_type('label_size=1; text/csv')
+    # def test_get_content_type(self):
+    #     self.assertEqual('libsvm', data_utils.get_content_type('libsvm'))
+    #     self.assertEqual('libsvm', data_utils.get_content_type('text/libsvm'))
+    #     self.assertEqual('libsvm', data_utils.get_content_type('text/x-libsvm'))
+    #
+    #     self.assertEqual('csv', data_utils.get_content_type('csv'))
+    #     self.assertEqual('csv', data_utils.get_content_type('text/csv'))
+    #     self.assertEqual('csv', data_utils.get_content_type('text/csv; label_size=1'))
+    #     self.assertEqual('csv', data_utils.get_content_type('text/csv;label_size = 1'))
+    #     self.assertEqual('csv', data_utils.get_content_type('text/csv; charset=utf-8'))
+    #     self.assertEqual('csv', data_utils.get_content_type('text/csv; label_size=1; charset=utf-8'))
+    #
+    #     self.assertEqual('parquet', data_utils.get_content_type('parquet'))
+    #     self.assertEqual('parquet', data_utils.get_content_type('application/x-parquet'))
+    #
+    #     self.assertEqual('recordio-protobuf', data_utils.get_content_type('recordio-protobuf'))
+    #     self.assertEqual('recordio-protobuf', data_utils.get_content_type('application/x-recordio-protobuf'))
+    #
+    #     with self.assertRaises(exc.UserError):
+    #         data_utils.get_content_type('incorrect_format')
+    #     with self.assertRaises(exc.UserError):
+    #         data_utils.get_content_type('text/csv; label_size=5')
+    #     with self.assertRaises(exc.UserError):
+    #         data_utils.get_content_type('text/csv; label_size=1=1')
+    #     with self.assertRaises(exc.UserError):
+    #         data_utils.get_content_type('text/csv; label_size=1; label_size=2')
+    #     with self.assertRaises(exc.UserError):
+    #         data_utils.get_content_type('label_size=1; text/csv')
 
     def test_validate_csv_files(self):
         csv_file_paths = ['train.csv', 'train.csv.weights', 'csv_files']
