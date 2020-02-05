@@ -91,7 +91,7 @@ class ScoringService(object):
                     cls.format = 'xgb_format'
                 except Exception as exp_xgb:
                     raise RuntimeError("Unable to load model: %s %s", exp_pkl, exp_xgb)
-        cls.booster.set_param('nthread', 1)
+            cls.booster.set_param('nthread', 1)
         return cls.format
 
     @classmethod
