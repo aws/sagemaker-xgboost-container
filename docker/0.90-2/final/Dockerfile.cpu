@@ -1,4 +1,4 @@
-FROM xgboost-container-base:0.90-1-cpu-py3
+FROM xgboost-container-base:0.90-2-cpu-py3
 
 LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
 
@@ -15,15 +15,15 @@ ENV SAGEMAKER_TRAINING_MODULE sagemaker_xgboost_container.training:main
 ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_container.serving:main
 
 # Include DMLC python code in PYTHONPATH to use RabitTracker
-ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker
+ENV PYTHONPATH=$PYTHONPATH:/miniconda3/lib/python3.6/site-packages/xgboost/dmlc-core/tracker
 
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt && rm /requirements.txt
 
 # DMLC patches; TODO: remove after making contributions back to xgboost for tracker.py
 COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
-   /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
+   /miniconda3/lib/python3.6/site-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
 
-COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
-RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
-    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
+RUN pip install --no-cache /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl && \
+    rm /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
