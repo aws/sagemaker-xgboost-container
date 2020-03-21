@@ -14,21 +14,15 @@ import http.client
 import json
 import multiprocessing
 import os
-import pickle as pkl
 import signal
 import sys
 
 from gunicorn.six import iteritems
-from scipy.sparse import csr_matrix
 import flask
 import gunicorn.app.base
-import numpy as np
-import xgboost as xgb
 
-from sagemaker_xgboost_container import encoder
-from sagemaker_xgboost_container.algorithm_mode import integration
+from sagemaker_xgboost_container.algorithm_mode import integration, serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
-from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
 
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
@@ -79,46 +73,12 @@ class ScoringService(object):
     @classmethod
     def load_model(cls):
         if cls.booster is None:
-            try:
-                model_file = os.listdir(ScoringService.MODEL_PATH)[0]
-                cls.booster = pkl.load(open(os.path.join(ScoringService.MODEL_PATH, model_file), 'rb'))
-                cls.format = 'pkl_format'
-            except Exception as exp_pkl:
-                try:
-                    model_file = os.listdir(ScoringService.MODEL_PATH)[0]
-                    cls.booster = xgb.Booster()
-                    cls.booster.load_model(os.path.join(ScoringService.MODEL_PATH, model_file))
-                    cls.format = 'xgb_format'
-                except Exception as exp_xgb:
-                    raise RuntimeError("Unable to load model: %s %s", exp_pkl, exp_xgb)
-            cls.booster.set_param('nthread', 1)
+            cls.booster, cls.format = serve_utils.get_loaded_booster(ScoringService.MODEL_PATH)
         return cls.format
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
-        try:
-            parsed_content_type = get_content_type(content_type)
-        except Exception:
-            raise ValueError('Content type {} is not supported'.format(content_type))
-
-        if model_format == 'pkl_format':
-            x = len(cls.booster.feature_names)
-            y = len(data.feature_names)
-
-            if parsed_content_type == LIBSVM:
-                if y > x + 1:
-                    raise ValueError('Feature size of libsvm inference data {} is larger than '
-                                     'feature size of trained model {}.'.format(y, x))
-            elif parsed_content_type in [CSV, RECORDIO_PROTOBUF]:
-                if not ((x == y) or (x == y + 1)):
-                    raise ValueError('Feature size of {} inference data {} is not consistent '
-                                     'with feature size of trained model {}.'.
-                                     format(content_type, y, x))
-            else:
-                raise ValueError('Content type {} is not supported'.format(content_type))
-        return cls.booster.predict(data,
-                                   ntree_limit=getattr(cls.booster, "best_ntree_limit", 0),
-                                   validate_features=False)
+        return serve_utils.predict(cls.booster, model_format, data, content_type)
 
     @staticmethod
     def post_worker_init(worker):
@@ -129,7 +89,6 @@ class ScoringService(object):
         # Model is being loaded per worker because xgboost predict is not thread safe.
         # See https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/core.py#L997
         """
-
         try:
             ScoringService.load_model()
         except Exception as e:
@@ -186,62 +145,6 @@ def execution_parameters():
     return flask.Response(response=response_text, status=http.client.OK, mimetype="application/json")
 
 
-# FIXME: https://github.com/aws/sagemaker-xgboost-container/issues/12
-def _get_sparse_matrix_from_libsvm(payload):
-    pylist = map(lambda x: x.split(' '), payload.split('\n'))
-    colon = ':'
-    row = []
-    col = []
-    data = []
-    for row_idx, line in enumerate(pylist):
-        for item in line:
-            if colon in item:
-                col_idx = item.split(colon)[0]
-                val = item.split(colon)[1]
-                row.append(row_idx)
-                col.append(col_idx)
-                data.append(val)
-
-    row = np.array(row)
-    col = np.array(col).astype(np.int)
-    data = np.array(data).astype(np.float)
-    if not (len(row) == len(col) and len(col) == len(data)):
-        raise RuntimeError("Dimension checking failed when transforming sparse matrix.")
-
-    return csr_matrix((data, (row, col)))
-
-
-def _parse_content_data(request):
-    dtest = None
-    content_type = get_content_type(request.content_type)
-    payload = request.data
-    if content_type == CSV:
-        try:
-            decoded_payload = payload.strip().decode("utf-8")
-            dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
-        except Exception as e:
-            raise RuntimeError("Loading csv data failed with Exception, "
-                               "please ensure data is in csv format:\n {}\n {}".format(type(e), e))
-    elif content_type == LIBSVM:
-        try:
-            decoded_payload = payload.strip().decode("utf-8")
-            dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(decoded_payload))
-        except Exception as e:
-            raise RuntimeError("Loading libsvm data failed with Exception, "
-                               "please ensure data is in libsvm format:\n {}\n {}".format(type(e), e))
-    elif content_type == RECORDIO_PROTOBUF:
-        try:
-            dtest = encoder.recordio_protobuf_to_dmatrix(payload)
-        except Exception as e:
-            raise RuntimeError("Loading recordio-protobuf data failed with "
-                               "Exception, please ensure data is in "
-                               "recordio-protobuf format: {} {}".format(type(e), e))
-    else:
-        raise RuntimeError("Content-type {} is not supported.".format(request.content_type))
-
-    return dtest, content_type
-
-
 @ScoringService.app.route("/invocations", methods=["POST"])
 def invocations():
     payload = flask.request.data
@@ -249,7 +152,7 @@ def invocations():
         return flask.Response(response="", status=http.client.NO_CONTENT)
 
     try:
-        dtest, content_type = _parse_content_data(flask.request)
+        dtest, content_type = serve_utils.parse_content_data(payload, flask.request.content_type)
     except Exception as e:
         logging.exception(e)
         return flask.Response(response=str(e), status=http.client.UNSUPPORTED_MEDIA_TYPE)

@@ -11,14 +11,22 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
-
-from mock import patch
+from mock import MagicMock, patch
 import numpy as np
+import os
 import pytest
 import xgboost as xgb
 
 from sagemaker_containers.beta.framework import (content_types, encoders, errors)
 from sagemaker_xgboost_container import serving
+
+
+TEST_CONFIG_FILE = "test_dir"
+
+
+@pytest.fixture(autouse=True)
+def mock_set_mms_config_file(monkeypatch):
+    monkeypatch.setenv('XGBOOST_MMS_CONFIG', TEST_CONFIG_FILE)
 
 
 @pytest.fixture(scope='module', name='np_array')
@@ -68,8 +76,6 @@ def test_output_fn_json(np_array):
 def test_output_fn_csv(np_array):
     response = serving.default_output_fn(np_array, content_types.CSV)
 
-    print(response)
-
     assert response.get_data(as_text=True) == '1.0,1.0\n1.0,1.0\n'
     # TODO This is a workaround to get the test passsing.
     # Not sure if it is related to executing tests on Mac in specific virtual environment,
@@ -87,3 +93,17 @@ def test_output_fn_npz(np_array):
 def test_input_fn_bad_accept():
     with pytest.raises(errors.UnsupportedFormatError):
         serving.default_output_fn('', 'application/not_supported')
+
+
+@patch('sagemaker_xgboost_container.serving.server')
+def test_serving_entrypoint_start_gunicorn(mock_server):
+    mock_server.start = MagicMock()
+    serving.serving_entrypoint()
+    mock_server.start.assert_called_once()
+
+
+@patch.dict(os.environ, {'SAGEMAKER_MULTI_MODEL': 'True', })
+@patch('sagemaker_xgboost_container.serving.start_mxnet_model_server')
+def test_serving_entrypoint_start_mms(mock_start_mxnet_model_server):
+    serving.serving_entrypoint()
+    mock_start_mxnet_model_server.assert_called_once()
