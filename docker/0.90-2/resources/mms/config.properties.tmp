@@ -8,3 +8,4 @@ max_request_size=$$SAGEMAKER_MAX_REQUEST_SIZE$$
 decode_input_request=false
 default_service_handler=$$SAGEMAKER_MMS_DEFAULT_HANDLER$$
 job_queue_size=$$SAGEMAKER_MODEL_JOB_QUEUE_SIZE$$
+preload_model=true

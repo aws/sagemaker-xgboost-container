@@ -99,7 +99,7 @@ def _set_mms_configs(is_multi_model, handler):
     try:
         with open(MMS_CONFIG_FILE_PATH + '.tmp', 'r') as f:
             with open(MMS_CONFIG_FILE_PATH, 'w+') as g:
-                g.write("vmargs=-XX:-UseLargePages -XX:+UseG1GC -XX:MaxMetaspaceSize=32M -XX:+ExitOnOutOfMemoryError "
+                g.write("vmargs=-XX:-UseLargePages -XX:+UseG1GC -XX:MaxMetaspaceSize=32M "
                         + "-Xmx" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
                         + " -XX:MaxDirectMemorySize=" + os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] + "\n")
                 g.write(f.read())
