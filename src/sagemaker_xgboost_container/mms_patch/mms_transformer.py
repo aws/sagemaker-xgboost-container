@@ -12,6 +12,7 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 
+import http
 import logging
 
 from sagemaker_inference import content_types, utils
@@ -79,4 +80,4 @@ class XGBMMSTransformer(Transformer):
                 logging.error(e)
                 return self.handle_error(context, e.status_code, e.message)
             else:
-                raise e
+                return self.handle_error(context, http.HTTPStatus.BAD_REQUEST, e.message)

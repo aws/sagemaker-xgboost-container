@@ -59,6 +59,11 @@ def _is_multi_model_endpoint():
         return False
 
 
+def _set_default_if_not_exist(sagemaker_env_var_name, default_value):
+    if not os.getenv(sagemaker_env_var_name, None):
+        os.environ[sagemaker_env_var_name] = str(default_value)
+
+
 def _set_mms_configs(is_multi_model, handler):
     """Set environment variables for MMS to parse during server initialization. These env vars are used to
     propagate the config.properties file used during MxNet Model Server initialization.
@@ -77,18 +82,21 @@ def _set_mms_configs(is_multi_model, handler):
     # Max heap size = (max workers + max job queue size) * max payload size * 1.2 (20% buffer) + 128 (base amount)
     max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024 ** 2) * 1.2) + 128
 
-    os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
-    os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = '2'
     os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
     os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
-
-    if not os.getenv("SAGEMAKER_BIND_TO_PORT", None):
-        os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
-
-    os.environ["SAGEMAKER_MAX_HEAP_SIZE"] = str(max_heap_size) + 'm'
-    os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] = os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
-    os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(max_content_length)
     os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] = handler
+
+    # Users can define port
+    _set_default_if_not_exist("SAGEMAKER_BIND_TO_PORT", str(PORT))
+
+    # Multi Model Server configs, exposed to users as env vars
+    _set_default_if_not_exist("SAGEMAKER_NUM_MODEL_WORKERS", 1)
+    _set_default_if_not_exist("SAGEMAKER_MODEL_JOB_QUEUE_SIZE", 100)
+    _set_default_if_not_exist("SAGEMAKER_MAX_REQUEST_SIZE", max_content_length)
+
+    # JVM configurations for MMS, exposed to users as env vars
+    _set_default_if_not_exist("SAGEMAKER_MAX_HEAP_SIZE", str(max_heap_size) + 'm')
+    _set_default_if_not_exist("SAGEMAKER_MAX_DIRECT_MEMORY_SIZE", os.environ["SAGEMAKER_MAX_HEAP_SIZE"])
 
     MMS_CONFIG_FILE_PATH = get_mms_config_file_path()
 
