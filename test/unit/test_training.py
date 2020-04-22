@@ -29,8 +29,8 @@ class TestTraining(unittest.TestCase):
         env.user_entry_point = "dummy_entry_point"
         training.train(env)
 
-        mock_run_module.assert_called_with(uri='s3://my/script',
-                                           user_entry_point='svm',
+        mock_run_module.assert_called_with(uri="s3://my/script",
+                                           user_entry_point="svm",
                                            args=env.to_cmd_args(),
                                            env_vars=env.to_env_vars(),
                                            capture_error=False)
