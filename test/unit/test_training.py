@@ -23,14 +23,17 @@ def mock_training_env(current_host='algo-1', module_dir='s3://my/script', module
 class TestTraining(unittest.TestCase):
     """Note: The 'train' method has been mocked since this test only checks the training resource setup"""
 
-    @patch('sagemaker_containers.beta.framework.modules.run_module')
+    @patch('sagemaker_training.entry_point.run')
     def test_script_mode(self, mock_run_module):
         env = mock_training_env()
         env.user_entry_point = "dummy_entry_point"
         training.train(env)
 
-        mock_run_module.assert_called_with(
-            's3://my/script', env.to_cmd_args(), env.to_env_vars(), 'svm', capture_error=False)
+        mock_run_module.assert_called_with(uri='s3://my/script',
+                                           user_entry_point='svm',
+                                           args=env.to_cmd_args(),
+                                           env_vars=env.to_env_vars(),
+                                           capture_error=False)
 
     @patch('sagemaker_xgboost_container.training.run_algorithm_mode')
     def test_algorithm_mode(self, mock_algorithm_mode_train):
