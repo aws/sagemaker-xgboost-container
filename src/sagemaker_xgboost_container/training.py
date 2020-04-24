@@ -80,7 +80,7 @@ def train(training_environment):
     if training_environment.user_entry_point is not None:
         logger.info('Invoking user training script.')
         entry_point.run(uri=training_environment.module_dir,
-                        user_entry_point=training_environment.module_name,
+                        user_entry_point=training_environment.user_entry_point,
                         args=training_environment.to_cmd_args(),
                         env_vars=training_environment.to_env_vars(),
                         capture_error=False)

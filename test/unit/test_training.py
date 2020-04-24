@@ -30,7 +30,7 @@ class TestTraining(unittest.TestCase):
         training.train(env)
 
         mock_run_module.assert_called_with(uri="s3://my/script",
-                                           user_entry_point="svm",
+                                           user_entry_point="dummy_entry_point",
                                            args=env.to_cmd_args(),
                                            env_vars=env.to_env_vars(),
                                            capture_error=False)
