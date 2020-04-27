@@ -91,7 +91,7 @@ class ScoringService(object):
                     cls.format = 'xgb_format'
                 except Exception as exp_xgb:
                     raise RuntimeError("Unable to load model: %s %s", exp_pkl, exp_xgb)
-        cls.booster.set_param('nthread', 1)
+            cls.booster.set_param('nthread', 1)
         return cls.format
 
     @classmethod
@@ -266,9 +266,10 @@ def invocations():
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
 
-    return_data = ",".join(map(str, preds.tolist()))
     if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'
+    else:
+        return_data = ",".join(map(str, preds.tolist()))
 
     return flask.Response(response=return_data, status=http.client.OK, mimetype="text/csv")
 
