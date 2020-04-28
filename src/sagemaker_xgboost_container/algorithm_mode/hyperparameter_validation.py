@@ -101,15 +101,16 @@ def initialize(metrics):
 
     @hpv.dependencies_validator(["tree_method"])
     def monotone_constraints_validator(value, dependencies):
+        tree_method = dependencies.get("tree_method")
         if value is not None and dependencies.get("tree_method") not in ("exact", "hist"):
-            raise exc.UserError("Montonic constraints can be used only when the tree method parameter is set to "
+            raise exc.UserError("monotone_constraints can be used only when the tree_method parameter is set to "
                                 "either 'exact' or 'hist'.")
 
     @hpv.dependencies_validator(["tree_method"])
     def interaction_constraints_validator(value, dependencies):
         tree_method = dependencies.get("tree_method")
         if value is not None and tree_method not in ("exact", "hist", "approx"):
-            raise exc.UserError("Interaction constraints can be used only when the tree method parameter is set to "
+            raise exc.UserError("interaction_constraints can be used only when the tree_method parameter is set to "
                                 "either 'exact', 'hist' or 'approx'.")
 
     hyperparameters = hpv.Hyperparameters(
@@ -205,8 +206,8 @@ def initialize(metrics):
         hpv.CategoricalHyperparameter(name="objective",
                                       range=["binary:logistic", "binary:logitraw", "binary:hinge",
                                              "count:poisson", "multi:softmax", "multi:softprob",
-                                             "rank:pairwise", "rank:ndcg", "rank:map", "reg:linear",
-                                             "reg:squarederror", "reg:squaredlogerror", "reg:logistic", "reg:gamma",
+                                             "rank:pairwise", "rank:ndcg", "rank:map", "reg:squarederror",
+                                             "reg:squaredlogerror", "reg:logistic", "reg:gamma",
                                              "reg:tweedie", "survival:cox"],
                                       dependencies=objective_validator,
                                       required=False),
