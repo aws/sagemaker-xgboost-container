@@ -26,9 +26,9 @@ def initialize(metrics):
     @hpv.dependencies_validator(["booster", "process_type"])
     def updater_validator(value, dependencies):
         valid_tree_plugins = ['grow_colmaker', 'distcol', 'grow_histmaker', 'grow_local_histmaker',
-                              'grow_skmaker', 'sync', 'refresh', 'prune']
+                              'grow_skmaker', 'sync', 'refresh', 'prune', 'grow_quantile_histmaker']
         valid_tree_build_plugins = ['grow_colmaker', 'distcol', 'grow_histmaker',
-                                    'grow_local_histmaker', 'grow_colmaker']
+                                    'grow_local_histmaker', 'grow_colmaker', 'grow_quantile_histmaker']
         valid_linear_plugins = ['shotgun', 'coord_descent']
         valid_process_update_plugins = ['refresh', 'prune']
 
@@ -45,7 +45,8 @@ def initialize(metrics):
             if not all(x in valid_tree_plugins for x in value):
                 raise exc.UserError(
                     "Tree updater should be selected from these options: 'grow_colmaker', 'distcol', 'grow_histmaker', "
-                    "'grow_local_histmaker', 'grow_skmaker', 'sync', 'refresh', 'prune', 'shortgun', 'coord_descent'.")
+                    "'grow_local_histmaker', 'grow_skmaker', 'grow_quantile_histmaker', 'sync', 'refresh', 'prune', "
+                    "'shortgun', 'coord_descent'.")
             # validate only one tree updater is selected
             counter = 0
             for tmp in value:
@@ -97,6 +98,19 @@ def initialize(metrics):
             if not any(dependencies["objective"].startswith(metric_type) for metric_type in [
                     'binary:', 'rank:']):
                 raise exc.UserError("Metric 'auc' can only be applied for classification and ranking problems.")
+
+    @hpv.dependencies_validator(["tree_method"])
+    def monotone_constraints_validator(value, dependencies):
+        if value is not None and dependencies.get("tree_method") not in ("exact", "hist"):
+            raise exc.UserError("Montonic constraints can be used only when the tree method parameter is set to "
+                                "either 'exact' or 'hist'.")
+
+    @hpv.dependencies_validator(["tree_method"])
+    def interaction_constraints_validator(value, dependencies):
+        tree_method = dependencies.get("tree_method")
+        if value is not None and tree_method not in ("exact", "hist", "approx"):
+            raise exc.UserError("Interaction constraints can be used only when the tree method parameter is set to "
+                                "either 'exact', 'hist' or 'approx'.")
 
     hyperparameters = hpv.Hyperparameters(
         hpv.IntegerHyperparameter(name="num_round", required=True,
@@ -175,6 +189,10 @@ def initialize(metrics):
         hpv.IntegerHyperparameter(name="max_leaves", range=hpv.Interval(min_closed=0), required=False),
         hpv.IntegerHyperparameter(name="max_bin", range=hpv.Interval(min_closed=0), required=False),
         hpv.CategoricalHyperparameter(name="predictor", range=predictor_validator, required=False),
+        hpv.TupleHyperparameter(name="monotone_constraints", range=[-1, 0, 1], required=False,
+                                dependencies=monotone_constraints_validator),
+        hpv.NestedListHyperparameter(name="interaction_constraints", range=hpv.Interval(min_closed=1), required=False,
+                                     dependencies=interaction_constraints_validator),
         hpv.CategoricalHyperparameter(name="sample_type", range=["uniform", "weighted"], required=False),
         hpv.CategoricalHyperparameter(name="normalize_type", range=["tree", "forest"], required=False),
         hpv.ContinuousHyperparameter(name="rate_drop", range=hpv.Interval(min_closed=0, max_closed=1), required=False),
@@ -188,7 +206,7 @@ def initialize(metrics):
                                       range=["binary:logistic", "binary:logitraw", "binary:hinge",
                                              "count:poisson", "multi:softmax", "multi:softprob",
                                              "rank:pairwise", "rank:ndcg", "rank:map", "reg:linear",
-                                             "reg:squarederror", "reg:logistic", "reg:gamma",
+                                             "reg:squarederror", "reg:squaredlogerror", "reg:logistic", "reg:gamma",
                                              "reg:tweedie", "survival:cox"],
                                       dependencies=objective_validator,
                                       required=False),

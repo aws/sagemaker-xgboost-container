@@ -59,7 +59,7 @@ Base Images
 The "base" Dockerfile encompass the installation of the framework and all of the dependencies
 needed.
 
-Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. 0.90-2-cpu-py3), where
+Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. 1.0-1-cpu-py3), where
  <SageMaker-XGBoost-version> is comprised of <XGBoost-version>-<SageMaker-version>.
 
 All "final" Dockerfiles build images using base images that use the tagging scheme
@@ -79,7 +79,7 @@ If you want to build your base docker image, then use:
     # Example
 
     # CPU
-    docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:1.0-1-cpu-py3 -f docker/1.0-1/base/Dockerfile.cpu .
 
 
 Final Images
@@ -117,7 +117,7 @@ If you want to build "final" Docker images, then use:
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
+    docker build -t preprod-xgboost-container:1.0-1-cpu-py3 -f docker/1.0-1/final/Dockerfile.cpu .
 
 Running the tests
 -----------------
@@ -159,8 +159,12 @@ If you want to run unit tests, then use:
     # or you can use tox to run unit tests as well as flake8 and code coverage
 
     tox
-    tox -e py3-xgboost0.90,flake8
-    tox -e py3-xgboost0.72,py3-xgboostlatest
+    tox -e py3-xgboost1.0,flake8 test/unit
+    tox -e py3-xgboost0.90,py3-xgboostlatest
+
+    # If you want to run just one file
+
+    tox -e py3-xgboost1.0 path/to/file
 
 
 Local Integration Tests
@@ -191,10 +195,10 @@ If you want to run local integration tests, then use:
 ::
 
     # Example
-    pytest test/integration/local --docker-base-name preprod-xgboost-framework \
-                      --tag 0.90-2-cpu-py3 \
+    pytest test/integration/local --docker-base-name preprod-xgboost-container \
+                      --tag 1.0-1-cpu-py3 \
                       --py-version 3 \
-                      --framework-version 0.90-2
+                      --framework-version 1.0-1
 
 SageMaker Integration Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

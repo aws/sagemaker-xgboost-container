@@ -11,6 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import sys
+import ast
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 
@@ -173,6 +174,50 @@ class CommaSeparatedListHyperparameter(Hyperparameter):
 
     def validate_range(self, value):
         if any([v not in self.range for v in value]):
+            raise exc.UserError("Hyperparameter {}: value {} not in range {}".format(self.name, value, self.range))
+
+
+class NestedListHyperparameter(Hyperparameter):
+    def __init__(self, *args, **kwargs):
+        if kwargs.get("range") is None:
+            raise exc.AlgorithmError("range must be specified")
+        super(NestedListHyperparameter, self).__init__(*args, **kwargs)
+
+    def parse(self, value):
+        if isinstance(value, str):
+            return ast.literal_eval(value)
+        elif isinstance(value, list):
+            return value
+
+    def format_range(self):
+        min_, max_ = self.range.format_as_integer()
+        return {"NestedParameterRangeSpecification": {
+            "MinValue": min_,
+            "MaxValue": max_}}
+
+    def validate_range(self, value):
+        if any([index not in self.range for outer in value for index in outer]):
+            raise exc.UserError("Hyperparameter {}: value {} not in range {}".format(self.name, value, self.range))
+
+
+class TupleHyperparameter(Hyperparameter):
+    def __init__(self, *args, **kwargs):
+        if kwargs.get("range") is None:
+            raise exc.AlgorithmError("range must be specified")
+        super(TupleHyperparameter, self).__init__(*args, **kwargs)
+
+    def parse(self, value):
+        if isinstance(value, str):
+            return eval(value)
+        elif isinstance(value, list) or isinstance(value, tuple):
+            return value
+
+    def format_range(self):
+        return {"TupleParameterRangeSpecification": {
+            "Values": self.range}}
+
+    def validate_range(self, value):
+        if any([index not in self.range for index in value]):
             raise exc.UserError("Hyperparameter {}: value {} not in range {}".format(self.name, value, self.range))
 
 

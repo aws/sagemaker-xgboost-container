@@ -85,6 +85,37 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
         hps = hpv.initialize(self.metrics)
         hps.validate(hyperparameters)
 
+    def test_hyperparameters5(self):
+        hyperparameters = {
+            "max_depth": "5",
+            "eta": "0.2",
+            "gamma": "4",
+            "min_child_weight": "6",
+            "tree_method": "exact",
+            "objective": "multi:softmax",
+            "num_class": "10",
+            "num_round": "10",
+            "monotone_constraints": "(1,0)",
+            "interaction_constraints": "[[1,2,4],[3,5]]"
+        }
+        hps = hpv.initialize(self.metrics)
+        hps.validate(hyperparameters)
+
+    def test_hyperparameters6(self):
+        hyperparameters = {
+            "max_depth": "5",
+            "eta": "0.2",
+            "gamma": "4",
+            "min_child_weight": "6",
+            "tree_method": "approx",
+            "objective": "multi:softmax",
+            "num_class": "10",
+            "num_round": "10",
+            "interaction_constraints": "[[1,2,4],[3,5]]"
+        }
+        hps = hpv.initialize(self.metrics)
+        hps.validate(hyperparameters)
+
 
 class TestAlgorithmModeChannels(unittest.TestCase):
     def setUp(self):
