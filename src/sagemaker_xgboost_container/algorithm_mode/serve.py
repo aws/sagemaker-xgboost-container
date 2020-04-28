@@ -266,9 +266,10 @@ def invocations():
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
 
-    return_data = ",".join(map(str, preds.tolist()))
     if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'
+    else:
+        return_data = ",".join(map(str, preds.tolist()))
 
     return flask.Response(response=return_data, status=http.client.OK, mimetype="text/csv")
 
