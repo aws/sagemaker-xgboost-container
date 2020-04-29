@@ -102,7 +102,7 @@ def initialize(metrics):
     @hpv.dependencies_validator(["tree_method"])
     def monotone_constraints_validator(value, dependencies):
         tree_method = dependencies.get("tree_method")
-        if value is not None and dependencies.get("tree_method") not in ("exact", "hist"):
+        if value is not None and tree_method not in ("exact", "hist"):
             raise exc.UserError("monotone_constraints can be used only when the tree_method parameter is set to "
                                 "either 'exact' or 'hist'.")
 

@@ -65,7 +65,7 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "min_child_weight": "6",
             "subsample": "0.7",
             "silent": "0",
-            "objective": "reg:linear",
+            "objective": "reg:squarederror",
             "num_round": "50"
         }
         hps = hpv.initialize(self.metrics)
