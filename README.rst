@@ -31,6 +31,8 @@ development machine:
 
 - `Docker <https://www.docker.com/>`__
 
+Note: CMake is required for XGBoost. If using macOS, install CMake (pip install cmake)
+
 Recommended
 ^^^^^^^^^^^
 
