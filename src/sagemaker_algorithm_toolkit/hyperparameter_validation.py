@@ -196,7 +196,7 @@ class NestedListHyperparameter(Hyperparameter):
             "MaxValue": max_}}
 
     def validate_range(self, value):
-        if any([index not in self.range for outer in value for index in outer]):
+        if any([element not in self.range for outer in value for element in outer]):
             raise exc.UserError("Hyperparameter {}: value {} not in range {}".format(self.name, value, self.range))
 
 
@@ -209,7 +209,7 @@ class TupleHyperparameter(Hyperparameter):
     def parse(self, value):
         if isinstance(value, str):
             return eval(value)
-        elif isinstance(value, list) or isinstance(value, tuple):
+        elif isinstance(value, tuple):
             return value
 
     def format_range(self):
@@ -217,7 +217,7 @@ class TupleHyperparameter(Hyperparameter):
             "Values": self.range}}
 
     def validate_range(self, value):
-        if any([index not in self.range for index in value]):
+        if any([element not in self.range for element in value]):
             raise exc.UserError("Hyperparameter {}: value {} not in range {}".format(self.name, value, self.range))
 
 
