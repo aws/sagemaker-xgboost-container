@@ -206,7 +206,7 @@ def initialize(metrics):
         hpv.CategoricalHyperparameter(name="objective",
                                       range=["binary:logistic", "binary:logitraw", "binary:hinge",
                                              "count:poisson", "multi:softmax", "multi:softprob",
-                                             "rank:pairwise", "rank:ndcg", "rank:map", "reg:squarederror",
+                                             "rank:pairwise", "rank:ndcg", "rank:map", "reg:linear", "reg:squarederror",
                                              "reg:squaredlogerror", "reg:logistic", "reg:gamma",
                                              "reg:tweedie", "survival:cox"],
                                       dependencies=objective_validator,
