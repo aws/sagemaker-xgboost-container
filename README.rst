@@ -163,6 +163,7 @@ If you want to run unit tests, then use:
     tox
     tox -e py3-xgboost1.0,flake8
     tox -e py3-xgboost0.90,py3-xgboostlatest
+    tox -e py3-xgboost0.72
 
 
 Local Integration Tests
