@@ -27,7 +27,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
-    parser.add_argument('--objective', type=str, default='reg:linear')
+    parser.add_argument('--objective', type=str, default='reg:squarederror')
     parser.add_argument('--colsample-bytree', type=float, default=0.3)
     parser.add_argument('--learning-rate', type=float, default=0.1)
     parser.add_argument('--max-depth', type=int, default=5)

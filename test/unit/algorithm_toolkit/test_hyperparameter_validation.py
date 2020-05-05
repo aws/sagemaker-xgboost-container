@@ -165,3 +165,25 @@ class TestHyperparameters(unittest.TestCase):
                                                          'MinValue': '0',
                                                          'Name': 'x',
                                                          'ScalingType': 'Linear'}]})
+
+    def test_simple_nested_list(self):
+        hps = hpv.Hyperparameters(hpv.NestedListHyperparameter(name="list_",
+                                                               range=hpv.Interval
+                                                               (min_closed=1, max_closed=10), required=False))
+
+        with self.assertRaises(exc.UserError):
+            hps.validate({"list_": "[[1,10,11],[14,5]]"})
+
+        result = hps.validate({"list_": "[[1,4,2],[3,5]]"})
+        self.assertEqual(result["list_"], [[1, 4, 2], [3, 5]])
+
+    def test_simple_tuple(self):
+        hyperparameters = hpv.Hyperparameters(hpv.TupleHyperparameter(name="tuple_",
+                                                                           range=[-1, 0, 1],
+                                                                           required=False))
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate({"tuple_": "(1,0,-1,2)"})
+
+        result = hyperparameters.validate({"tuple_": "(1,0,-1)"})
+        self.assertEqual(result["tuple_"], (1, 0, -1))
