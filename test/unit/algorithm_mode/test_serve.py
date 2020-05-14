@@ -75,3 +75,16 @@ def test_max_execution_parameters():
     parsed_exec_params_response = json.loads(execution_parameters_response.response[0])
     assert parsed_exec_params_response['MaxPayloadInMB'] == 19
     assert parsed_exec_params_response["BatchStrategy"] == "MULTI_RECORD"
+
+
+def test_parse_accept():
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = 'application/json;verbose=True'
+    assert serve._parse_accept(mock_request) == 'application/json'
+
+
+def test_incompatible_parse_accept():
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = 'text/libsvm'
+    with pytest.raises(ValueError):
+        serve._parse_accept(mock_request)

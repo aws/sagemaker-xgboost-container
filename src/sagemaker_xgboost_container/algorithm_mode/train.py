@@ -202,6 +202,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
         exception_prefix = "XGB train call failed with exception"
         raise exc.AlgorithmError("{}:\n {}".format(exception_prefix, str(e)))
 
+    bst.set_attr(objective=str(train_cfg.get("objective", "")))
+    bst.set_attr(num_class=str(train_cfg.get("num_class", "")))
+
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 

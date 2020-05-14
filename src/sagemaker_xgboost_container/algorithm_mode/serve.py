@@ -1,4 +1,4 @@
-# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License'). You
 # may not use this file except in compliance with the License. A copy of
@@ -27,6 +27,7 @@ import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
 from sagemaker_xgboost_container.algorithm_mode import integration
+from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
 
@@ -119,6 +120,10 @@ class ScoringService(object):
         return cls.booster.predict(data,
                                    ntree_limit=getattr(cls.booster, "best_ntree_limit", 0),
                                    validate_features=False)
+
+    @classmethod
+    def get_attr(cls, attribute):
+        return cls.booster.attr(attribute)
 
     @staticmethod
     def post_worker_init(worker):
@@ -242,6 +247,33 @@ def _parse_content_data(request):
     return dtest, content_type
 
 
+def _parse_accept(request):
+    accept = request.headers.get("accept").lower().split(";")[0]
+    if not any(accept in mimetypes for mimetypes in ["application/json", "application/jsonlines",
+                                                     "application/x-recordio-protobuf", "text/csv"]):
+        raise ValueError("Accept type {} is not supported.".format(accept))
+    return accept
+
+
+def _handle_selectable_inference_response(data, accept):
+    try:
+        # get objective function and content keys needed to make output
+        objective = ScoringService.get_attr('objective')
+        num_class = ScoringService.get_attr('num_class')
+        selected_content_keys = serve_utils.get_selected_content_keys()
+
+        # get output selected content based on selected keys and objective
+        selected_content = serve_utils.get_selected_content(data, selected_content_keys, objective, num_class=num_class)
+
+        # encode response in requested accept type
+        response = serve_utils.encode_selected_content(selected_content, selected_content_keys, accept)
+    except Exception as e:
+        logging.exception(e)
+        return flask.Response(response=str(e), status=http.client.INTERNAL_SERVER_ERROR)
+
+    return flask.Response(response=response, status=http.client.OK, mimetype=accept)
+
+
 @ScoringService.app.route("/invocations", methods=["POST"])
 def invocations():
     payload = flask.request.data
@@ -265,6 +297,15 @@ def invocations():
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
+
+    if serve_utils.is_selectable_inference_response():
+        try:
+            accept = _parse_accept(flask.request)
+        except Exception as e:
+            logging.exception(e)
+            return flask.Response(response=str(e), status=http.client.NOT_ACCEPTABLE)
+
+        return _handle_selectable_inference_response(preds, accept)
 
     if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'
