@@ -30,6 +30,8 @@ USER_HANDLER_SERVICE = user_module_handler_service.__name__
 PORT = 8080
 DEFAULT_MAX_CONTENT_LEN = 6 * 1024 ** 2
 MAX_CONTENT_LEN_LIMIT = 20 * 1024 ** 2
+MMS_NUM_MODEL_WORKERS_INIT = 1
+MMS_MODEL_JOB_QUEUE_SIZE_DEFAULT = 100
 
 
 def get_mms_config_file_path():
@@ -80,7 +82,8 @@ def _set_mms_configs(is_multi_model, handler):
     max_job_queue_size = 2 * max_workers
 
     # Max heap size = (max workers + max job queue size) * max payload size * 1.2 (20% buffer) + 128 (base amount)
-    max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024 ** 2) * 1.2) + 128
+    # max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024 ** 2) * 1.2) + 128
+    max_heap_size = 4096
 
     os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
     os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
@@ -90,8 +93,8 @@ def _set_mms_configs(is_multi_model, handler):
     _set_default_if_not_exist("SAGEMAKER_BIND_TO_PORT", str(PORT))
 
     # Multi Model Server configs, exposed to users as env vars
-    _set_default_if_not_exist("SAGEMAKER_NUM_MODEL_WORKERS", 1)
-    _set_default_if_not_exist("SAGEMAKER_MODEL_JOB_QUEUE_SIZE", 100)
+    _set_default_if_not_exist("SAGEMAKER_NUM_MODEL_WORKERS", MMS_NUM_MODEL_WORKERS_INIT)
+    _set_default_if_not_exist("SAGEMAKER_MODEL_JOB_QUEUE_SIZE", MMS_MODEL_JOB_QUEUE_SIZE_DEFAULT)
     _set_default_if_not_exist("SAGEMAKER_MAX_REQUEST_SIZE", max_content_length)
 
     # JVM configurations for MMS, exposed to users as env vars
@@ -107,8 +110,13 @@ def _set_mms_configs(is_multi_model, handler):
     try:
         with open(MMS_CONFIG_FILE_PATH + '.tmp', 'r') as f:
             with open(MMS_CONFIG_FILE_PATH, 'w+') as g:
-                g.write("vmargs=-XX:-UseLargePages -XX:+UseG1GC -XX:MaxMetaspaceSize=32M "
-                        + "-Xmx" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
+                g.write("vmargs=-XX:-UseLargePages"
+                        + " -XX:+UseParNewGC"
+                        # + " -XX:+UseG1GC"
+                        + " -XX:MaxMetaspaceSize=32M"
+                        + " -XX:InitiatingHeapOccupancyPercent=25"
+                        + " -Xms" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
+                        + " -Xmx" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
                         + " -XX:MaxDirectMemorySize=" + os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] + "\n")
                 g.write(f.read())
     except Exception:

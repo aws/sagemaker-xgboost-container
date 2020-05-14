@@ -29,8 +29,7 @@ ENV PYTHONPATH=$PYTHONPATH:/miniconda3/lib/python3.6/site-packages/xgboost/dmlc-
 #######
 # Create MMS user directory
 RUN useradd -m model-server
-RUN mkdir -p /home/model-server/tmp
-RUN chown -R model-server /home/model-server
+RUN mkdir -p /home/model-server/tmp && chown -R model-server /home/model-server
 
 # Copy MMS configs
 COPY docker/$SAGEMAKER_XGBOOST_VERSION/resources/mms/config.properties.tmp /home/model-server

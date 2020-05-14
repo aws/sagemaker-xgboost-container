@@ -12,22 +12,24 @@ import software.amazon.ai.mms.servingsdk.annotations.helpers.EndpointTypes;
 import software.amazon.ai.mms.servingsdk.http.Request;
 import software.amazon.ai.mms.servingsdk.http.Response;
 
-// The modified endpoint source code for the jar used in this container.
-// You can create this endpoint by moving it by cloning the MMS repo:
-// > git clone https://github.com/awslabs/mxnet-model-server.git
-//
-// Copy this file into plugins/endpoints/src/main/java/software/amazon/ai/mms/plugins/endpoints/
-// and then from the plugins directory, run:
-//
-// > ./gradlew fJ
-//
-// Modify file in plugins/endpoint/resources/META-INF/services/* to specify this file location
-//
-// Then build the JAR:
-//
-// > ./gradlew build
-//
-// The jar should be available in plugins/endpoints/build/libs as endpoints-1.0.jar
+/**
+The modified endpoint source code for the jar used in this container.
+You can create this endpoint by moving it by cloning the MMS repo:
+> git clone https://github.com/awslabs/mxnet-model-server.git
+
+Copy this file into plugins/endpoints/src/main/java/software/amazon/ai/mms/plugins/endpoints/
+and then from the plugins directory, run:
+
+> ./gradlew fJ
+
+Modify file in plugins/endpoint/resources/META-INF/services/* to specify this file location
+
+Then build the JAR:
+
+> ./gradlew build
+
+The jar should be available in plugins/endpoints/build/libs as endpoints-1.0.jar
+**/
 @Endpoint(
         urlPattern = "execution-parameters",
         endpointType = EndpointTypes.INFERENCE,
