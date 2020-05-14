@@ -59,7 +59,7 @@ Base Images
 The "base" Dockerfile encompass the installation of the framework and all of the dependencies
 needed.
 
-Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. 0.90-2-cpu-py3), where
+Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. 0.90-3-cpu-py3), where
  <SageMaker-XGBoost-version> is comprised of <XGBoost-version>-<SageMaker-version>.
 
 All "final" Dockerfiles build images using base images that use the tagging scheme
@@ -79,7 +79,7 @@ If you want to build your base docker image, then use:
     # Example
 
     # CPU
-    docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:0.90-3-cpu-py3 -f docker/0.90-3/base/Dockerfile.cpu .
 
 
 Final Images
@@ -117,7 +117,7 @@ If you want to build "final" Docker images, then use:
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
+    docker build -t preprod-xgboost-container:0.90-3-cpu-py3 -f docker/0.90-3/final/Dockerfile.cpu .
 
 Running the tests
 -----------------
@@ -192,9 +192,9 @@ If you want to run local integration tests, then use:
 
     # Example
     pytest test/integration/local --docker-base-name preprod-xgboost-framework \
-                      --tag 0.90-2-cpu-py3 \
+                      --tag 0.90-3-cpu-py3 \
                       --py-version 3 \
-                      --framework-version 0.90-2
+                      --framework-version 0.90-3
 
 SageMaker Integration Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
