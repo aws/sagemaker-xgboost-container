@@ -61,8 +61,8 @@ VALID_OBJECTIVES = {
     REG_TWEEDIE: [PREDICTED_SCORE],
     BINARY_LOG: [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES],
     BINARY_LOGRAW: [PREDICTED_LABEL, LABELS, RAW_SCORE, RAW_SCORES],
-    BINARY_HINGE: [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES],
-    MULTI_SOFTMAX: [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES],
+    BINARY_HINGE: [PREDICTED_LABEL, LABELS, RAW_SCORE, RAW_SCORES],
+    MULTI_SOFTMAX: [PREDICTED_LABEL, LABELS, RAW_SCORE, RAW_SCORES],
     MULTI_SOFTPROB: [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES]
 }
 
@@ -105,7 +105,7 @@ def _get_predicted_label(objective, data):
 def _get_probability(objective, data):
     if objective in [MULTI_SOFTPROB]:
         return max(data)
-    if objective in [BINARY_HINGE, BINARY_LOG, MULTI_SOFTMAX]:
+    if objective in [BINARY_LOG]:
         return data
     return np.nan
 
@@ -113,7 +113,7 @@ def _get_probability(objective, data):
 def _get_probabilities(objective, data):
     if objective in [MULTI_SOFTPROB]:
         return list(data)
-    if objective in [BINARY_HINGE, BINARY_LOG, MULTI_SOFTMAX]:
+    if objective in [BINARY_LOG]:
         classone_probs = data
         classzero_probs = 1.0 - classone_probs
         return [classzero_probs, classone_probs]
