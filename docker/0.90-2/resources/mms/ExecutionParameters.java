@@ -41,16 +41,16 @@ public class ExecutionParameters extends ModelServerEndpoint {
         Properties prop = ctx.getConfig();
         // 6 * 1024 * 1024
         int maxRequestSize = Integer.parseInt(prop.getProperty("max_request_size", "6291456"));
-        SagemakerXgboostResponse r = new SagemakerXgboostResponse();
-        r.setMaxConcurrentTransforms(Integer.parseInt(prop.getProperty("NUM_WORKERS", "1")));
-        r.setBatchStrategy("MULTI_RECORD");
-        r.setMaxPayloadInMB(maxRequestSize / (1024 * 1024));
+        SagemakerXgboostResponse response = new SagemakerXgboostResponse();
+        response.setMaxConcurrentTransforms(Integer.parseInt(prop.getProperty("NUM_WORKERS", "1")));
+        response.setBatchStrategy("MULTI_RECORD");
+        response.setMaxPayloadInMB(maxRequestSize / (1024 * 1024));
         rsp.getOutputStream()
                 .write(
                         new GsonBuilder()
                                 .setPrettyPrinting()
                                 .create()
-                                .toJson(r)
+                                .toJson(response)
                                 .getBytes(StandardCharsets.UTF_8));
     }
 
