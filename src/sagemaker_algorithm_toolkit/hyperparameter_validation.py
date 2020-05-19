@@ -244,7 +244,18 @@ class Hyperparameters(object):
         return dependencies_stack
 
     def validate(self, user_hyperparameters):
-        # NOTE: 0. Validate required or fill in default.
+        # NOTE: 0. Convert possible aliases to original terms
+        tmp_user_hyperparameters = {}
+        hp_aliases = {"learning_rate": "eta", "min_split_loss": "gamma", "reg_lambda": "lambda", "reg_alpha": "alpha"}
+
+        for hp, value in user_hyperparameters.items():
+            if hp in hp_aliases:
+                tmp_user_hyperparameters[hp_aliases[hp]] = value
+            else:
+                tmp_user_hyperparameters[hp] = value
+        user_hyperparameters = tmp_user_hyperparameters
+
+        # NOTE: 1. Validate required or fill in default.
         for hp in self.hyperparameters:
             if hp not in user_hyperparameters:
                 if self.hyperparameters[hp].required:
@@ -252,7 +263,7 @@ class Hyperparameters(object):
                 elif self.hyperparameters[hp].default is not None:
                     user_hyperparameters[hp] = self.hyperparameters[hp].default
 
-        # NOTE: 1. Convert hyperparameters.
+        # NOTE: 2. Convert hyperparameters.
         converted_hyperparameters = {}
         for hp, value in user_hyperparameters.items():
             try:
@@ -264,7 +275,7 @@ class Hyperparameters(object):
             except ValueError as e:
                 raise exc.UserError("Hyperparameter {}: could not parse value".format(hp), caused_by=e)
 
-        # NOTE: 2. Validate range.
+        # NOTE: 3. Validate range.
         for hp, value in converted_hyperparameters.items():
             try:
                 self.hyperparameters[hp].validate_range(value)
@@ -274,7 +285,7 @@ class Hyperparameters(object):
                 raise exc.AlgorithmError("Hyperparameter {}: unexpected failure when validating {}".format(hp, value),
                                          caused_by=e)
 
-        # NOTE: 3. Validate dependencies.
+        # NOTE: 4. Validate dependencies.
         sorted_deps = self._sort_dependencies(converted_hyperparameters.keys())
         new_validated_hyperparameters = {}
         while sorted_deps:
