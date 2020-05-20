@@ -1,7 +1,7 @@
 PyYAML<4.3
 gunicorn<20.0.0
 matplotlib
-multi-model-server==1.1.0
+multi-model-server==1.1.1
 numpy
 pandas>=0.24.0
 psutil==5.4.8  # sagemaker-containers requires psutil 5.4.8

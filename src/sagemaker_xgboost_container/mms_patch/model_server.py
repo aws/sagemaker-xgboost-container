@@ -72,6 +72,7 @@ def start_model_server(is_multi_model=False, handler_service=DEFAULT_HANDLER_SER
 
     mms_process = _retrieve_mms_server_process()
     _add_sigterm_handler(mms_process)
+    _add_sigchild_handler()
     mms_process.wait()
 
 
@@ -172,3 +173,16 @@ def _retrieve_mms_server_process():
         raise Exception("multiple mms model servers are not supported")
 
     return mms_server_processes[0]
+
+
+def _reap_children(signo, frame):
+    pid = 1
+    try:
+        while pid > 0:
+            pid, status = os.waitpid(-1, os.WNOHANG)
+    except OSError:
+        logger.error("Failed to reap children process")
+
+
+def _add_sigchild_handler():
+    signal.signal(signal.SIGCHLD, _reap_children)
