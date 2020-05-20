@@ -20,6 +20,7 @@ class Hyperparameter(object):
     """Represents a single SageMaker training job hyperparameter."""
     def __init__(self,
                  name,
+                 alias=None,
                  range=None,
                  dependencies=None,
                  required=None, default=None,
@@ -28,6 +29,7 @@ class Hyperparameter(object):
             raise exc.AlgorithmError("At least one of 'required' or 'default' must be specified.")
 
         self.name = name
+        self.alias = alias
         self.range = range
         self.dependencies = dependencies
         self.required = required
@@ -243,21 +245,18 @@ class Hyperparameters(object):
 
         return dependencies_stack
 
+    def _retrieve_key(self, alias_name):
+        for hp in self.hyperparameters:
+            if alias_name == self.hyperparameters[hp].alias:
+                return hp
+
+        return alias_name
+
     def validate(self, user_hyperparameters):
-        # NOTE: 0. Convert possible aliases to original terms
-        tmp_user_hyperparameters = {}
-        hp_aliases = {"learning_rate": "eta", "min_split_loss": "gamma", "reg_lambda": "lambda", "reg_alpha": "alpha"}
-
-        for hp, value in user_hyperparameters.items():
-            if hp in hp_aliases:
-                tmp_user_hyperparameters[hp_aliases[hp]] = value
-            else:
-                tmp_user_hyperparameters[hp] = value
-        user_hyperparameters = tmp_user_hyperparameters
-
         # NOTE: 1. Validate required or fill in default.
         for hp in self.hyperparameters:
-            if hp not in user_hyperparameters:
+            alias_name = self.hyperparameters[hp].alias
+            if hp not in user_hyperparameters and alias_name not in user_hyperparameters:
                 if self.hyperparameters[hp].required:
                     raise exc.UserError("Missing required hyperparameter: {}".format(hp))
                 elif self.hyperparameters[hp].default is not None:
@@ -267,6 +266,7 @@ class Hyperparameters(object):
         converted_hyperparameters = {}
         for hp, value in user_hyperparameters.items():
             try:
+                hp = self._retrieve_key(hp)
                 hyperparameter_obj = self.hyperparameters[hp]
             except KeyError:
                 raise exc.UserError("Extraneous hyperparameter found: {}".format(hp))

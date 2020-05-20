@@ -187,3 +187,58 @@ class TestHyperparameters(unittest.TestCase):
 
         result = hyperparameters.validate({"tuple_": "(1,0,-1)"})
         self.assertEqual(result["tuple_"], (1, 0, -1))
+
+    def test_tuple_alias(self):
+        hyperparameters = hpv.Hyperparameters(hpv.TupleHyperparameter(name="tuple_", alias="tup_",
+                                                                           range=[-1, 0, 1],
+                                                                           required=False))
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate({"tup_": "(1,0,-1,2)"})
+
+        result = hyperparameters.validate({"tup_": "(1,0,-1)"})
+        self.assertEqual(result["tuple_"], (1, 0, -1))
+
+    def test_simple_alias(self):
+        hps = hpv.Hyperparameters(hpv.ContinuousHyperparameter(name="gamma", alias="min_split_loss",
+                                                               range=hpv.Interval(min_closed=0, max_closed=1),
+                                                               required=True))
+        with self.assertRaises(exc.UserError):
+            hps.validate({})
+
+        with self.assertRaises(exc.UserError):
+            hps.validate({"min_split_loss": "ha"})
+
+        with self.assertRaises(exc.UserError):
+            hps.validate({"min_split_long": "0.5"})
+
+        result = hps.validate({"min_split_loss": "0.667"})
+        self.assertEqual(result["gamma"], 0.667)
+
+    def test_complex_alias(self):
+        hps = hpv.Hyperparameters(hpv.ContinuousHyperparameter(name="a", alias="alpha", default=0.5,
+                                                               range=hpv.Interval(min_closed=0, max_closed=1),
+                                                               required=True))
+        with self.assertRaises(exc.UserError):
+            hps.validate({})
+
+        with self.assertRaises(exc.UserError):
+            hps.validate({"alpha": "ha"})
+
+        with self.assertRaises(exc.UserError):
+            hps.validate({"abc": "0.5"})
+
+        result = hps.validate({"alpha": "0.667"})
+        self.assertEqual(result["a"], 0.667)
+
+    def test_empty_alias(self):
+        hps = hpv.Hyperparameters(hpv.ContinuousHyperparameter(name="a",
+                                                               range=hpv.Interval(min_closed=0, max_closed=1),
+                                                               required=False))
+        with self.assertRaises(exc.UserError):
+            hps.validate({"a": "ha"})
+
+        with self.assertRaises(exc.UserError):
+            hps.validate({"abc": "0.5"})
+
+        result = hps.validate({"a": "0.667"})
+        self.assertEqual(result["a"], 0.667)
