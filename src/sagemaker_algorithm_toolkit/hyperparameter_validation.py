@@ -20,7 +20,6 @@ class Hyperparameter(object):
     """Represents a single SageMaker training job hyperparameter."""
     def __init__(self,
                  name,
-                 alias=None,
                  range=None,
                  dependencies=None,
                  required=None, default=None,
@@ -29,7 +28,6 @@ class Hyperparameter(object):
             raise exc.AlgorithmError("At least one of 'required' or 'default' must be specified.")
 
         self.name = name
-        self.alias = alias
         self.range = range
         self.dependencies = dependencies
         self.required = required
@@ -226,6 +224,7 @@ class TupleHyperparameter(Hyperparameter):
 class Hyperparameters(object):
     def __init__(self, *hyperparameters):
         self.hyperparameters = {hyperparameter.name: hyperparameter for hyperparameter in hyperparameters}
+        self.aliases = {}
 
     def _sort_dependencies(self, hyperparameters):
         dependencies_stack = []
@@ -245,18 +244,28 @@ class Hyperparameters(object):
 
         return dependencies_stack
 
-    def _retrieve_key(self, alias_name):
-        for hp in self.hyperparameters:
-            if alias_name == self.hyperparameters[hp].alias:
-                return hp
+    def _declare_alias(self, key_name, alias_name):
+        if key_name not in self.hyperparameters:
+            raise exc.AlgorithmError("Key name { " + key_name + " } does not exist in list of hyperparameters")
 
-        return alias_name
+        self.aliases[alias_name] = key_name
+
+    def _replace_aliases(self, user_hyperparameters):
+        tmp_user_hyperparamers = {}
+        for hp, value in user_hyperparameters.items():
+            if hp in self.aliases:
+                hp = self.aliases.get(hp)
+            tmp_user_hyperparamers[hp] = value
+
+        return tmp_user_hyperparamers
 
     def validate(self, user_hyperparameters):
+        # Note: 0. Replace aliases with original keys
+        user_hyperparameters = self._replace_aliases(user_hyperparameters)
+
         # NOTE: 1. Validate required or fill in default.
         for hp in self.hyperparameters:
-            alias_name = self.hyperparameters[hp].alias
-            if hp not in user_hyperparameters and alias_name not in user_hyperparameters:
+            if hp not in user_hyperparameters:
                 if self.hyperparameters[hp].required:
                     raise exc.UserError("Missing required hyperparameter: {}".format(hp))
                 elif self.hyperparameters[hp].default is not None:
@@ -266,7 +275,6 @@ class Hyperparameters(object):
         converted_hyperparameters = {}
         for hp, value in user_hyperparameters.items():
             try:
-                hp = self._retrieve_key(hp)
                 hyperparameter_obj = self.hyperparameters[hp]
             except KeyError:
                 raise exc.UserError("Extraneous hyperparameter found: {}".format(hp))
