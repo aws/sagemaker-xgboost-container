@@ -126,12 +126,11 @@ def initialize(metrics):
         hpv.IntegerHyperparameter(name="silent", range=hpv.Interval(min_closed=0, max_closed=1), required=False),
         hpv.IntegerHyperparameter(name="verbosity", range=hpv.Interval(min_closed=0, max_closed=3), required=False),
         hpv.IntegerHyperparameter(name="nthread", range=hpv.Interval(min_closed=1), required=False),
-        hpv.ContinuousHyperparameter(name="eta", range=hpv.Interval(min_closed=0, max_closed=1),
-                                     required=False, tunable=True,
+        hpv.ContinuousHyperparameter(name="eta", range=hpv.Interval(min_closed=0, max_closed=1), required=False,
+                                     tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0.1, max_closed=0.5,
                                                                             scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.ContinuousHyperparameter(name="gamma", range=hpv.Interval(min_closed=0),
-                                     required=False,
+        hpv.ContinuousHyperparameter(name="gamma", range=hpv.Interval(min_closed=0), required=False,
                                      tunable=True, tunable_recommended_range=hpv.Interval(
                                          min_closed=0, max_closed=5,
                                          scale=hpv.Interval.LINEAR_SCALE)),
@@ -163,12 +162,12 @@ def initialize(metrics):
                                      required=False, tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0.1, max_closed=1,
                                                                             scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.ContinuousHyperparameter(name="lambda", range=hpv.Interval(min_closed=0),
-                                     required=False, tunable=True,
+        hpv.ContinuousHyperparameter(name="lambda", range=hpv.Interval(min_closed=0), required=False,
+                                     tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0, max_closed=1000,
                                                                             scale=hpv.Interval.LINEAR_SCALE)),
-        hpv.ContinuousHyperparameter(name="alpha", range=hpv.Interval(min_closed=0),
-                                     required=False, tunable=True,
+        hpv.ContinuousHyperparameter(name="alpha", range=hpv.Interval(min_closed=0), required=False,
+                                     tunable=True,
                                      tunable_recommended_range=hpv.Interval(min_closed=0, max_closed=1000,
                                                                             scale=hpv.Interval.LINEAR_SCALE)),
         hpv.CategoricalHyperparameter(name="tree_method", range=tree_method_range_validator, required=False),
@@ -225,9 +224,9 @@ def initialize(metrics):
                                   required=False),
         )
 
-    hyperparameters._declare_alias("eta", "learning_rate")
-    hyperparameters._declare_alias("gamma", "min_split_loss")
-    hyperparameters._declare_alias("lambda", "reg_lambda")
-    hyperparameters._declare_alias("alpha", "reg_alpha")
+    hyperparameters.declare_alias("eta", "learning_rate")
+    hyperparameters.declare_alias("gamma", "min_split_loss")
+    hyperparameters.declare_alias("lambda", "reg_lambda")
+    hyperparameters.declare_alias("alpha", "reg_alpha")
 
     return hyperparameters

@@ -192,10 +192,7 @@ class TestHyperparameters(unittest.TestCase):
         hyperparameters = hpv.Hyperparameters(hpv.TupleHyperparameter(name="tuple_",
                                                                            range=[-1, 0, 1],
                                                                            required=False))
-        hyperparameters._declare_alias("tuple_", "tup_")
-
-        with self.assertRaises(exc.UserError):
-            hyperparameters.validate({"tup_": "(1,0,-1,2)"})
+        hyperparameters.declare_alias("tuple_", "tup_")
 
         result = hyperparameters.validate({"tup_": "(1,0,-1)"})
         self.assertEqual(result["tuple_"], (1, 0, -1))
@@ -204,13 +201,10 @@ class TestHyperparameters(unittest.TestCase):
         hps = hpv.Hyperparameters(hpv.ContinuousHyperparameter(name="gamma",
                                                                range=hpv.Interval(min_closed=0, max_closed=1),
                                                                required=True))
-        hps._declare_alias("gamma", "min_split_loss")
+        hps.declare_alias("gamma", "min_split_loss")
 
         with self.assertRaises(exc.UserError):
             hps.validate({})
-
-        with self.assertRaises(exc.UserError):
-            hps.validate({"min_split_loss": "ha"})
 
         with self.assertRaises(exc.UserError):
             hps.validate({"min_split_long": "0.5"})
@@ -222,14 +216,11 @@ class TestHyperparameters(unittest.TestCase):
         hps = hpv.Hyperparameters(hpv.ContinuousHyperparameter(name="a", default=0.5,
                                                                range=hpv.Interval(min_closed=0, max_closed=1),
                                                                required=True))
-        hps._declare_alias("a", "alpha")
-        hps._declare_alias("a", "beta")
+        hps.declare_alias("a", "alpha")
+        hps.declare_alias("a", "beta")
 
         with self.assertRaises(exc.UserError):
             hps.validate({})
-
-        with self.assertRaises(exc.UserError):
-            hps.validate({"alpha": "ha"})
 
         with self.assertRaises(exc.UserError):
             hps.validate({"abc": "0.5"})
@@ -246,10 +237,7 @@ class TestHyperparameters(unittest.TestCase):
                                                                required=False))
 
         with self.assertRaises(exc.AlgorithmError):
-            hps._declare_alias("b", "c")
-
-        with self.assertRaises(exc.UserError):
-            hps.validate({"a": "ha"})
+            hps.declare_alias("b", "c")
 
         with self.assertRaises(exc.UserError):
             hps.validate({"abc": "0.5"})

@@ -244,9 +244,9 @@ class Hyperparameters(object):
 
         return dependencies_stack
 
-    def _declare_alias(self, key_name, alias_name):
+    def declare_alias(self, key_name, alias_name):
         if key_name not in self.hyperparameters:
-            raise exc.AlgorithmError("Key name { " + key_name + " } does not exist in list of hyperparameters")
+            raise exc.AlgorithmError("Key name {}: does not exist in list of hyperparameters".format(key_name))
 
         self.aliases[alias_name] = key_name
 
