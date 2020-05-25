@@ -1,4 +1,4 @@
-# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License'). You
 # may not use this file except in compliance with the License. A copy of
@@ -21,7 +21,8 @@ from gunicorn.six import iteritems
 import flask
 import gunicorn.app.base
 
-from sagemaker_xgboost_container.algorithm_mode import integration, serve_utils
+from sagemaker_xgboost_container.algorithm_mode import integration
+from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
 
 
@@ -79,6 +80,14 @@ class ScoringService(object):
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
         return serve_utils.predict(cls.booster, model_format, data, content_type)
+
+    @classmethod
+    def get_config(cls):
+        """Gets the internal parameter configuration of Booster as a python dict.
+
+        :return: python dictionary
+        """
+        return json.loads(cls.booster.save_config())
 
     @staticmethod
     def post_worker_init(worker):
@@ -145,6 +154,34 @@ def execution_parameters():
     return flask.Response(response=response_text, status=http.client.OK, mimetype="application/json")
 
 
+def _parse_accept(request):
+    accept = request.headers.get("accept").lower().split(";")[0]
+    if not any(accept in mimetypes for mimetypes in ["application/json", "application/jsonlines",
+                                                     "application/x-recordio-protobuf", "text/csv"]):
+        raise ValueError("Accept type {} is not supported.".format(accept))
+    return accept
+
+
+def _handle_selectable_inference_response(data, accept):
+    try:
+        # get objective function and content keys needed to make output
+        config = ScoringService.get_config()
+        objective = config['learner']['objective']['name']
+        num_class = config['learner']['learner_model_param'].get('num_class', '')
+        selected_content_keys = serve_utils.get_selected_content_keys()
+
+        # get output selected content based on selected keys and objective
+        selected_content = serve_utils.get_selected_content(data, selected_content_keys, objective, num_class=num_class)
+
+        # encode response in requested accept type
+        response = serve_utils.encode_selected_content(selected_content, selected_content_keys, accept)
+    except Exception as e:
+        logging.exception(e)
+        return flask.Response(response=str(e), status=http.client.INTERNAL_SERVER_ERROR)
+
+    return flask.Response(response=response, status=http.client.OK, mimetype=accept)
+
+
 @ScoringService.app.route("/invocations", methods=["POST"])
 def invocations():
     payload = flask.request.data
@@ -168,6 +205,15 @@ def invocations():
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
+
+    if serve_utils.is_selectable_inference_response():
+        try:
+            accept = _parse_accept(flask.request)
+        except Exception as e:
+            logging.exception(e)
+            return flask.Response(response=str(e), status=http.client.NOT_ACCEPTABLE)
+
+        return _handle_selectable_inference_response(preds, accept)
 
     if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'

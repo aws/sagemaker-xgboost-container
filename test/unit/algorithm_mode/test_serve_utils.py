@@ -1,4 +1,4 @@
-# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License'). You
 # may not use this file except in compliance with the License. A copy of
@@ -12,9 +12,15 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 
-from mock import MagicMock
+import io
+import json
 import os
+
+from mock import MagicMock
+import numpy as np
 import pytest
+from sagemaker_containers.record_pb2 import Record
+from sagemaker_containers._recordio import _read_recordio
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils
@@ -76,3 +82,192 @@ def test_predict_valid_content_type(correct_content_type):
     mock_dmatrix.feature_names = mock_feature_names
 
     serve_utils.predict(mock_booster, serve_utils.PKL_FORMAT, mock_dmatrix, correct_content_type)
+
+
+TEST_DATA = [0.6, 0.1]
+TEST_KEYS = [serve_utils.PREDICTED_LABEL, serve_utils.PROBABILITIES]
+TEST_CONTENT = [
+    {serve_utils.PREDICTED_LABEL: 1, serve_utils.PROBABILITIES: [0.4, 0.6]},
+    {serve_utils.PREDICTED_LABEL: 0, serve_utils.PROBABILITIES: [0.9, 0.1]}
+]
+TEST_JSON = json.dumps({'predictions': TEST_CONTENT})
+
+TEST_KEYS_BINARY_LOG = serve_utils.VALID_OBJECTIVES[serve_utils.BINARY_LOG]
+TEST_CONTENT_BINARY_LOG = [
+    {serve_utils.PREDICTED_LABEL: 1, serve_utils.LABELS: [0, 1], serve_utils.PROBABILITY: 0.6,
+     serve_utils.PROBABILITIES: [0.4, 0.6], serve_utils.RAW_SCORE: 0.6, serve_utils.RAW_SCORES: [0.4, 0.6]},
+    {serve_utils.PREDICTED_LABEL: 0, serve_utils.LABELS: [0, 1], serve_utils.PROBABILITY: 0.1,
+     serve_utils.PROBABILITIES: [0.9, 0.1], serve_utils.RAW_SCORE: 0.1, serve_utils.RAW_SCORES: [0.9, 0.1]}
+]
+
+TEST_DATA_REG_LOG = [0.5, -7.0]
+TEST_KEYS_REG_LOG = serve_utils.VALID_OBJECTIVES[serve_utils.REG_LOG]
+TEST_CONTENT_REG_LOG = [{"predicted_score": 0.5}, {"predicted_score": -7.0}]
+
+
+def test_is_selectable_inference_response_false():
+    assert not serve_utils.is_selectable_inference_response()
+
+
+def test_is_selectable_inference_response_true():
+    os.environ['SAGEMAKER_INFERENCE_OUTPUT'] = 'predicted_label'
+    assert serve_utils.is_selectable_inference_response()
+    del os.environ['SAGEMAKER_INFERENCE_OUTPUT']
+
+
+def test_get_selected_content_keys():
+    os.environ['SAGEMAKER_INFERENCE_OUTPUT'] = 'predicted_label'
+    assert serve_utils.get_selected_content_keys() == ['predicted_label']
+    del os.environ['SAGEMAKER_INFERENCE_OUTPUT']
+
+
+def test_get_selected_content_keys_error():
+    with pytest.raises(RuntimeError):
+        serve_utils.get_selected_content_keys()
+
+
+@pytest.mark.parametrize('test_data, selected_keys, objective, expected_content', [
+    (TEST_DATA, TEST_KEYS_BINARY_LOG, serve_utils.BINARY_LOG, TEST_CONTENT_BINARY_LOG),
+    (TEST_DATA_REG_LOG, TEST_KEYS_REG_LOG, serve_utils.REG_LOG, TEST_CONTENT_REG_LOG)
+])
+def test_get_selected_content_all_keys(test_data, selected_keys, objective, expected_content):
+    content = serve_utils.get_selected_content(test_data, selected_keys, objective)
+    assert content == expected_content
+
+
+def test_get_selected_content_nan():
+    pass
+
+
+def test_get_selected_content_invalid_objective():
+    with pytest.raises(ValueError):
+        serve_utils.get_selected_content(TEST_DATA, TEST_KEYS, "rank:pairwise")
+
+
+@pytest.mark.parametrize('objective, expected_labels, num_class', [
+    (serve_utils.BINARY_LOG, [0, 1], ''),
+    (serve_utils.MULTI_SOFTPROB, list(range(7)), '7'),
+])
+def test_get_labels(objective, expected_labels, num_class):
+    assert serve_utils._get_labels(objective, num_class=num_class) == expected_labels
+
+
+def test_get_labels_nan():
+    assert np.isnan(serve_utils._get_labels(serve_utils.REG_LOG))
+
+
+@pytest.mark.parametrize('objective, data, expected_predicted_label', [
+    (serve_utils.BINARY_HINGE, 0, 0),
+    (serve_utils.BINARY_LOG, 0.6, 1),
+    (serve_utils.BINARY_LOGRAW, -7.6, 0),
+    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], 1),
+])
+def test_get_predicted_label(objective, data, expected_predicted_label):
+    assert serve_utils._get_predicted_label(objective, data) == expected_predicted_label
+
+
+def test_get_predicted_label_nan():
+    assert np.isnan(serve_utils._get_predicted_label(serve_utils.REG_LOG, 0))
+
+
+@pytest.mark.parametrize('objective, data, expected_probability', [
+    (serve_utils.BINARY_LOG, 0.6, 0.6),
+    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], 0.5)
+])
+def test_get_probability(objective, data, expected_probability):
+    assert serve_utils._get_probability(objective, data) == expected_probability
+
+
+def test_get_probability_nan():
+    assert np.isnan(serve_utils._get_probability(serve_utils.BINARY_HINGE, 0))
+
+
+@pytest.mark.parametrize('objective, data, expected_probabilities', [
+    (serve_utils.BINARY_LOG, 0.6, [0.4, 0.6]),
+    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], [0.1, 0.5, 0.4])
+])
+def test_get_probabilities(objective, data, expected_probabilities):
+    assert serve_utils._get_probabilities(objective, data) == expected_probabilities
+
+
+def test_get_probabilities_nan():
+    assert np.isnan(serve_utils._get_probabilities(serve_utils.BINARY_HINGE, 0))
+
+
+@pytest.mark.parametrize('objective, data, expected_raw_score', [
+    (serve_utils.BINARY_LOG, 0.6, 0.6),
+    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], 0.5),
+    (serve_utils.BINARY_LOGRAW, -7.6, -7.6)
+])
+def test_get_raw_score(objective, data, expected_raw_score):
+    assert serve_utils._get_raw_score(objective, data) == expected_raw_score
+
+
+def est_get_raw_score_nan():
+    assert np.isnan(serve_utils._get_probability(serve_utils.REG_LOG, 0))
+
+
+@pytest.mark.parametrize('objective, data, expected_raw_scores', [
+    (serve_utils.BINARY_LOG, 0.6, [0.4, 0.6]),
+    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], [0.1, 0.5, 0.4]),
+    (serve_utils.BINARY_HINGE, 1, [0, 1])
+])
+def test_get_raw_scores(objective, data, expected_raw_scores):
+    assert serve_utils._get_raw_scores(objective, data) == expected_raw_scores
+
+
+def test_get_raw_scores_nan():
+    assert np.isnan(serve_utils._get_raw_scores(serve_utils.REG_LOG, 0))
+
+
+def test_encode_selected_content_json():
+    expected_json = json.dumps(str({"predictions": TEST_CONTENT}))
+    assert serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS, "application/json") == expected_json
+
+
+def test_encode_selected_content_jsonlines():
+    expected_jsonlines = b'{\"predicted_label\": 1, \"probabilities\": [0.4, 0.6]}\n' \
+                         b'{\"predicted_label\": 0, \"probabilities": [0.9, 0.1]}\n'
+    assert serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS,
+                                               "application/jsonlines") == expected_jsonlines
+
+
+def test_encode_selected_content_protobuf():
+    expected_predicted_labels = [[1], [0]]
+    expected_probabilities = [[0.4, 0.6], [0.9, 0.1]]
+
+    protobuf_response = serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS,
+                                                            "application/x-recordio-protobuf")
+    stream = io.BytesIO(protobuf_response)
+
+    for recordio, predicted_label, probabilities in zip(_read_recordio(stream),
+                                                        expected_predicted_labels, expected_probabilities):
+        record = Record()
+        record.ParseFromString(recordio)
+        assert record.label["predicted_label"].float32_tensor.values == predicted_label
+        assert all(np.isclose(record.label["probabilities"].float32_tensor.values, probabilities))
+
+
+def test_encode_selected_content_csv():
+    expected_csv = '1,"[0.4, 0.6]"\r\n0,"[0.9, 0.1]"\r\n'
+    assert serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS, "text/csv") == expected_csv
+
+
+def test_encode_selected_content_error():
+    with pytest.raises(RuntimeError):
+        serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS, "text/libsvm")
+
+
+def test_encoder_jsonlines_from_json():
+    json_response = json.dumps({'predictions': TEST_CONTENT})
+    expected_jsonlines = b'{\"predicted_label\": 1, \"probabilities\": [0.4, 0.6]}\n' \
+                         b'{\"predicted_label\": 0, \"probabilities": [0.9, 0.1]}\n'
+
+    jsonlines_response = serve_utils.encoder_jsonlines_from_json(json_response)
+    assert expected_jsonlines == jsonlines_response
+
+
+def test_encoder_jsonlines_from_json_error():
+    bad_json_response = json.dumps({'predictions': [], 'metadata': []})
+    with pytest.raises(ValueError):
+        serve_utils.encoder_jsonlines_from_json(bad_json_response)
