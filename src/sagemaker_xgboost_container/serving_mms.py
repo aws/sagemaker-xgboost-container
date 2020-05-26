@@ -84,7 +84,6 @@ def _set_mms_configs(is_multi_model, handler):
     # Max heap size = (max workers + max job queue size) * max payload size * 1.2 (20% buffer) + 128 (base amount)
     max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024 ** 2) * 1.2) + 128
 
-
     os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
     os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
     os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] = handler
@@ -112,7 +111,6 @@ def _set_mms_configs(is_multi_model, handler):
             with open(MMS_CONFIG_FILE_PATH, 'w+') as g:
                 g.write("vmargs=-XX:-UseLargePages"
                         + " -XX:+UseParNewGC"
-                        # + " -XX:+UseG1GC"
                         + " -XX:MaxMetaspaceSize=32M"
                         + " -XX:InitiatingHeapOccupancyPercent=25"
                         + " -Xms" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
