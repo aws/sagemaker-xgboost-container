@@ -33,4 +33,4 @@ class TestChannelValidation(unittest.TestCase):
             }
         }
         self.channels.validate(test_user_channels)
-        self.assertEquals(test_user_channels["train"][cv.CONTENT_TYPE], "text/libsvm")
+        self.assertEqual(test_user_channels["train"][cv.CONTENT_TYPE], "text/libsvm")

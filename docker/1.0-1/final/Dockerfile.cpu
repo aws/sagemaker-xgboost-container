@@ -1,5 +1,5 @@
-FROM xgboost-container-base:0.90-2-cpu-py3
-ENV SAGEMAKER_XGBOOST_VERSION 0.90-2
+FROM xgboost-container-base:1.0-1-cpu-py3
+ENV SAGEMAKER_XGBOOST_VERSION 1.0-1
 
 ########################
 # Install dependencies #

@@ -51,6 +51,8 @@ def default_input_fn(input_data, content_type):
             - The request Content-Type, for example "application/json"
             - The request data, which is at most 5 MB (5 * 1024 * 1024 bytes) in size.
         The input_fn is responsible to take the request data and pre-process it before prediction.
+        Note: For CSV data, the decoder will error if there are any leading or trailing newline
+        chars.
     Args:
         input_data (obj): the request data.
         content_type (str): the request Content-Type.

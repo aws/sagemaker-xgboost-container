@@ -198,7 +198,7 @@ def test_train(tmpdir, caplog):
     assert "callbacks" not in train_args
     assert "xgb_model" not in train_args
     assert "verbose_eval" not in train_args
-    assert train_args["params"] == {"objective": "binary:logistic"}
+    assert train_args["params"] == {"objective": "binary:logistic", 'validate_parameters': 1}
     assert train_args["dtrain"] is dtrain
     assert train_args["num_boost_round"] == 20
     # check that checkpoints were saved

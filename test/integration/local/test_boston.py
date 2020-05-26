@@ -24,7 +24,7 @@ data_dir = os.path.join(boston_path, 'data')
 def test_xgboost_boston_single_machine(docker_image, opt_ml):
 
     customer_script = 'single_machine_customer_script.py'
-    hyperparameters = {'objective': 'reg:linear', 'colsample-bytree': 0.3,
+    hyperparameters = {'objective': 'reg:squarederror', 'colsample-bytree': 0.3,
                        'learning-rate': 0.1, 'max-depth': 5, 'reg-alpha': 10,
                        'n-estimators': 10}
 

@@ -65,7 +65,7 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "min_child_weight": "6",
             "subsample": "0.7",
             "silent": "0",
-            "objective": "reg:linear",
+            "objective": "reg:squarederror",
             "num_round": "50"
         }
         hps = hpv.initialize(self.metrics)
@@ -81,6 +81,37 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "objective": "multi:softmax",
             "num_class": "10",
             "num_round": "10"
+        }
+        hps = hpv.initialize(self.metrics)
+        hps.validate(hyperparameters)
+
+    def test_hyperparameters5(self):
+        hyperparameters = {
+            "max_depth": "5",
+            "eta": "0.2",
+            "gamma": "4",
+            "min_child_weight": "6",
+            "tree_method": "exact",
+            "objective": "multi:softmax",
+            "num_class": "10",
+            "num_round": "10",
+            "monotone_constraints": "(1,0)",
+            "interaction_constraints": "[[1,2,4],[3,5]]"
+        }
+        hps = hpv.initialize(self.metrics)
+        hps.validate(hyperparameters)
+
+    def test_hyperparameters6(self):
+        hyperparameters = {
+            "max_depth": "5",
+            "eta": "0.2",
+            "gamma": "4",
+            "min_child_weight": "6",
+            "tree_method": "approx",
+            "objective": "multi:softmax",
+            "num_class": "10",
+            "num_round": "10",
+            "interaction_constraints": "[[1,2,4],[3,5]]"
         }
         hps = hpv.initialize(self.metrics)
         hps.validate(hyperparameters)

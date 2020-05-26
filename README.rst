@@ -31,6 +31,8 @@ development machine:
 
 - `Docker <https://www.docker.com/>`__
 
+Note: CMake is required for XGBoost. If using macOS, install CMake (pip install cmake)
+
 Recommended
 ^^^^^^^^^^^
 
@@ -59,7 +61,7 @@ Base Images
 The "base" Dockerfile encompass the installation of the framework and all of the dependencies
 needed.
 
-Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. 0.90-2-cpu-py3), where
+Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. |XGBoostLatestVersion|-cpu-py3), where
  <SageMaker-XGBoost-version> is comprised of <XGBoost-version>-<SageMaker-version>.
 
 All "final" Dockerfiles build images using base images that use the tagging scheme
@@ -74,12 +76,12 @@ If you want to build your base docker image, then use:
     # CPU
     docker build -t xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3 -f docker/<SageMaker-XGBoost-version>/base/Dockerfile.cpu .
 
-::
+.. parsed-literal::
 
     # Example
 
     # CPU
-    docker build -t xgboost-container-base:0.90-2-cpu-py3 -f docker/0.90-2/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/base/Dockerfile.cpu .
 
 
 Final Images
@@ -112,12 +114,12 @@ If you want to build "final" Docker images, then use:
     # CPU
     docker build -t <image_name>:<tag> -f docker/<xgboost-version>/final/Dockerfile.cpu .
 
-::
+.. parsed-literal::
 
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-container:0.90-2-cpu-py3 -f docker/0.90-2/final/Dockerfile.cpu .
+    docker build -t preprod-xgboost-container:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/final/Dockerfile.cpu .
 
 Running the tests
 -----------------
@@ -159,8 +161,9 @@ If you want to run unit tests, then use:
     # or you can use tox to run unit tests as well as flake8 and code coverage
 
     tox
-    tox -e py3-xgboost0.90,flake8
-    tox -e py3-xgboost0.72,py3-xgboostlatest
+    tox -e py3-xgboost1.0,flake8
+    tox -e py3-xgboost0.90,py3-xgboostlatest
+    tox -e py3-xgboost0.72
 
 
 Local Integration Tests
@@ -188,13 +191,13 @@ If you want to run local integration tests, then use:
                       --py-version <2_or_3> \
                       --framework-version <xgboost-version>
 
-::
+.. parsed-literal::
 
     # Example
-    pytest test/integration/local --docker-base-name preprod-xgboost-framework \
-                      --tag 0.90-2-cpu-py3 \
-                      --py-version 3 \
-                      --framework-version 0.90-2
+    pytest test/integration/local --docker-base-name preprod-xgboost-container ``\``
+                      --tag |XGBoostLatestVersion|-cpu-py3 ``\``
+                      --py-version 3 ``\``
+                      --framework-version |XGBoostLatestVersion|
 
 SageMaker Integration Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -248,3 +251,5 @@ License
 SageMaker XGboost Framework Container is licensed under the Apache 2.0 License. It is copyright 2019 Amazon
 .com, Inc. or its affiliates. All Rights Reserved. The license is available at:
 http://aws.amazon.com/apache2.0/
+
+.. |XGBoostLatestVersion| replace:: 1.0-1

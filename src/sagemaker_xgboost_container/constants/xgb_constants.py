@@ -32,7 +32,8 @@ XGB_MINIMIZE_METRICS = [
     'merror',
     'mlogloss',
     'mse',
-    'rmse'
+    'rmse',
+    'rmsle'
 ]
 
 LOGISTIC_REGRESSION_LABEL_RANGE_ERROR = "label must be in [0,1] for logistic regression"
