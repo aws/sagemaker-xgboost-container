@@ -10,6 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import cgi
 import http.client
 import json
 import multiprocessing
@@ -82,8 +83,8 @@ class ScoringService(object):
         return serve_utils.predict(cls.booster, model_format, data, content_type)
 
     @classmethod
-    def get_config(cls):
-        """Gets the internal parameter configuration of Booster as a python dict.
+    def get_config_json(cls):
+        """Gets the internal parameter configuration of a fitted XGBoost booster.
 
         :return: python dictionary
         """
@@ -155,7 +156,7 @@ def execution_parameters():
 
 
 def _parse_accept(request):
-    accept = request.headers.get("accept").lower().split(";")[0]
+    accept, _ = cgi.parse_header(request.headers.get("accept").lower())
     if not any(accept in mimetypes for mimetypes in ["application/json", "application/jsonlines",
                                                      "application/x-recordio-protobuf", "text/csv"]):
         raise ValueError("Accept type {} is not supported.".format(accept))
@@ -165,7 +166,7 @@ def _parse_accept(request):
 def _handle_selectable_inference_response(data, accept):
     try:
         # get objective function and content keys needed to make output
-        config = ScoringService.get_config()
+        config = ScoringService.get_config_json()
         objective = config['learner']['objective']['name']
         num_class = config['learner']['learner_model_param'].get('num_class', '')
         selected_content_keys = serve_utils.get_selected_content_keys()

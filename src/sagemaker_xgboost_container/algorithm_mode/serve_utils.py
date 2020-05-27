@@ -25,26 +25,22 @@ import xgboost as xgb
 from sagemaker_xgboost_container import encoder
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_OUTPUT
+from sagemaker_xgboost_container.constants.xgb_constants import BINARY_HINGE
+from sagemaker_xgboost_container.constants.xgb_constants import BINARY_LOG
+from sagemaker_xgboost_container.constants.xgb_constants import BINARY_LOGRAW
+from sagemaker_xgboost_container.constants.xgb_constants import MULTI_SOFTMAX
+from sagemaker_xgboost_container.constants.xgb_constants import MULTI_SOFTPROB
+from sagemaker_xgboost_container.constants.xgb_constants import REG_GAMMA
+from sagemaker_xgboost_container.constants.xgb_constants import REG_LOG
+from sagemaker_xgboost_container.constants.xgb_constants import REG_SQUAREDERR
+from sagemaker_xgboost_container.constants.xgb_constants import REG_TWEEDIE
 
 
 logging = integration.setup_main_logger(__name__)
 
 PKL_FORMAT = 'pkl_format'
 XGB_FORMAT = 'xgb_format'
-
-SAGEMAKER_INFERENCE_OUTPUT = 'SAGEMAKER_INFERENCE_OUTPUT'
-
-# xgboost objective learning tasks
-# https://xgboost.readthedocs.io/en/release_0.90/parameter.html#learning-task-parameters
-REG_SQUAREDERR = 'reg:squarederror'
-REG_LOG = 'reg:logistic'
-REG_GAMMA = 'reg:gamma'
-REG_TWEEDIE = 'reg:tweedie'
-BINARY_LOG = 'binary:logistic'
-BINARY_LOGRAW = 'binary:logitraw'
-BINARY_HINGE = 'binary:hinge'
-MULTI_SOFTMAX = 'multi:softmax'
-MULTI_SOFTPROB = 'multi:softprob'
 
 # classification selectable inference keys
 PREDICTED_LABEL = 'predicted_label'
@@ -336,7 +332,7 @@ def encode_selected_content(content, keys, accept):
     if accept == "application/json":
         return json.dumps(str({"predictions": content}))
     if accept == "application/jsonlines":
-        return encoder_jsonlines_from_json(str({"predictions": content}).replace("\'", "\""))
+        return encoder_jsonlines_from_json(str({"predictions": content}))
     if accept == "application/x-recordio-protobuf":
         return _encode_selected_content_recordio_protobuf(content)
     if accept == "text/csv":
@@ -350,7 +346,7 @@ def encoder_jsonlines_from_json(json_data):
     :param json_data: python dictionary or json string
     :return: jsonlines encoded response
     """
-    resp_dict = json.loads(str(json_data))
+    resp_dict = json.loads(str(json_data).replace("\'", "\""))
 
     if len(resp_dict.keys()) != 1:
         raise ValueError("JSON response is not compatible for conversion to jsonlines.")
