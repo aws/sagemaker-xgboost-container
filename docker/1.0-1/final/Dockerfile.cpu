@@ -1,7 +1,55 @@
 FROM xgboost-container-base:1.0-1-cpu-py3
+ENV SAGEMAKER_XGBOOST_VERSION 1.0-1
 
-LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
+########################
+# Install dependencies #
+########################
+COPY requirements.txt /requirements.txt
+RUN pip install -r /requirements.txt && rm /requirements.txt
 
+###########################
+# Copy wheel to container #
+###########################
+COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
+    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+
+##############
+# DMLC PATCH #
+##############
+# TODO: remove after making contributions back to xgboost for tracker.py
+COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
+   /miniconda3/lib/python3.6/site-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
+
+# Include DMLC python code in PYTHONPATH to use RabitTracker
+ENV PYTHONPATH=$PYTHONPATH:/miniconda3/lib/python3.6/site-packages/xgboost/dmlc-core/tracker
+
+#######
+# MMS #
+#######
+# Create MMS user directory
+RUN useradd -m model-server
+RUN mkdir -p /home/model-server/tmp && chown -R model-server /home/model-server
+
+# Copy MMS configs
+COPY docker/$SAGEMAKER_XGBOOST_VERSION/resources/mms/config.properties.tmp /home/model-server
+ENV XGBOOST_MMS_CONFIG=/home/model-server/config.properties
+
+# Copy execution parameters endpoint plugin for MMS
+RUN mkdir -p /tmp/plugins
+COPY docker/$SAGEMAKER_XGBOOST_VERSION/resources/mms/endpoints-1.0.jar /tmp/plugins
+RUN chmod +x /tmp/plugins/endpoints-1.0.jar
+
+# Create directory for models
+RUN mkdir -p /opt/ml/models
+RUN chmod +rwx /opt/ml/models
+
+# Required label for multi-model loading
+LABEL com.amazonaws.sagemaker.capabilities.multi-models=true
+
+#####################
+# Required ENV vars #
+#####################
 # Set SageMaker training environment variables
 ENV SM_INPUT /opt/ml/input
 ENV SM_INPUT_TRAINING_CONFIG_FILE $SM_INPUT/config/hyperparameters.json
@@ -11,19 +59,10 @@ ENV SM_CHECKPOINT_CONFIG_FILE $SM_INPUT/config/checkpointconfig.json
 # Set SageMaker serving environment variables
 ENV SM_MODEL_DIR /opt/ml/model
 
+# Set SageMaker entrypoints
 ENV SAGEMAKER_TRAINING_MODULE sagemaker_xgboost_container.training:main
 ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_container.serving:main
 
-# Include DMLC python code in PYTHONPATH to use RabitTracker
-ENV PYTHONPATH=$PYTHONPATH:/miniconda3/lib/python3.6/site-packages/xgboost/dmlc-core/tracker
-
-COPY requirements.txt /requirements.txt
-RUN pip install -r /requirements.txt && rm /requirements.txt
-
-# DMLC patches; TODO: remove after making contributions back to xgboost for tracker.py
-COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
-   /miniconda3/lib/python3.6/site-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
-
-COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
-RUN pip install --no-cache /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl && \
-    rm /sagemaker_xgboost_container-2.0-py2.py3-none-any.whl
+EXPOSE 8080
+ENV TEMP=/home/model-server/tmp
+LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
