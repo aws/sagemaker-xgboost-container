@@ -224,6 +224,7 @@ class TupleHyperparameter(Hyperparameter):
 class Hyperparameters(object):
     def __init__(self, *hyperparameters):
         self.hyperparameters = {hyperparameter.name: hyperparameter for hyperparameter in hyperparameters}
+        self.aliases = {}
 
     def _sort_dependencies(self, hyperparameters):
         dependencies_stack = []
@@ -243,8 +244,26 @@ class Hyperparameters(object):
 
         return dependencies_stack
 
+    def declare_alias(self, key_name, alias_name):
+        if key_name not in self.hyperparameters:
+            raise exc.AlgorithmError("Key name {}: does not exist in list of hyperparameters".format(key_name))
+
+        self.aliases[alias_name] = key_name
+
+    def _replace_aliases(self, user_hyperparameters):
+        tmp_user_hyperparamers = {}
+        for hp, value in user_hyperparameters.items():
+            if hp in self.aliases:
+                hp = self.aliases.get(hp)
+            tmp_user_hyperparamers[hp] = value
+
+        return tmp_user_hyperparamers
+
     def validate(self, user_hyperparameters):
-        # NOTE: 0. Validate required or fill in default.
+        # Note: 0. Replace aliases with original keys
+        user_hyperparameters = self._replace_aliases(user_hyperparameters)
+
+        # NOTE: 1. Validate required or fill in default.
         for hp in self.hyperparameters:
             if hp not in user_hyperparameters:
                 if self.hyperparameters[hp].required:
@@ -252,7 +271,7 @@ class Hyperparameters(object):
                 elif self.hyperparameters[hp].default is not None:
                     user_hyperparameters[hp] = self.hyperparameters[hp].default
 
-        # NOTE: 1. Convert hyperparameters.
+        # NOTE: 2. Convert hyperparameters.
         converted_hyperparameters = {}
         for hp, value in user_hyperparameters.items():
             try:
@@ -264,7 +283,7 @@ class Hyperparameters(object):
             except ValueError as e:
                 raise exc.UserError("Hyperparameter {}: could not parse value".format(hp), caused_by=e)
 
-        # NOTE: 2. Validate range.
+        # NOTE: 3. Validate range.
         for hp, value in converted_hyperparameters.items():
             try:
                 self.hyperparameters[hp].validate_range(value)
@@ -274,7 +293,7 @@ class Hyperparameters(object):
                 raise exc.AlgorithmError("Hyperparameter {}: unexpected failure when validating {}".format(hp, value),
                                          caused_by=e)
 
-        # NOTE: 3. Validate dependencies.
+        # NOTE: 4. Validate dependencies.
         sorted_deps = self._sort_dependencies(converted_hyperparameters.keys())
         new_validated_hyperparameters = {}
         while sorted_deps:
