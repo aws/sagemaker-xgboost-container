@@ -12,21 +12,26 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 import logging
+import os
 
 from sagemaker_containers.beta.framework import (
-    encoders, env, modules, transformer, worker)
+    encoders, env, modules, server, transformer, worker)
 
 from sagemaker_xgboost_container import encoder as xgb_encoders
 from sagemaker_xgboost_container.algorithm_mode import serve
+from sagemaker_xgboost_container.serving_mms import start_mxnet_model_server
 
 logging.basicConfig(format='%(asctime)s %(levelname)s - %(name)s - %(message)s', level=logging.INFO)
-
 logging.getLogger('boto3').setLevel(logging.INFO)
 logging.getLogger('s3transfer').setLevel(logging.INFO)
 logging.getLogger('botocore').setLevel(logging.WARN)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+def is_multi_model():
+    return os.environ.get('SAGEMAKER_MULTI_MODEL')
 
 
 def default_model_fn(model_dir):
@@ -103,12 +108,21 @@ def main(environ, start_response):
             app = serve.ScoringService.csdk_start()
         else:
             user_module = modules.import_module(serving_env.module_dir, serving_env.module_name)
-
             user_module_transformer = _user_module_transformer(user_module)
-
             user_module_transformer.initialize()
-
             app = worker.Worker(transform_fn=user_module_transformer.transform,
                                 module_name=serving_env.module_name)
 
     return app(environ, start_response)
+
+
+def serving_entrypoint():
+    """Start Inference Server.
+
+    NOTE: If the inference server is multi-model, MxNet Model Server will be used as the base server. Otherwise,
+        GUnicorn is used as the base server.
+    """
+    if is_multi_model():
+        start_mxnet_model_server()
+    else:
+        server.start(env.ServingEnv().framework_module)

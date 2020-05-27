@@ -13,51 +13,9 @@
 from __future__ import absolute_import
 
 import json
-from mock import MagicMock, patch
-import pytest
+from mock import patch
 
-from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container import data_utils
 from sagemaker_xgboost_container.algorithm_mode import serve
-
-
-@pytest.mark.parametrize('csv_content_type', ('csv', 'text/csv', 'text/csv; label_size=1',
-                                              'text/csv;label_size = 1', 'text/csv; charset=utf-8',
-                                              'text/csv; label_size=1; charset=utf-8'))
-def test_parse_csv_data(csv_content_type):
-    data_payload = b'1,1'
-    mock_request = MagicMock()
-    mock_request.data = data_payload
-    mock_request.content_type = csv_content_type
-
-    parsed_payload, parsed_content_type = serve._parse_content_data(mock_request)
-
-    assert parsed_content_type == data_utils.CSV
-
-
-@pytest.mark.parametrize('libsvm_content_type', ('libsvm', 'text/libsvm', 'text/x-libsvm'))
-def test_parse_libsvm_data(libsvm_content_type):
-    data_payload = b'0:1'
-    mock_request = MagicMock()
-    mock_request.data = data_payload
-    mock_request.content_type = libsvm_content_type
-
-    parsed_payload, parsed_content_type = serve._parse_content_data(mock_request)
-
-    assert parsed_content_type == data_utils.LIBSVM
-
-
-@pytest.mark.parametrize('incorrect_content_type', ('incorrect_format', 'text/csv; label_size=5',
-                                                    'text/csv; label_size=1=1', 'text/csv; label_size=1; label_size=2',
-                                                    'label_size=1; text/csv'))
-def test_incorrect_content_type(incorrect_content_type):
-    data_payload = '0'
-    mock_request = MagicMock()
-    mock_request.data = data_payload
-    mock_request.content_type = incorrect_content_type
-
-    with pytest.raises(exc.UserError):
-        serve._parse_content_data(mock_request)
 
 
 def test_default_execution_parameters():
