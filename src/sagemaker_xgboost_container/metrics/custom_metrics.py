@@ -10,6 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 
 
@@ -22,7 +23,7 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    rounded_preds = [round(value) for value in preds]
+    rounded_preds = [round(np.max(value)) if (type(value) is np.ndarray) else round(value) for value in preds]
     return 'accuracy', accuracy_score(labels, rounded_preds)
 
 
@@ -36,7 +37,7 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    rounded_preds = [round(value) for value in preds]
+    rounded_preds = [round(np.max(value)) if (type(value) is np.ndarray) else round(value) for value in preds]
     return 'f1', f1_score(labels, rounded_preds, average='macro')
 
 

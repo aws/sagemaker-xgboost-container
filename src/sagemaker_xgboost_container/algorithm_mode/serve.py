@@ -159,6 +159,8 @@ def _parse_accept(request):
     accept, _ = cgi.parse_header(request.headers.get("accept").lower())
     if not any(accept in mimetypes for mimetypes in ["application/json", "application/jsonlines",
                                                      "application/x-recordio-protobuf", "text/csv"]):
+        if sm_env_constants.SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT in os.environ:
+            return os.getenv('SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT')
         raise ValueError("Accept type {} is not supported.".format(accept))
     return accept
 
