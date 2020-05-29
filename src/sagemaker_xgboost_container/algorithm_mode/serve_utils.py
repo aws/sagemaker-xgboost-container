@@ -10,7 +10,6 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-import csv
 import io
 import json
 import numpy as np
@@ -24,17 +23,12 @@ import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
 from sagemaker_xgboost_container.algorithm_mode import integration
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_OUTPUT, SAGEMAKER_BATCH
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
-from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_OUTPUT
-from sagemaker_xgboost_container.constants.xgb_constants import BINARY_HINGE
-from sagemaker_xgboost_container.constants.xgb_constants import BINARY_LOG
-from sagemaker_xgboost_container.constants.xgb_constants import BINARY_LOGRAW
-from sagemaker_xgboost_container.constants.xgb_constants import MULTI_SOFTMAX
-from sagemaker_xgboost_container.constants.xgb_constants import MULTI_SOFTPROB
-from sagemaker_xgboost_container.constants.xgb_constants import REG_GAMMA
-from sagemaker_xgboost_container.constants.xgb_constants import REG_LOG
-from sagemaker_xgboost_container.constants.xgb_constants import REG_SQUAREDERR
-from sagemaker_xgboost_container.constants.xgb_constants import REG_TWEEDIE
+from sagemaker_xgboost_container.constants.xgb_constants import (BINARY_HINGE, BINARY_LOG, BINARY_LOGRAW,
+                                                                 MULTI_SOFTMAX, MULTI_SOFTPROB, REG_GAMMA,
+                                                                 REG_LOG, REG_SQUAREDERR, REG_TWEEDIE)
+from sagemaker_xgboost_container.encoder import json_to_jsonlines
 
 
 logging = integration.setup_main_logger(__name__)
@@ -43,15 +37,15 @@ PKL_FORMAT = 'pkl_format'
 XGB_FORMAT = 'xgb_format'
 
 # classification selectable inference keys
-PREDICTED_LABEL = 'predicted_label'
-LABELS = 'labels'
-PROBABILITY = 'probability'
-PROBABILITIES = 'probabilities'
-RAW_SCORE = 'raw_score'
-RAW_SCORES = 'raw_scores'
+PREDICTED_LABEL = "predicted_label"
+LABELS = "labels"
+PROBABILITY = "probability"
+PROBABILITIES = "probabilities"
+RAW_SCORE = "raw_score"
+RAW_SCORES = "raw_scores"
 
 # regression selectable inference keys
-PREDICTED_SCORE = 'predicted_score'
+PREDICTED_SCORE = "predicted_score"
 
 # all supported selecable content keys
 ALL_VALID_SELECT_KEYS = [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES, PREDICTED_SCORE]
@@ -196,29 +190,29 @@ def _get_labels(objective, num_class=""):
 
 def _get_predicted_label(objective, data):
     if objective in [BINARY_HINGE, MULTI_SOFTMAX]:
-        return data
+        return data.item()
     if objective in [BINARY_LOG]:
         return int(data > 0.5)
     if objective in [BINARY_LOGRAW]:
         return int(data > 0)
     if objective in [MULTI_SOFTPROB]:
-        return np.argmax(data)
+        return np.argmax(data).item()
     return np.nan
 
 
 def _get_probability(objective, data):
     if objective in [MULTI_SOFTPROB]:
-        return max(data)
+        return max(data).item()
     if objective in [BINARY_LOG]:
-        return data
+        return data.item()
     return np.nan
 
 
 def _get_probabilities(objective, data):
     if objective in [MULTI_SOFTPROB]:
-        return list(data)
+        return data.tolist()
     if objective in [BINARY_LOG]:
-        classone_probs = data
+        classone_probs = data.item()
         classzero_probs = 1.0 - classone_probs
         return [classzero_probs, classone_probs]
     return np.nan
@@ -226,17 +220,17 @@ def _get_probabilities(objective, data):
 
 def _get_raw_score(objective, data):
     if objective in [MULTI_SOFTPROB]:
-        return max(data)
+        return max(data).item()
     if objective in [BINARY_LOGRAW, BINARY_HINGE, BINARY_LOG, MULTI_SOFTMAX]:
-        return data
+        return data.item()
     return np.nan
 
 
 def _get_raw_scores(objective, data):
     if objective in [MULTI_SOFTPROB]:
-        return list(data)
+        return data.tolist()
     if objective in [BINARY_LOGRAW, BINARY_HINGE, BINARY_LOG, MULTI_SOFTMAX]:
-        classone_probs = data
+        classone_probs = data.item()
         classzero_probs = 1.0 - classone_probs
         return [classzero_probs, classone_probs]
     return np.nan
@@ -245,8 +239,8 @@ def _get_raw_scores(objective, data):
 def get_selected_content(data, keys, objective, num_class=""):
     """Build the selected content dictionary based on the objective function and requested content.
 
-    :param data: output of xgboost content (list)
-    :param keys: strings denoting selected keys (list)
+    :param data: output of xgboost content (list of numpy objects)
+    :param keys: strings denoting selected keys (list of str)
     :param objective: objective xgboost training function (str)
     :param num_class: number of classes for multiclass classification (str, optional)
     :return: selected content (list of dict)
@@ -277,7 +271,7 @@ def get_selected_content(data, keys, objective, num_class=""):
         if RAW_SCORES in valid_selected_keys:
             output[RAW_SCORES] = _get_raw_scores(objective, prediction)
         if PREDICTED_SCORE in valid_selected_keys:
-            output[PREDICTED_SCORE] = prediction
+            output[PREDICTED_SCORE] = prediction.item()
         if invalid_selected_keys:
             for invalid_selected_key in invalid_selected_keys:
                 output[invalid_selected_key] = np.nan
@@ -292,12 +286,24 @@ def _encode_selected_content_csv(content, ordered_keys_list):
     :param ordered_keys_list: list of selected content keys
     :return: csv string
     """
-    sio = io.StringIO()
-    cw = csv.writer(sio)
-    for row in content:
-        csv_row = [row[key] for key in ordered_keys_list]
-        cw.writerow(csv_row)
-    return sio.getvalue()
+    def _generate_single_csv_line_selected_content(content, ordered_keys_list):
+        """Generate a single csv line response for selectable inference content
+
+        :param content: list of selected content
+        :param ordered_keys_list: list of selected content keys
+        :return: a generate that produces a csv line for each datapoint
+        """
+        for single_prediction in content:
+            values = []
+            for key in ordered_keys_list:
+                if isinstance(single_prediction[key], list):
+                    value = '"{}"'.format(single_prediction[key])
+                else:
+                    value = str(single_prediction[key])
+                values.append(value)
+            yield ','.join(values)
+
+    return '\n'.join(_generate_single_csv_line_selected_content(content, ordered_keys_list))
 
 
 def _write_record(record, key, value):
@@ -327,36 +333,21 @@ def encode_selected_content(content, keys, accept):
     """Encodes the selected content and keys based on the given accept type.
 
     :param content: list of selected content. See example below.
-                    [{'predicted_label': 1, 'probabilities': [0.4, 0.6]},
-                     {'predicted_label': 0, 'probabilities': [0.9, 0.1]}]
+                    [{"predicted_label": 1, "probabilities": [0.4, 0.6]},
+                     {"predicted_label": 0, "probabilities": [0.9, 0.1]}]
     :param keys: list of strings denoting selected content
     :param accept: accept mime-type
     :return: encoded content
     """
     if accept == "application/json":
-        return json.dumps(str({"predictions": content}))
+        return json.dumps({"predictions": content})
     if accept == "application/jsonlines":
-        return encoder_jsonlines_from_json(str({"predictions": content}))
+        return json_to_jsonlines({"predictions": content})
     if accept == "application/x-recordio-protobuf":
         return _encode_selected_content_recordio_protobuf(content)
     if accept == "text/csv":
-        return _encode_selected_content_csv(content, keys)
+        csv_response = _encode_selected_content_csv(content, keys)
+        if os.getenv(SAGEMAKER_BATCH):
+            return csv_response + '\n'
+        return csv_response
     raise RuntimeError("Cannot encode selected content into accept type '{}'.".format(accept))
-
-
-def encoder_jsonlines_from_json(json_data):
-    """Utility function to convert a json response to a jsonlines response.
-
-    :param json_data: python dictionary or json string
-    :return: jsonlines encoded response
-    """
-    resp_dict = json.loads(str(json_data).replace("\'", "\""))
-
-    if len(resp_dict.keys()) != 1:
-        raise ValueError("JSON response is not compatible for conversion to jsonlines.")
-
-    bio = io.BytesIO()
-    for value in resp_dict.values():
-        for entry in value:
-            bio.write(bytes(json.dumps(entry) + "\n", "UTF-8"))
-    return bio.getvalue()

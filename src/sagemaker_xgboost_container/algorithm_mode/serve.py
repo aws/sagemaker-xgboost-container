@@ -27,7 +27,6 @@ from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
 
 
-SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
 logging = integration.setup_main_logger(__name__)
 
 
@@ -218,7 +217,7 @@ def invocations():
 
         return _handle_selectable_inference_response(preds, accept)
 
-    if SAGEMAKER_BATCH:
+    if os.getenv(sm_env_constants.SAGEMAKER_BATCH):
         return_data = "\n".join(map(str, preds.tolist())) + '\n'
     else:
         return_data = ",".join(map(str, preds.tolist()))

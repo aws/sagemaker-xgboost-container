@@ -13,6 +13,8 @@
 from __future__ import absolute_import
 
 import csv
+import io
+import json
 import logging
 import os
 import tempfile
@@ -105,6 +107,24 @@ _dmatrix_decoders_map = {
     xgb_content_types.LIBSVM: libsvm_to_dmatrix,
     xgb_content_types.X_LIBSVM: libsvm_to_dmatrix,
     xgb_content_types.X_RECORDIO_PROTOBUF: recordio_protobuf_to_dmatrix}
+
+
+def json_to_jsonlines(json_data):
+    """Utility function to convert a json response to a jsonlines response.
+
+    :param json_data: python dictionary or json string
+    :return: jsonlines encoded response
+    """
+    resp_dict = json_data if isinstance(json_data, dict) else json.loads(json_data)
+
+    if len(resp_dict.keys()) != 1:
+        raise ValueError("JSON response is not compatible for conversion to jsonlines.")
+
+    bio = io.BytesIO()
+    for value in resp_dict.values():
+        for entry in value:
+            bio.write(bytes(json.dumps(entry) + "\n", "UTF-8"))
+    return bio.getvalue()
 
 
 def decode(obj, content_type):

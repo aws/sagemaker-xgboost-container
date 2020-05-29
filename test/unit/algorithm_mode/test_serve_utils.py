@@ -84,13 +84,12 @@ def test_predict_valid_content_type(correct_content_type):
     serve_utils.predict(mock_booster, serve_utils.PKL_FORMAT, mock_dmatrix, correct_content_type)
 
 
-TEST_DATA = [0.6, 0.1]
+TEST_DATA = np.array([0.6, 0.1])
 TEST_KEYS = [serve_utils.PREDICTED_LABEL, serve_utils.PROBABILITIES]
 TEST_CONTENT = [
     {serve_utils.PREDICTED_LABEL: 1, serve_utils.PROBABILITIES: [0.4, 0.6]},
     {serve_utils.PREDICTED_LABEL: 0, serve_utils.PROBABILITIES: [0.9, 0.1]}
 ]
-TEST_JSON = json.dumps({'predictions': TEST_CONTENT})
 
 TEST_KEYS_BINARY_LOG = serve_utils.VALID_OBJECTIVES[serve_utils.BINARY_LOG]
 TEST_CONTENT_BINARY_LOG = [
@@ -100,7 +99,7 @@ TEST_CONTENT_BINARY_LOG = [
      serve_utils.PROBABILITIES: [0.9, 0.1], serve_utils.RAW_SCORE: 0.1, serve_utils.RAW_SCORES: [0.9, 0.1]}
 ]
 
-TEST_DATA_REG_LOG = [0.5, -7.0]
+TEST_DATA_REG_LOG = np.array([0.5, -7.0])
 TEST_KEYS_REG_LOG = serve_utils.VALID_OBJECTIVES[serve_utils.REG_LOG]
 TEST_CONTENT_REG_LOG = [{"predicted_score": 0.5}, {"predicted_score": -7.0}]
 
@@ -136,7 +135,7 @@ def test_get_selected_content_all_keys(test_data, selected_keys, objective, expe
 
 
 def test_get_selected_content_nan():
-    content = serve_utils.get_selected_content([0.6, 32],
+    content = serve_utils.get_selected_content(np.array([0.6, 32]),
                                                ["predicted_score", "predicted_label", "foo"],
                                                serve_utils.REG_LOG)
     assert content == [{"predicted_score": 0.6, "predicted_label": np.nan, "foo": np.nan},
@@ -161,10 +160,10 @@ def test_get_labels_nan():
 
 
 @pytest.mark.parametrize('objective, data, expected_predicted_label', [
-    (serve_utils.BINARY_HINGE, 0, 0),
-    (serve_utils.BINARY_LOG, 0.6, 1),
-    (serve_utils.BINARY_LOGRAW, -7.6, 0),
-    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], 1),
+    (serve_utils.BINARY_HINGE, np.int64(0), 0),
+    (serve_utils.BINARY_LOG, np.float64(0.6), 1),
+    (serve_utils.BINARY_LOGRAW, np.float64(-7.6), 0),
+    (serve_utils.MULTI_SOFTPROB, np.array([0.1, 0.5, 0.4]), 1),
 ])
 def test_get_predicted_label(objective, data, expected_predicted_label):
     assert serve_utils._get_predicted_label(objective, data) == expected_predicted_label
@@ -175,8 +174,8 @@ def test_get_predicted_label_nan():
 
 
 @pytest.mark.parametrize('objective, data, expected_probability', [
-    (serve_utils.BINARY_LOG, 0.6, 0.6),
-    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], 0.5)
+    (serve_utils.BINARY_LOG, np.float64(0.6), 0.6),
+    (serve_utils.MULTI_SOFTPROB, np.array([0.1, 0.5, 0.4]), 0.5)
 ])
 def test_get_probability(objective, data, expected_probability):
     assert serve_utils._get_probability(objective, data) == expected_probability
@@ -187,8 +186,8 @@ def test_get_probability_nan():
 
 
 @pytest.mark.parametrize('objective, data, expected_probabilities', [
-    (serve_utils.BINARY_LOG, 0.6, [0.4, 0.6]),
-    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], [0.1, 0.5, 0.4])
+    (serve_utils.BINARY_LOG, np.float64(0.6), [0.4, 0.6]),
+    (serve_utils.MULTI_SOFTPROB, np.array([0.1, 0.5, 0.4]), [0.1, 0.5, 0.4])
 ])
 def test_get_probabilities(objective, data, expected_probabilities):
     assert serve_utils._get_probabilities(objective, data) == expected_probabilities
@@ -199,9 +198,9 @@ def test_get_probabilities_nan():
 
 
 @pytest.mark.parametrize('objective, data, expected_raw_score', [
-    (serve_utils.BINARY_LOG, 0.6, 0.6),
-    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], 0.5),
-    (serve_utils.BINARY_LOGRAW, -7.6, -7.6)
+    (serve_utils.BINARY_LOG, np.float64(0.6), 0.6),
+    (serve_utils.MULTI_SOFTPROB, np.array([0.1, 0.5, 0.4]), 0.5),
+    (serve_utils.BINARY_LOGRAW, np.float64(-7.6), -7.6)
 ])
 def test_get_raw_score(objective, data, expected_raw_score):
     assert serve_utils._get_raw_score(objective, data) == expected_raw_score
@@ -212,9 +211,9 @@ def est_get_raw_score_nan():
 
 
 @pytest.mark.parametrize('objective, data, expected_raw_scores', [
-    (serve_utils.BINARY_LOG, 0.6, [0.4, 0.6]),
-    (serve_utils.MULTI_SOFTPROB, [0.1, 0.5, 0.4], [0.1, 0.5, 0.4]),
-    (serve_utils.BINARY_HINGE, 1, [0, 1])
+    (serve_utils.BINARY_LOG, np.float64(0.6), [0.4, 0.6]),
+    (serve_utils.MULTI_SOFTPROB, np.array([0.1, 0.5, 0.4]), [0.1, 0.5, 0.4]),
+    (serve_utils.BINARY_HINGE, np.int64(1), [0, 1])
 ])
 def test_get_raw_scores(objective, data, expected_raw_scores):
     assert serve_utils._get_raw_scores(objective, data) == expected_raw_scores
@@ -225,13 +224,13 @@ def test_get_raw_scores_nan():
 
 
 def test_encode_selected_content_json():
-    expected_json = json.dumps(str({"predictions": TEST_CONTENT}))
+    expected_json = json.dumps({"predictions": TEST_CONTENT})
     assert serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS, "application/json") == expected_json
 
 
 def test_encode_selected_content_jsonlines():
-    expected_jsonlines = b'{\"predicted_label\": 1, \"probabilities\": [0.4, 0.6]}\n' \
-                         b'{\"predicted_label\": 0, \"probabilities": [0.9, 0.1]}\n'
+    expected_jsonlines = b'{"predicted_label": 1, "probabilities": [0.4, 0.6]}\n' \
+                         b'{"predicted_label": 0, "probabilities": [0.9, 0.1]}\n'
     assert serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS,
                                                "application/jsonlines") == expected_jsonlines
 
@@ -253,25 +252,10 @@ def test_encode_selected_content_protobuf():
 
 
 def test_encode_selected_content_csv():
-    expected_csv = '1,"[0.4, 0.6]"\r\n0,"[0.9, 0.1]"\r\n'
+    expected_csv = '1,"[0.4, 0.6]"\n0,"[0.9, 0.1]"'
     assert serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS, "text/csv") == expected_csv
 
 
 def test_encode_selected_content_error():
     with pytest.raises(RuntimeError):
         serve_utils.encode_selected_content(TEST_CONTENT, TEST_KEYS, "text/libsvm")
-
-
-def test_encoder_jsonlines_from_json():
-    json_response = json.dumps({'predictions': TEST_CONTENT})
-    expected_jsonlines = b'{\"predicted_label\": 1, \"probabilities\": [0.4, 0.6]}\n' \
-                         b'{\"predicted_label\": 0, \"probabilities": [0.9, 0.1]}\n'
-
-    jsonlines_response = serve_utils.encoder_jsonlines_from_json(json_response)
-    assert expected_jsonlines == jsonlines_response
-
-
-def test_encoder_jsonlines_from_json_error():
-    bad_json_response = json.dumps({'predictions': [], 'metadata': []})
-    with pytest.raises(ValueError):
-        serve_utils.encoder_jsonlines_from_json(bad_json_response)
