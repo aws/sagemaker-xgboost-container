@@ -254,29 +254,33 @@ def get_selected_content(data, keys, objective, num_class=""):
     if objective not in VALID_OBJECTIVES:
         raise ValueError("Objective `{}` unsupported for selectable inference content.".format(objective))
 
-    if not set(keys).issubset(VALID_OBJECTIVES[objective]):
+    valid_selected_keys = set(keys).intersection(VALID_OBJECTIVES[objective])
+    invalid_selected_keys = set(keys).difference(VALID_OBJECTIVES[objective])
+    if invalid_selected_keys:
         logging.warning("Selected key(s) {} incompatible for objective '{}'. "
                         "Please use list of compatible selectable inference content: {}"
-                        .format(set(keys).difference(VALID_OBJECTIVES[objective]), objective,
-                                VALID_OBJECTIVES[objective]))
+                        .format(invalid_selected_keys, objective, VALID_OBJECTIVES[objective]))
 
     content = []
     for prediction in data:
         output = {}
-        if PREDICTED_LABEL in keys:
+        if PREDICTED_LABEL in valid_selected_keys:
             output[PREDICTED_LABEL] = _get_predicted_label(objective, prediction)
-        if LABELS in keys:
+        if LABELS in valid_selected_keys:
             output[LABELS] = _get_labels(objective, num_class=num_class)
-        if PROBABILITY in keys:
+        if PROBABILITY in valid_selected_keys:
             output[PROBABILITY] = _get_probability(objective, prediction)
-        if PROBABILITIES in keys:
+        if PROBABILITIES in valid_selected_keys:
             output[PROBABILITIES] = _get_probabilities(objective, prediction)
-        if RAW_SCORE in keys:
+        if RAW_SCORE in valid_selected_keys:
             output[RAW_SCORE] = _get_raw_score(objective, prediction)
-        if RAW_SCORES in keys:
+        if RAW_SCORES in valid_selected_keys:
             output[RAW_SCORES] = _get_raw_scores(objective, prediction)
-        if PREDICTED_SCORE in keys:
+        if PREDICTED_SCORE in valid_selected_keys:
             output[PREDICTED_SCORE] = prediction
+        if invalid_selected_keys:
+            for invalid_selected_key in invalid_selected_keys:
+                output[invalid_selected_key] = np.nan
         content.append(output)
     return content
 

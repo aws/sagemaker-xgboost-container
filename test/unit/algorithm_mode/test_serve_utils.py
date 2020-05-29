@@ -136,7 +136,11 @@ def test_get_selected_content_all_keys(test_data, selected_keys, objective, expe
 
 
 def test_get_selected_content_nan():
-    pass
+    content = serve_utils.get_selected_content([0.6, 32],
+                                               ["predicted_score", "predicted_label", "foo"],
+                                               serve_utils.REG_LOG)
+    assert content == [{"predicted_score": 0.6, "predicted_label": np.nan, "foo": np.nan},
+                       {"predicted_score": 32, "predicted_label": np.nan, "foo": np.nan}]
 
 
 def test_get_selected_content_invalid_objective():
