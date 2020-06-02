@@ -23,7 +23,7 @@ import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
 from sagemaker_xgboost_container.algorithm_mode import integration
-from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_OUTPUT, SAGEMAKER_BATCH
+from sagemaker_xgboost_container.constants import sm_env_constants
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
 from sagemaker_xgboost_container.constants.xgb_constants import (BINARY_HINGE, BINARY_LOG, BINARY_LOGRAW,
                                                                  MULTI_SOFTMAX, MULTI_SOFTPROB, REG_GAMMA,
@@ -35,6 +35,9 @@ logging = integration.setup_main_logger(__name__)
 
 PKL_FORMAT = 'pkl_format'
 XGB_FORMAT = 'xgb_format'
+
+SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
+SAGEMAKER_INFERENCE_OUTPUT = os.getenv(sm_env_constants.SAGEMAKER_INFERENCE_OUTPUT)
 
 # classification selectable inference keys
 PREDICTED_LABEL = "predicted_label"
@@ -166,7 +169,7 @@ def predict(booster, model_format, dtest, input_content_type):
 
 
 def is_selectable_inference_output():
-    return SAGEMAKER_INFERENCE_OUTPUT in os.environ
+    return sm_env_constants.SAGEMAKER_INFERENCE_OUTPUT in os.environ
 
 
 def get_selected_output_keys():
@@ -175,13 +178,16 @@ def get_selected_output_keys():
     :return: selected output content keys (list of str)
     """
     if is_selectable_inference_output():
-        return os.getenv(SAGEMAKER_INFERENCE_OUTPUT).replace(' ', '').lower().split(',')
+        return SAGEMAKER_INFERENCE_OUTPUT.replace(' ', '').lower().split(',')
     raise RuntimeError("'SAGEMAKER_INFERENCE_OUTPUT' environment variable is not present. "
                        "Selectable inference content is not enabled.")
 
 
 def _get_labels(objective, num_class=""):
     """Get the labels for a classification problem.
+
+    Based on the implementation in the xgboost sklearn API
+    https://github.com/dmlc/xgboost/blob/release_1.0.0/python-package/xgboost/sklearn.py#L844-L902.
 
     :param objective: xgboost objective function (str)
     :param num_class: number of classes in multiclass (str, optional)
@@ -215,10 +221,9 @@ def _get_predicted_label(objective, raw_prediction):
 def _get_probability(objective, raw_prediction):
     """Get the probability score for a classification problem.
 
-    A probability score is a value between 0.0 and 1.0. In binary classification,
-    this will return the probability score of the class being predicted as '1.0'
-    or '1'. In multiclass classification, this will return the probability score
-    of the winning class.
+    In binary classification, this will return the probability score of the class
+    being predicted as '1.0' or '1'. In multiclass classification, this will return
+    the probability score of the winning class.
 
     :param objective: xgboost objective function (str)
     :param raw_prediction: xgboost predict output (numpy array or numpy primitive)
@@ -233,8 +238,6 @@ def _get_probability(objective, raw_prediction):
 
 def _get_probabilities(objective, raw_prediction):
     """Get the probability scores for all classes for a classification problem.
-
-    A probability score is a value between 0.0 and 1.0.
 
     :param objective: xgboost objective function (str)
     :param raw_prediction: xgboost predict output (numpy array or numpy primitive)
@@ -350,7 +353,7 @@ def get_selected_predictions(raw_predictions, selected_keys, objective, num_clas
 
 
 def _encode_selected_predictions_csv(predictions, ordered_keys_list):
-    """Encode predictions is csv format.
+    """Encode predictions in csv format.
 
     For each prediction, the order of the content is determined by 'ordered_keys_list'.
 
@@ -406,7 +409,7 @@ def _encode_selected_predictions_recordio_protobuf(predictions):
 
 
 def encode_selected_predictions(predictions, selected_content_keys, accept):
-    """Encodes the selected predictions and keys based on the given accept type.
+    """Encode the selected predictions and keys based on the given accept type.
 
     :param predictions: list of selected predictions (list of dict).
                         Output of serve_utils.get_selected_predictions(...)
@@ -425,7 +428,7 @@ def encode_selected_predictions(predictions, selected_content_keys, accept):
         return _encode_selected_predictions_recordio_protobuf(predictions)
     if accept == "text/csv":
         csv_response = _encode_selected_predictions_csv(predictions, selected_content_keys)
-        if os.getenv(SAGEMAKER_BATCH):
+        if SAGEMAKER_BATCH:
             return csv_response + '\n'
         return csv_response
     raise RuntimeError("Cannot encode selected predictions into accept type '{}'.".format(accept))

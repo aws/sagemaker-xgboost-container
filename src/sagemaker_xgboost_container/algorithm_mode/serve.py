@@ -27,6 +27,7 @@ from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
 
 
+SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
 logging = integration.setup_main_logger(__name__)
 
 
@@ -180,17 +181,14 @@ def _handle_selectable_inference_response(predictions, accept):
     :return: flask response with encoded predictions
     """
     try:
-        # get objective function and content keys needed to make output
         config = ScoringService.get_config_json()
         objective = config['learner']['objective']['name']
         num_class = config['learner']['learner_model_param'].get('num_class', '')
         selected_content_keys = serve_utils.get_selected_output_keys()
 
-        # get output selected content based on selected keys and objective
         selected_content = serve_utils.get_selected_predictions(predictions, selected_content_keys, objective,
                                                                 num_class=num_class)
 
-        # encode response in requested accept type
         response = serve_utils.encode_selected_predictions(selected_content, selected_content_keys, accept)
     except Exception as e:
         logging.exception(e)
@@ -232,7 +230,7 @@ def invocations():
 
         return _handle_selectable_inference_response(preds, accept)
 
-    if os.getenv(sm_env_constants.SAGEMAKER_BATCH):
+    if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'
     else:
         return_data = ",".join(map(str, preds.tolist()))

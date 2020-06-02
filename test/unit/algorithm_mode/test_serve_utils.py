@@ -108,16 +108,16 @@ def test_is_selectable_inference_response_false():
     assert not serve_utils.is_selectable_inference_output()
 
 
-def test_is_selectable_inference_response_true():
-    os.environ['SAGEMAKER_INFERENCE_OUTPUT'] = 'predicted_label'
+@pytest.fixture(scope='session')
+def test_is_selectable_inference_response_true(monkeypatch):
+    monkeypatch.setenv('SAGEMAKER_INFERENCE_OUTPUT', serve_utils.PREDICTED_LABEL)
     assert serve_utils.is_selectable_inference_output()
-    del os.environ['SAGEMAKER_INFERENCE_OUTPUT']
 
 
-def test_get_selected_content_keys():
-    os.environ['SAGEMAKER_INFERENCE_OUTPUT'] = 'predicted_label'
-    assert serve_utils.get_selected_output_keys() == ['predicted_label']
-    del os.environ['SAGEMAKER_INFERENCE_OUTPUT']
+@pytest.fixture(scope='session')
+def test_get_selected_content_keys(monkeypatch):
+    monkeypatch.setenv('SAGEMAKER_INFERENCE_OUTPUT', serve_utils.PREDICTED_LABEL)
+    assert serve_utils.get_selected_output_keys() == [serve_utils.PREDICTED_LABEL]
 
 
 def test_get_selected_content_keys_error():
@@ -206,7 +206,7 @@ def test_get_raw_score(objective, predictions, expected_raw_score):
     assert serve_utils._get_raw_score(objective, predictions) == expected_raw_score
 
 
-def est_get_raw_score_nan():
+def test_get_raw_score_nan():
     assert np.isnan(serve_utils._get_probability(serve_utils.REG_LOG, 0))
 
 
