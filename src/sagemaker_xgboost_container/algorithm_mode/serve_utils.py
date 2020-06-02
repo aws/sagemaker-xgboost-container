@@ -165,22 +165,28 @@ def predict(booster, model_format, dtest, input_content_type):
                            validate_features=False)
 
 
-def is_selectable_inference_response():
+def is_selectable_inference_output():
     return SAGEMAKER_INFERENCE_OUTPUT in os.environ
 
 
-def get_selected_content_keys():
-    """Get the selected content keys from the `SAGEMAKER_INFERENCE_OUTPUT` env var.
+def get_selected_output_keys():
+    """Get the selected output content keys from the `SAGEMAKER_INFERENCE_OUTPUT` env var.
 
-    :return: selected content keys (list of str)
+    :return: selected output content keys (list of str)
     """
-    if is_selectable_inference_response():
+    if is_selectable_inference_output():
         return os.getenv(SAGEMAKER_INFERENCE_OUTPUT).replace(' ', '').lower().split(',')
     raise RuntimeError("'SAGEMAKER_INFERENCE_OUTPUT' environment variable is not present. "
                        "Selectable inference content is not enabled.")
 
 
 def _get_labels(objective, num_class=""):
+    """Get the labels for a classification problem.
+
+    :param objective: xgboost objective function (str)
+    :param num_class: number of classes in multiclass (str, optional)
+    :return: classes (list of integers) or np.nan
+    """
     if "binary:" in objective:
         return [0, 1]
     if "multi:" in objective and num_class:
@@ -188,112 +194,178 @@ def _get_labels(objective, num_class=""):
     return np.nan
 
 
-def _get_predicted_label(objective, data):
+def _get_predicted_label(objective, raw_prediction):
+    """Get the predicted label for a classification problem.
+
+    :param objective: xgboost objective function (str)
+    :param raw_prediction: xgboost predict output (numpy array or numpy primitive)
+    :return: predicted label (int or float) or np.nan
+    """
     if objective in [BINARY_HINGE, MULTI_SOFTMAX]:
-        return data.item()
+        return raw_prediction.item()
     if objective in [BINARY_LOG]:
-        return int(data > 0.5)
+        return int(raw_prediction > 0.5)
     if objective in [BINARY_LOGRAW]:
-        return int(data > 0)
+        return int(raw_prediction > 0)
     if objective in [MULTI_SOFTPROB]:
-        return np.argmax(data).item()
+        return np.argmax(raw_prediction).item()
     return np.nan
 
 
-def _get_probability(objective, data):
+def _get_probability(objective, raw_prediction):
+    """Get the probability score for a classification problem.
+
+    A probability score is a value between 0.0 and 1.0. In binary classification,
+    this will return the probability score of the class being predicted as '1.0'
+    or '1'. In multiclass classification, this will return the probability score
+    of the winning class.
+
+    :param objective: xgboost objective function (str)
+    :param raw_prediction: xgboost predict output (numpy array or numpy primitive)
+    :return: probability score (float) or np.nan
+    """
     if objective in [MULTI_SOFTPROB]:
-        return max(data).item()
+        return max(raw_prediction).item()
     if objective in [BINARY_LOG]:
-        return data.item()
+        return raw_prediction.item()
     return np.nan
 
 
-def _get_probabilities(objective, data):
+def _get_probabilities(objective, raw_prediction):
+    """Get the probability scores for all classes for a classification problem.
+
+    A probability score is a value between 0.0 and 1.0.
+
+    :param objective: xgboost objective function (str)
+    :param raw_prediction: xgboost predict output (numpy array or numpy primitive)
+    :return: probability scores (list of floats) or np.nan
+    """
     if objective in [MULTI_SOFTPROB]:
-        return data.tolist()
+        return raw_prediction.tolist()
     if objective in [BINARY_LOG]:
-        classone_probs = data.item()
+        classone_probs = raw_prediction.item()
         classzero_probs = 1.0 - classone_probs
         return [classzero_probs, classone_probs]
     return np.nan
 
 
-def _get_raw_score(objective, data):
+def _get_raw_score(objective, raw_prediction):
+    """Get the raw score for a classification problem.
+
+    A raw score is defined as any numeric value. The higher the value, the more likely
+    the class is to be predicted as the "predicted_label". In binary classification,
+    this represents the likelihood of a class being predicted as '1.0' or '1' In
+    multiclass, it represents the likelihood of the winning class.
+
+    Note that a 'probability' can be considered as a 'raw score', but a 'raw score' may
+    not necessarily be a 'probability'.
+
+    :param objective: xgboost objective function (str)
+    :param raw_prediction: xgboost predict output (numpy array or numpy primitive)
+    :return: raw score (float) or np.nan
+    """
     if objective in [MULTI_SOFTPROB]:
-        return max(data).item()
+        return max(raw_prediction).item()
     if objective in [BINARY_LOGRAW, BINARY_HINGE, BINARY_LOG, MULTI_SOFTMAX]:
-        return data.item()
+        return raw_prediction.item()
     return np.nan
 
 
-def _get_raw_scores(objective, data):
+def _get_raw_scores(objective, raw_prediction):
+    """Get the raw scores for all classes for a classification problem.
+
+    A raw score is defined as any numeric value. The higher the value, the more likely
+    the class is to be predicted as the "predicted_label". In binary classification,
+    this represents the likelihood of a class being predicted as '1.0' or '1' In
+    multiclass, it represents the likelihood of the winning class.
+
+    Note that a 'probability' can be considered as a 'raw score', but a 'raw score' may
+    not necessarily be a 'probability'.
+
+    :param objective: xgboost objective function (str)
+    :param raw_prediction: xgboost predict output (numpy array or numpy primitive)
+    :return: raw scores (list of floats) or np.nan
+    """
     if objective in [MULTI_SOFTPROB]:
-        return data.tolist()
+        return raw_prediction.tolist()
     if objective in [BINARY_LOGRAW, BINARY_HINGE, BINARY_LOG, MULTI_SOFTMAX]:
-        classone_probs = data.item()
+        classone_probs = raw_prediction.item()
         classzero_probs = 1.0 - classone_probs
         return [classzero_probs, classone_probs]
     return np.nan
 
 
-def get_selected_content(data, keys, objective, num_class=""):
-    """Build the selected content dictionary based on the objective function and requested content.
+def get_selected_predictions(raw_predictions, selected_keys, objective, num_class=""):
+    """Build the selected prediction dictionary based on the objective function and
+    requested information.
 
-    :param data: output of xgboost content (list of numpy objects)
-    :param keys: strings denoting selected keys (list of str)
+    'raw_predictions' is the output of ScoringService.predict(...) and will change
+    depending on the objective xgboost training function used. For each prediction,
+    a new dictionary will be built with the selected content requested in 'selected_keys'.
+
+    VALID_OBJECTIVES contains a mapping of objective functions to valid selected keys.
+    For example, a booster trained with a "reg:linear" objective function does not output
+    'predicted_label' or 'probabilities' (classification content). Invalid keys will be included
+    in the response with an np.nan value.
+
+    :param raw_predictions: output of xgboost predict (list of numpy objects)
+    :param selected_keys: strings denoting selected keys (list of str)
     :param objective: objective xgboost training function (str)
     :param num_class: number of classes for multiclass classification (str, optional)
-    :return: selected content (list of dict)
+    :return: selected prediction (list of dict)
     """
     if objective not in VALID_OBJECTIVES:
-        raise ValueError("Objective `{}` unsupported for selectable inference content.".format(objective))
+        raise ValueError("Objective `{}` unsupported for selectable inference predictions."
+                         .format(objective))
 
-    valid_selected_keys = set(keys).intersection(VALID_OBJECTIVES[objective])
-    invalid_selected_keys = set(keys).difference(VALID_OBJECTIVES[objective])
+    valid_selected_keys = set(selected_keys).intersection(VALID_OBJECTIVES[objective])
+    invalid_selected_keys = set(selected_keys).difference(VALID_OBJECTIVES[objective])
     if invalid_selected_keys:
         logging.warning("Selected key(s) {} incompatible for objective '{}'. "
-                        "Please use list of compatible selectable inference content: {}"
+                        "Please use list of compatible selectable inference predictions: {}"
                         .format(invalid_selected_keys, objective, VALID_OBJECTIVES[objective]))
 
-    content = []
-    for prediction in data:
+    predictions = []
+    for raw_prediction in raw_predictions:
         output = {}
         if PREDICTED_LABEL in valid_selected_keys:
-            output[PREDICTED_LABEL] = _get_predicted_label(objective, prediction)
+            output[PREDICTED_LABEL] = _get_predicted_label(objective, raw_prediction)
         if LABELS in valid_selected_keys:
             output[LABELS] = _get_labels(objective, num_class=num_class)
         if PROBABILITY in valid_selected_keys:
-            output[PROBABILITY] = _get_probability(objective, prediction)
+            output[PROBABILITY] = _get_probability(objective, raw_prediction)
         if PROBABILITIES in valid_selected_keys:
-            output[PROBABILITIES] = _get_probabilities(objective, prediction)
+            output[PROBABILITIES] = _get_probabilities(objective, raw_prediction)
         if RAW_SCORE in valid_selected_keys:
-            output[RAW_SCORE] = _get_raw_score(objective, prediction)
+            output[RAW_SCORE] = _get_raw_score(objective, raw_prediction)
         if RAW_SCORES in valid_selected_keys:
-            output[RAW_SCORES] = _get_raw_scores(objective, prediction)
+            output[RAW_SCORES] = _get_raw_scores(objective, raw_prediction)
         if PREDICTED_SCORE in valid_selected_keys:
-            output[PREDICTED_SCORE] = prediction.item()
+            output[PREDICTED_SCORE] = raw_prediction.item()
         if invalid_selected_keys:
             for invalid_selected_key in invalid_selected_keys:
                 output[invalid_selected_key] = np.nan
-        content.append(output)
-    return content
+        predictions.append(output)
+    return predictions
 
 
-def _encode_selected_content_csv(content, ordered_keys_list):
-    """Encode content is csv format with the ordered_keys_list as the header.
+def _encode_selected_predictions_csv(predictions, ordered_keys_list):
+    """Encode predictions is csv format.
 
-    :param content: list of selected content
-    :param ordered_keys_list: list of selected content keys
-    :return: csv string
+    For each prediction, the order of the content is determined by 'ordered_keys_list'.
+
+    :param predictions: output of serve_utils.get_selected_predictions(...) (list of dict)
+    :param ordered_keys_list: list of selected content keys (list of str)
+    :return: predictions in csv response format (str)
     """
-    def _generate_single_csv_line_selected_content(content, ordered_keys_list):
-        """Generate a single csv line response for selectable inference content
+    def _generate_single_csv_line_selected_prediction(predictions, ordered_keys_list):
+        """Generate a single csv line response for selectable inference predictions
 
-        :param content: list of selected content
-        :param ordered_keys_list: list of selected content keys
-        :return: a generate that produces a csv line for each datapoint
+        :param predictions: output of serve_utils.get_selected_predictions(...) (list of dict)
+        :param ordered_keys_list: list of selected content keys (list of str)
+        :return: yields a single csv row for each prediction (generator)
         """
-        for single_prediction in content:
+        for single_prediction in predictions:
             values = []
             for key in ordered_keys_list:
                 if isinstance(single_prediction[key], list):
@@ -303,23 +375,27 @@ def _encode_selected_content_csv(content, ordered_keys_list):
                 values.append(value)
             yield ','.join(values)
 
-    return '\n'.join(_generate_single_csv_line_selected_content(content, ordered_keys_list))
+    return '\n'.join(_generate_single_csv_line_selected_prediction(predictions, ordered_keys_list))
 
 
 def _write_record(record, key, value):
     record.label[key].float32_tensor.values.extend(value)
 
 
-def _encode_selected_content_recordio_protobuf(content):
-    """Encode list of dictionaries into recordio protobuf format. Dictionary keys are "label" keys.
+def _encode_selected_predictions_recordio_protobuf(predictions):
+    """Encode predictions in recordio-protobuf format.
 
-    :param content: list of dictionaries
-    :return: recordio bytes
+    For each prediction, a new record is created. The content is populated under the "label" field
+    of a record where the keys are derived from the selected content keys. Every value is encoded
+    to a float32 tensor.
+
+    :param predictions: output of serve_utils.get_selected_predictions(...) (list of dict)
+    :return: predictions in recordio-protobuf response format (bytes)
     """
     record_bio = io.BytesIO()
     recordio_bio = io.BytesIO()
     record = Record()
-    for item in content:
+    for item in predictions:
         for key in item.keys():
             value = item[key] if type(item[key]) is list else [item[key]]
             _write_record(record, key, value)
@@ -329,25 +405,27 @@ def _encode_selected_content_recordio_protobuf(content):
     return recordio_bio.getvalue()
 
 
-def encode_selected_content(content, keys, accept):
-    """Encodes the selected content and keys based on the given accept type.
+def encode_selected_predictions(predictions, selected_content_keys, accept):
+    """Encodes the selected predictions and keys based on the given accept type.
 
-    :param content: list of selected content. See example below.
-                    [{"predicted_label": 1, "probabilities": [0.4, 0.6]},
-                     {"predicted_label": 0, "probabilities": [0.9, 0.1]}]
-    :param keys: list of strings denoting selected content
-    :param accept: accept mime-type
-    :return: encoded content
+    :param predictions: list of selected predictions (list of dict).
+                        Output of serve_utils.get_selected_predictions(...)
+                        See example below.
+                        [{"predicted_label": 1, "probabilities": [0.4, 0.6]},
+                         {"predicted_label": 0, "probabilities": [0.9, 0.1]}]
+    :param selected_content_keys: list of selected content keys (list of str)
+    :param accept: accept mime-type (str)
+    :return: encoded content in accept
     """
     if accept == "application/json":
-        return json.dumps({"predictions": content})
+        return json.dumps({"predictions": predictions})
     if accept == "application/jsonlines":
-        return json_to_jsonlines({"predictions": content})
+        return json_to_jsonlines({"predictions": predictions})
     if accept == "application/x-recordio-protobuf":
-        return _encode_selected_content_recordio_protobuf(content)
+        return _encode_selected_predictions_recordio_protobuf(predictions)
     if accept == "text/csv":
-        csv_response = _encode_selected_content_csv(content, keys)
+        csv_response = _encode_selected_predictions_csv(predictions, selected_content_keys)
         if os.getenv(SAGEMAKER_BATCH):
             return csv_response + '\n'
         return csv_response
-    raise RuntimeError("Cannot encode selected content into accept type '{}'.".format(accept))
+    raise RuntimeError("Cannot encode selected predictions into accept type '{}'.".format(accept))

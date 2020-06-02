@@ -85,7 +85,7 @@ class ScoringService(object):
     def get_config_json(cls):
         """Gets the internal parameter configuration of a fitted XGBoost booster.
 
-        :return: python dictionary
+        :return: xgboost booster's internal configuration (dict)
         """
         return json.loads(cls.booster.save_config())
 
@@ -155,6 +155,14 @@ def execution_parameters():
 
 
 def _parse_accept(request):
+    """Gets the accept type for a given request.
+
+    Valid accept types are "application/json", "application/jsonlines", "application/x-recordio-protobuf",
+    and "text/csv". If no accept type is set, use the value in SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT.
+
+    :param request: flask request
+    :return: parsed accept type
+    """
     accept, _ = cgi.parse_header(request.headers.get("accept").lower())
     if not any(accept in mimetypes for mimetypes in ["application/json", "application/jsonlines",
                                                      "application/x-recordio-protobuf", "text/csv"]):
@@ -164,19 +172,26 @@ def _parse_accept(request):
     return accept
 
 
-def _handle_selectable_inference_response(data, accept):
+def _handle_selectable_inference_response(predictions, accept):
+    """Retrieve the additional prediction data for selectable inference mode.
+
+    :param predictions: output of xgboost predict (list of numpy objects)
+    :param accept: requested accept type (str)
+    :return: flask response with encoded predictions
+    """
     try:
         # get objective function and content keys needed to make output
         config = ScoringService.get_config_json()
         objective = config['learner']['objective']['name']
         num_class = config['learner']['learner_model_param'].get('num_class', '')
-        selected_content_keys = serve_utils.get_selected_content_keys()
+        selected_content_keys = serve_utils.get_selected_output_keys()
 
         # get output selected content based on selected keys and objective
-        selected_content = serve_utils.get_selected_content(data, selected_content_keys, objective, num_class=num_class)
+        selected_content = serve_utils.get_selected_predictions(predictions, selected_content_keys, objective,
+                                                                num_class=num_class)
 
         # encode response in requested accept type
-        response = serve_utils.encode_selected_content(selected_content, selected_content_keys, accept)
+        response = serve_utils.encode_selected_predictions(selected_content, selected_content_keys, accept)
     except Exception as e:
         logging.exception(e)
         return flask.Response(response=str(e), status=http.client.INTERNAL_SERVER_ERROR)
@@ -208,7 +223,7 @@ def invocations():
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
 
-    if serve_utils.is_selectable_inference_response():
+    if serve_utils.is_selectable_inference_output():
         try:
             accept = _parse_accept(flask.request)
         except Exception as e:
