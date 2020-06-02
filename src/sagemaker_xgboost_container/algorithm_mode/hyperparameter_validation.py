@@ -204,4 +204,10 @@ def initialize(metrics):
         hpv.IntegerHyperparameter(name="seed", range=hpv.Interval(min_open=-2**31, max_open=2**31-1),
                                   required=False),
         )
+
+    hyperparameters.declare_alias("eta", "learning_rate")
+    hyperparameters.declare_alias("gamma", "min_split_loss")
+    hyperparameters.declare_alias("lambda", "reg_lambda")
+    hyperparameters.declare_alias("alpha", "reg_alpha")
+
     return hyperparameters
