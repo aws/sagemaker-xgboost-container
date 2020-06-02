@@ -62,3 +62,15 @@ CUSTOMER_ERRORS = [
 _SEPARATOR = ':'
 TRAIN_CHANNEL = 'train'
 VAL_CHANNEL = 'validation'
+
+# xgboost objective learning tasks
+# https://xgboost.readthedocs.io/en/release_1.0.0/parameter.html#learning-task-parameters
+REG_SQUAREDERR = 'reg:squarederror'
+REG_LOG = 'reg:logistic'
+REG_GAMMA = 'reg:gamma'
+REG_TWEEDIE = 'reg:tweedie'
+BINARY_LOG = 'binary:logistic'
+BINARY_LOGRAW = 'binary:logitraw'
+BINARY_HINGE = 'binary:hinge'
+MULTI_SOFTMAX = 'multi:softmax'
+MULTI_SOFTPROB = 'multi:softprob'

@@ -1,4 +1,4 @@
-# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License'). You
 # may not use this file except in compliance with the License. A copy of
@@ -10,6 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import cgi
 import http.client
 import json
 import multiprocessing
@@ -21,11 +22,12 @@ from gunicorn.six import iteritems
 import flask
 import gunicorn.app.base
 
-from sagemaker_xgboost_container.algorithm_mode import integration, serve_utils
+from sagemaker_xgboost_container.algorithm_mode import integration
+from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
 
 
-SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
+SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
 logging = integration.setup_main_logger(__name__)
 
 
@@ -79,6 +81,14 @@ class ScoringService(object):
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
         return serve_utils.predict(cls.booster, model_format, data, content_type)
+
+    @classmethod
+    def get_config_json(cls):
+        """Gets the internal parameter configuration of a fitted XGBoost booster.
+
+        :return: xgboost booster's internal configuration (dict)
+        """
+        return json.loads(cls.booster.save_config())
 
     @staticmethod
     def post_worker_init(worker):
@@ -145,6 +155,48 @@ def execution_parameters():
     return flask.Response(response=response_text, status=http.client.OK, mimetype="application/json")
 
 
+def _parse_accept(request):
+    """Get the accept type for a given request.
+
+    Valid accept types are "application/json", "application/jsonlines", "application/x-recordio-protobuf",
+    and "text/csv". If no accept type is set, use the value in SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT.
+
+    :param request: flask request
+    :return: parsed accept type
+    """
+    accept, _ = cgi.parse_header(request.headers.get("accept").lower())
+    if not any(accept in mimetypes for mimetypes in ["application/json", "application/jsonlines",
+                                                     "application/x-recordio-protobuf", "text/csv"]):
+        if sm_env_constants.SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT in os.environ:
+            return os.getenv('SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT')
+        raise ValueError("Accept type {} is not supported.".format(accept))
+    return accept
+
+
+def _handle_selectable_inference_response(predictions, accept):
+    """Retrieve the additional prediction data for selectable inference mode.
+
+    :param predictions: output of xgboost predict (list of numpy objects)
+    :param accept: requested accept type (str)
+    :return: flask response with encoded predictions
+    """
+    try:
+        config = ScoringService.get_config_json()
+        objective = config['learner']['objective']['name']
+        num_class = config['learner']['learner_model_param'].get('num_class', '')
+        selected_content_keys = serve_utils.get_selected_output_keys()
+
+        selected_content = serve_utils.get_selected_predictions(predictions, selected_content_keys, objective,
+                                                                num_class=num_class)
+
+        response = serve_utils.encode_selected_predictions(selected_content, selected_content_keys, accept)
+    except Exception as e:
+        logging.exception(e)
+        return flask.Response(response=str(e), status=http.client.INTERNAL_SERVER_ERROR)
+
+    return flask.Response(response=response, status=http.client.OK, mimetype=accept)
+
+
 @ScoringService.app.route("/invocations", methods=["POST"])
 def invocations():
     payload = flask.request.data
@@ -168,6 +220,15 @@ def invocations():
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
+
+    if serve_utils.is_selectable_inference_output():
+        try:
+            accept = _parse_accept(flask.request)
+        except Exception as e:
+            logging.exception(e)
+            return flask.Response(response=str(e), status=http.client.NOT_ACCEPTABLE)
+
+        return _handle_selectable_inference_response(preds, accept)
 
     if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'

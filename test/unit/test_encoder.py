@@ -10,6 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import json
 from mock import Mock, patch
 import mock
 import os
@@ -94,3 +95,19 @@ def test_decode(content_type):
         encoder.decode(42, content_type)
 
     decoder.assert_called_once_with(42)
+
+
+def test_encoder_jsonlines_from_json():
+    json_response = json.dumps({'predictions': [{"predicted_label": 1, "probabilities": [0.4, 0.6]},
+                                                {"predicted_label": 0, "probabilities": [0.9, 0.1]}]})
+    expected_jsonlines = b'{"predicted_label": 1, "probabilities": [0.4, 0.6]}\n' \
+                         b'{"predicted_label": 0, "probabilities": [0.9, 0.1]}\n'
+
+    jsonlines_response = encoder.json_to_jsonlines(json_response)
+    assert expected_jsonlines == jsonlines_response
+
+
+def test_encoder_jsonlines_from_json_error():
+    bad_json_response = json.dumps({'predictions': [], 'metadata': []})
+    with pytest.raises(ValueError):
+        encoder.json_to_jsonlines(bad_json_response)
