@@ -156,7 +156,7 @@ def execution_parameters():
 
 
 def _parse_accept(request):
-    """Gets the accept type for a given request.
+    """Get the accept type for a given request.
 
     Valid accept types are "application/json", "application/jsonlines", "application/x-recordio-protobuf",
     and "text/csv". If no accept type is set, use the value in SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT.

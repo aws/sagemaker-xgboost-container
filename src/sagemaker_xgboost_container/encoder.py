@@ -110,7 +110,7 @@ _dmatrix_decoders_map = {
 
 
 def json_to_jsonlines(json_data):
-    """Utility function to convert a json response to a jsonlines response.
+    """Convert a json response to jsonlines.
 
     :param json_data: json data (dict or json string)
     :return: jsonlines encoded response (bytes)
