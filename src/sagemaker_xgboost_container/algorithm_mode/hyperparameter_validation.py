@@ -222,6 +222,7 @@ def initialize(metrics):
                                              required=False),
         hpv.IntegerHyperparameter(name="seed", range=hpv.Interval(min_open=-2**31, max_open=2**31-1),
                                   required=False),
+        hpv.IntegerHyperparameter(name="num_parallel_tree", range=hpv.Interval(min_closed=1), required=False)
         )
 
     hyperparameters.declare_alias("eta", "learning_rate")
