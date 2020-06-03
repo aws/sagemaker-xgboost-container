@@ -63,3 +63,27 @@ class TestHyperparameterValidation(unittest.TestCase):
 
         with self.assertRaises(exc.UserError):
             hyperparameters.validate(test_hp3)
+
+    def test_num_parallel_tree(self):
+        test_hp = {
+            'num_round': '5',
+            'num_parallel_tree': '10'
+        }
+
+        assert hyperparameters.validate(test_hp)
+
+        test_hp2 = {
+            'num_round': '5',
+            'num_parallel_tree': '-1'
+        }
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp2)
+
+        test_hp3 = {
+            'num_round': '5',
+            'num_parallel_tree': '0'
+        }
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp3)
