@@ -8,7 +8,7 @@ python-dateutil==2.8.0
 requests<2.21
 retrying==1.3.3
 sagemaker-containers>=2.8.3
-sagemaker-training>=3.4.2
+sagemaker-training>=3.5.2
 scikit-learn
 scipy==1.2.2
 smdebug==0.4.13
