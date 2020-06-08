@@ -28,6 +28,7 @@ from sagemaker_xgboost_container.constants import sm_env_constants
 
 
 SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
+SUPPORTED_ACCEPT = ["application/json", "application/jsonlines", "application/x-recordio-protobuf", "text/csv"]
 logging = integration.setup_main_logger(__name__)
 
 
@@ -164,12 +165,11 @@ def _parse_accept(request):
     :param request: flask request
     :return: parsed accept type
     """
-    accept, _ = cgi.parse_header(request.headers.get("accept").lower())
-    if not any(accept in mimetypes for mimetypes in ["application/json", "application/jsonlines",
-                                                     "application/x-recordio-protobuf", "text/csv"]):
-        if sm_env_constants.SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT in os.environ:
-            return os.getenv('SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT')
-        raise ValueError("Accept type {} is not supported.".format(accept))
+    default_accept = os.getenv('SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT')
+    accept, _ = cgi.parse_header(request.headers.get("accept", default_accept))
+    if accept and not any(accept in mimetypes for mimetypes in SUPPORTED_ACCEPT):
+        raise ValueError("Accept type {} is not supported. Please use supported accept types: {}."
+                         .format(accept, SUPPORTED_ACCEPT))
     return accept
 
 
