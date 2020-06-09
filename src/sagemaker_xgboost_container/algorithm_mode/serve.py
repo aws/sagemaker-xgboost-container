@@ -165,15 +165,9 @@ def _parse_accept(request):
     :param request: flask request
     :return: parsed accept type
     """
-    default_accept = os.getenv('SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT')
-    try:
-        accept, _ = cgi.parse_header(request.headers.get("accept", default_accept))
-    except Exception:
-        raise RuntimeError("Cannot parse accept type. Please specify an accept type "
-                           "from the supported accept types: {}.".format(SUPPORTED_ACCEPTS))
-    if not accept:
-        raise ValueError("Accept type not set. Please specify an accept type from the supported accept types: {}."
-                         .format(SUPPORTED_ACCEPTS))
+    accept, _ = cgi.parse_header(request.headers.get("accept", ""))
+    if not accept or accept == "*/*":
+        return os.getenv(sm_env_constants.SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT, "text/csv")
     if accept.lower() not in SUPPORTED_ACCEPTS:
         raise ValueError("Accept type {} is not supported. Please use supported accept types: {}."
                          .format(accept, SUPPORTED_ACCEPTS))

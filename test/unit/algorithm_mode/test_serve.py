@@ -50,16 +50,8 @@ def test_parse_accept_default(monkeypatch):
     assert serve._parse_accept(mock_request) == 'text/csv'
 
 
-@pytest.mark.parametrize('accept', ['text/libsvm', ''])
-def test_parse_accept_incompatible(accept):
+def test_parse_accept_incompatible():
     mock_request = MagicMock()
-    mock_request.headers.get.return_value = accept
+    mock_request.headers.get.return_value = 'text/libsvm'
     with pytest.raises(ValueError):
-        serve._parse_accept(mock_request)
-
-
-def test_parse_accept_none():
-    mock_request = MagicMock()
-    mock_request.headers = {}
-    with pytest.raises(RuntimeError):
         serve._parse_accept(mock_request)
