@@ -28,7 +28,7 @@ from sagemaker_xgboost_container.constants import sm_env_constants
 
 
 SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
-SUPPORTED_ACCEPT = ["application/json", "application/jsonlines", "application/x-recordio-protobuf", "text/csv"]
+SUPPORTED_ACCEPTS = ["application/json", "application/jsonlines", "application/x-recordio-protobuf", "text/csv"]
 logging = integration.setup_main_logger(__name__)
 
 
@@ -166,11 +166,18 @@ def _parse_accept(request):
     :return: parsed accept type
     """
     default_accept = os.getenv('SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT')
-    accept, _ = cgi.parse_header(request.headers.get("accept", default_accept))
-    if accept and not any(accept in mimetypes for mimetypes in SUPPORTED_ACCEPT):
+    try:
+        accept, _ = cgi.parse_header(request.headers.get("accept", default_accept))
+    except Exception:
+        raise RuntimeError("Cannot parse accept type. Please specify an accept type "
+                           "from the supported accept types: {}.".format(SUPPORTED_ACCEPTS))
+    if not accept:
+        raise ValueError("Accept type not set. Please specify an accept type from the supported accept types: {}."
+                         .format(SUPPORTED_ACCEPTS))
+    if accept.lower() not in SUPPORTED_ACCEPTS:
         raise ValueError("Accept type {} is not supported. Please use supported accept types: {}."
-                         .format(accept, SUPPORTED_ACCEPT))
-    return accept
+                         .format(accept, SUPPORTED_ACCEPTS))
+    return accept.lower()
 
 
 def _handle_selectable_inference_response(predictions, accept):
