@@ -43,7 +43,14 @@ def test_parse_accept():
     assert serve._parse_accept(mock_request) == 'application/json'
 
 
-def test_incompatible_parse_accept():
+def test_parse_accept_default(monkeypatch):
+    mock_request = MagicMock()
+    mock_request.headers = {}
+    monkeypatch.setenv('SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT', 'text/csv')
+    assert serve._parse_accept(mock_request) == 'text/csv'
+
+
+def test_parse_accept_incompatible():
     mock_request = MagicMock()
     mock_request.headers.get.return_value = 'text/libsvm'
     with pytest.raises(ValueError):
