@@ -20,6 +20,7 @@ binary_train_data = np.random.rand(10, 2)
 binary_train_label = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
 binary_dtrain = xgb.DMatrix(binary_train_data, label=binary_train_label)
 binary_preds = np.ones(10)
+binary_preds_logistic = np.asarray([[0.1, 0.9]] * 10)
 
 
 def test_binary_accuracy():
@@ -28,8 +29,20 @@ def test_binary_accuracy():
     assert accuracy_result == .5
 
 
+def test_binary_accuracy_logistic():
+    accuracy_name, accuracy_result = accuracy(binary_preds_logistic, binary_dtrain)
+    assert accuracy_name == 'accuracy'
+    assert accuracy_result == .5
+
+
 def test_binary_f1():
     f1_score_name, f1_score_result = f1(binary_preds, binary_dtrain)
+    assert f1_score_name == 'f1'
+    assert f1_score_result == 1/3
+
+
+def test_binary_f1_logistic():
+    f1_score_name, f1_score_result = f1(binary_preds_logistic, binary_dtrain)
     assert f1_score_name == 'f1'
     assert f1_score_result == 1/3
 
