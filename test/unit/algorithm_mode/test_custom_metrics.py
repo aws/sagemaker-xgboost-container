@@ -66,6 +66,6 @@ def test_multiclass_f1():
 
 
 def test_multiclass_f1_softprob():
-    f1_score_name, f1_score_result = accuracy(multiclass_preds_softprob, multiclass_dtrain)
+    f1_score_name, f1_score_result = f1(multiclass_preds_softprob, multiclass_dtrain)
     assert f1_score_name == 'f1'
     assert f1_score_result == 0.11111111111111112
