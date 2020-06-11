@@ -44,12 +44,19 @@ multiclass_train_data = np.random.rand(10, 2)
 multiclass_train_label = np.array([0, 0, 1, 1, 1, 1, 1, 2, 2, 2])
 multiclass_dtrain = xgb.DMatrix(multiclass_train_data, label=multiclass_train_label)
 multiclass_preds = np.ones(10)
+multiclass_preds_softprob = np.asarray([[0.8, 0.1, 0.1]] * 10)
 
 
 def test_multiclass_accuracy():
     accuracy_name, accuracy_result = accuracy(multiclass_preds, multiclass_dtrain)
     assert accuracy_name == 'accuracy'
     assert accuracy_result == .5
+
+
+def test_multiclass_accuracy_softprob():
+    accuracy_name, accuracy_result = accuracy(multiclass_preds_softprob, multiclass_dtrain)
+    assert accuracy_name == 'accuracy'
+    assert accuracy_result == .2
 
 
 def test_multiclass_f1():

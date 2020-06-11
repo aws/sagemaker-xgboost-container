@@ -23,7 +23,7 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    rounded_preds = [round(np.max(value)) if (type(value) is np.ndarray) else round(value) for value in preds]
+    rounded_preds = [np.argmax(value) if (type(value) is np.ndarray) else round(value) for value in preds]
     return 'accuracy', accuracy_score(labels, rounded_preds)
 
 
