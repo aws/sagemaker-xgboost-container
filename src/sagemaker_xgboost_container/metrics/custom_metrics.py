@@ -37,7 +37,7 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    rounded_preds = [round(np.max(value)) if (type(value) is np.ndarray) else round(value) for value in preds]
+    rounded_preds = [np.argmax(value) if (type(value) is np.ndarray) else round(value) for value in preds]
     return 'f1', f1_score(labels, rounded_preds, average='macro')
 
 
