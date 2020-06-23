@@ -45,3 +45,18 @@ def test_get_eval_metrics_and_feval():
     binary_preds = np.ones(10)
 
     assert ('accuracy', .5) == test_configured_eval(binary_preds, binary_dtrain)[0]
+
+
+def test_get_latest_checkpoint():
+    checkpoint_files1 = ['xgboost-checkpoint.1', 'xgboost-checkpoint.2', 'tmp_checkpoint.1']
+    checkpoint_files2 = ['tmp_checkpoint']
+    checkpoint_files3 = []
+
+    file_name = train_utils.get_latest_checkpoint(checkpoint_files1)
+    assert file_name == 'xgboost-checkpoint.2'
+
+    file_name = train_utils.get_latest_checkpoint(checkpoint_files2)
+    assert file_name is None
+
+    file_name = train_utils.get_latest_checkpoint(checkpoint_files3)
+    assert file_name is None

@@ -69,6 +69,22 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
     return cleaned_eval_metrics, configured_eval
 
 
+def get_latest_checkpoint(checkpoint_files):
+    """Return latest checkpoint file
+
+    :param checkpoint_files: list of checkpoint file names
+    :return: latest file name starting with 'xgboost-checkpoint'
+    """
+    only_xgboost_checkpoint_files = [f for f in checkpoint_files
+                                     if f.startswith("xgboost-checkpoint")]
+
+    if len(only_xgboost_checkpoint_files) == 0:
+        return None
+    else:
+        sorted_only_xgboost_checkpoint_files = sorted(only_xgboost_checkpoint_files)
+        return sorted_only_xgboost_checkpoint_files[-1]
+
+
 class MetricNameComponents(object):
     def __init__(self, data_segment, metric_name, emission_frequency=None):
         self.data_segment = data_segment
