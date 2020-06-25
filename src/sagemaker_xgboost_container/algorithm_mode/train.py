@@ -53,19 +53,22 @@ def add_sigterm_handler(model_dir, force_checkpoint_dir, is_master):
         if force_checkpoint_dir and is_master:
             model_files = [data_file for data_file in os.listdir(model_dir)
                            if os.path.isfile(os.path.join(model_dir, data_file))]
-            checkpoint_files = [data_file for data_file in os.listdir(force_checkpoint_dir)
-                                if os.path.isfile(os.path.join(force_checkpoint_dir, data_file))]
 
             if len(model_files) == 0:
+                checkpoint_files = [data_file for data_file in os.listdir(force_checkpoint_dir)
+                                    if os.path.isfile(os.path.join(force_checkpoint_dir, data_file))]
                 file_name = train_utils.get_latest_checkpoint(checkpoint_files)
 
                 if file_name:
-                    current_file_name = os.path.join(force_checkpoint_dir, file_name)
-                    new_file_name = os.path.join(model_dir, file_name)
+                    current_file_path = os.path.join(force_checkpoint_dir, file_name)
+                    new_file_path = os.path.join(model_dir, file_name)
 
                     try:
-                        shutil.move(current_file_name, new_file_name)
+                        shutil.move(current_file_path, new_file_path)
+                        logging.debug("Stored intermediate trained model at {}".format(new_file_path))
                     except shutil.Error:
+                        logging.debug("Failed to move intermediate model from {} to {}"
+                                      .format(current_file_path, new_file_path))
                         pass
 
         _terminate()
