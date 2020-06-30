@@ -13,9 +13,7 @@
 import logging
 import pickle as pkl
 import os
-import shutil
 import signal
-import sys
 
 import xgboost as xgb
 
@@ -31,49 +29,29 @@ from sagemaker_xgboost_container.algorithm_mode import train_utils
 from sagemaker_xgboost_container.callback import add_debugging
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 
-FORCE_CHECKPOINT_DIR = "/opt/ml/tmp"
+MODEL_NAME = "xgboost-model"
 
 logger = logging.getLogger(__name__)
 
 
-def add_sigterm_handler(model_dir, force_checkpoint_dir, is_master):
-    """Stop training and save model when SIGTERM is received.
+def add_sigterm_handler(model_dir, is_master):
+    """Stop training and cleanup model directory when SIGTERM is received.
 
-    Trained model is only saved if 'force_checkpointing_dir' is not None and if 'is_master' is True,
-    otherwise function terminates without saving model.
+    Model directory is only cleaned if is_master is True. Otherwise program terminates.
 
-    :param model_dir: Directory where model will be saved
-    :param force_checkpoint_dir: Directory where intermediate models are currently saved
+    :param model_dir: Directory where model is saved
     :param is_master: True if single node training, or the current node is the master node in distributed training
     """
     def _terminate():
-        sys.exit(0)
+        os._exit(0)
 
-    def _save_file_to_disk(signo, frame):
-        if force_checkpoint_dir and is_master:
-            model_files = [data_file for data_file in os.listdir(model_dir)
-                           if os.path.isfile(os.path.join(model_dir, data_file))]
-
-            if len(model_files) == 0:
-                checkpoint_files = [data_file for data_file in os.listdir(force_checkpoint_dir)
-                                    if os.path.isfile(os.path.join(force_checkpoint_dir, data_file))]
-                file_name = train_utils.get_latest_checkpoint(checkpoint_files)
-
-                if file_name:
-                    current_file_path = os.path.join(force_checkpoint_dir, file_name)
-                    new_file_path = os.path.join(model_dir, file_name)
-
-                    try:
-                        shutil.move(current_file_path, new_file_path)
-                        logging.debug("Stored intermediate trained model at {}".format(new_file_path))
-                    except shutil.Error:
-                        logging.debug("Failed to move intermediate model from {} to {}"
-                                      .format(current_file_path, new_file_path))
-                        pass
+    def _cleanup_files(signo, frame):
+        if is_master:
+            train_utils.cleanup_dir(model_dir, MODEL_NAME)
 
         _terminate()
 
-    signal.signal(signal.SIGTERM, _save_file_to_disk)
+    signal.signal(signal.SIGTERM, _cleanup_files)
 
 
 def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights=0, is_pipe=False):
@@ -222,16 +200,14 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
         logging.info("Resuming from iteration %s", iteration)
 
     callbacks = []
-    force_checkpoint_dir = None
     callbacks.append(checkpointing.print_checkpointed_evaluation(start_iteration=iteration))
     if checkpoint_dir:
         save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
-    else:
-        force_checkpoint_dir = FORCE_CHECKPOINT_DIR
-        save_checkpoint = checkpointing.save_checkpoint(force_checkpoint_dir, max_to_keep=1, start_iteration=iteration)
+        callbacks.append(save_checkpoint)
 
-    callbacks.append(save_checkpoint)
-    add_sigterm_handler(model_dir, force_checkpoint_dir, is_master)
+    save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
+    callbacks.append(save_intermediate_model)
+    add_sigterm_handler(model_dir, is_master)
 
     add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                   val_dmatrix=val_dmatrix)
