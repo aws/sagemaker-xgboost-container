@@ -14,6 +14,9 @@ from __future__ import absolute_import
 
 import numpy as np
 import xgboost as xgb
+import os
+import tempfile
+import shutil
 
 
 from sagemaker_xgboost_container.algorithm_mode import train_utils
@@ -47,16 +50,49 @@ def test_get_eval_metrics_and_feval():
     assert ('accuracy', .5) == test_configured_eval(binary_preds, binary_dtrain)[0]
 
 
-def test_get_latest_checkpoint():
-    checkpoint_files1 = ['xgboost-checkpoint.1', 'xgboost-checkpoint.2', 'tmp_checkpoint.1']
-    checkpoint_files2 = ['tmp_checkpoint']
-    checkpoint_files3 = []
+def test_cleanup_dir():
+    def setup(file_names):
+        test_dir = tempfile.mkdtemp()
+        for file_name in file_names:
+            test_path = os.path.join(test_dir, file_name)
+            open(test_path, 'w')
 
-    file_name = train_utils.get_latest_checkpoint(checkpoint_files1)
-    assert file_name == 'xgboost-checkpoint.2'
+        return test_dir
 
-    file_name = train_utils.get_latest_checkpoint(checkpoint_files2)
-    assert file_name is None
+    def tearDown(dir):
+        shutil.rmtree(dir)
 
-    file_name = train_utils.get_latest_checkpoint(checkpoint_files3)
-    assert file_name is None
+    # Test 1: Check if 'xgboost-model' is present after cleanup
+    model_name = "xgboost-model"
+    file_names = ['tmp1', 'tmp2', 'xgboost-model']
+    test_dir = setup(file_names)
+
+    train_utils.cleanup_dir(test_dir, model_name)
+    files = os.listdir(test_dir)
+
+    assert len(files) == 1
+    assert files[0] == model_name
+
+    tearDown(test_dir)
+
+    # Test 2: Check if directory is empty after cleanup
+    file_names = ['tmp1', 'tmp2']
+    test_dir = setup(file_names)
+
+    train_utils.cleanup_dir(test_dir, model_name)
+    files = os.listdir(test_dir)
+
+    assert len(files) == 0
+
+    tearDown(test_dir)
+
+    # Test 3: Check if directory is empty after cleanup
+    file_names = []
+    test_dir = setup(file_names)
+
+    train_utils.cleanup_dir(test_dir, model_name)
+    files = os.listdir(test_dir)
+
+    assert len(files) == 0
+
+    tearDown(test_dir)
