@@ -26,7 +26,7 @@ import boto3
 from botocore.exceptions import ClientError
 import requests
 from sagemaker import fw_utils, utils
-from sagemaker_containers.beta.framework import content_types, encoders
+from sagemaker_containers.beta.framework import content_types
 import yaml
 
 CYAN_COLOR = '\033[36m'
@@ -208,15 +208,24 @@ def chain_docker_cmds(cmd, cmd2):
 
 
 class Container(object):
-    def __init__(self, tmpdir, command, startup_delay=5):
+    def __init__(self, tmpdir, command, startup_delay=5, max_attempts=5):
         self.command = command
         self.compose_file = os.path.join(tmpdir, DOCKER_COMPOSE_FILENAME)
         self.startup_delay = startup_delay
+        self.max_attempts = max_attempts
         self._process = None
 
     def __enter__(self):
         self._process = subprocess.Popen(self.command)
-        sleep(self.startup_delay)
+
+        for _ in range(self.max_attempts):
+            sleep(self.startup_delay)
+            try:
+                response = requests.get('http://localhost:8080/ping')
+                if response.ok:
+                    break
+            except Exception:
+                pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._process.terminate()
@@ -278,7 +287,7 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
                                                      directory=source_dir)[0]
         hyperparameters.update({
             'sagemaker_submit_directory': s3_script_path,
-            'sagemaker_program': os.path.basename(customer_script)
+            'sagemaker_program': os.path.basename(customer_script),
         })
 
     for host in hosts:
@@ -618,11 +627,7 @@ def get_model_dir(resource_folder, host='algo-1'):
     return os.path.join(resource_folder, host)
 
 
-def request(data, content_type=content_types.JSON):
-    data = encoders.encode(data, content_type)
-    headers = {'Content-type': content_type, 'Accept': content_type}
-    response = requests.post(REQUEST_URL, data=data, headers=headers)
-
-    data = response.text if content_type in content_types.UTF8_TYPES else response.content
-
-    return encoders.decode(data, content_type)
+def request(data, content_type=content_types.CSV, accept_type=content_types.CSV, request_url=REQUEST_URL):
+    headers = {'Content-type': content_type, 'Accept': accept_type}
+    response = requests.post(request_url, data=data, headers=headers)
+    return response.status_code, response.text
