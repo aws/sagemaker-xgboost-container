@@ -189,35 +189,6 @@ class TestSaveIntermediateModel(unittest.TestCase):
 
         self.assertEqual(len(os.listdir(self.test_dir)), 0)
 
-    @patch("xgboost.core.CallbackEnv")
-    def test_SaveIntermediateModel_single_iteration(self, env):
-
-        env.rank = 0
-        model_name = "xgboost-model"
-
-        callback = SaveIntermediateModel(intermediate_model_dir=self.test_dir, model_name=model_name)
-        callback(env)
-
-        file_path = os.path.join(self.test_dir, model_name)
-        self.assertTrue(os.path.isfile(file_path))
-        self.assertTrue(len(os.listdir(self.test_dir)), 1)
-
-    @patch("xgboost.core.CallbackEnv")
-    def test_SaveIntermediateModel_multiple_iterations(self, env):
-
-        env.rank = 0
-        end_iteration = 100
-        model_name = "xgboost-model"
-
-        callback = SaveIntermediateModel(intermediate_model_dir=self.test_dir, model_name=model_name)
-
-        for i in range(end_iteration):
-            callback(env)
-
-        file_path = os.path.join(self.test_dir, model_name)
-        self.assertTrue(os.path.isfile(file_path))
-        self.assertTrue(len(os.listdir(self.test_dir)), 1)
-
     def tearDown(self):
 
         shutil.rmtree(self.test_dir, ignore_errors=True)

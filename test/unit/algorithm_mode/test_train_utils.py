@@ -55,7 +55,8 @@ def test_cleanup_dir():
         test_dir = tempfile.mkdtemp()
         for file_name in file_names:
             test_path = os.path.join(test_dir, file_name)
-            open(test_path, 'w')
+            with open(test_path, 'w'):
+                pass
 
         return test_dir
 
