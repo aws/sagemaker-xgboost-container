@@ -23,6 +23,7 @@ from sagemaker_containers.beta.framework import (
     worker,
 )
 
+from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import encoder as xgb_encoders
 from sagemaker_xgboost_container.algorithm_mode import serve
 from sagemaker_xgboost_container.serving_mms import start_mxnet_model_server
@@ -103,7 +104,7 @@ def _user_module_transformer(user_module):
     transform_fn = getattr(user_module, "transform_fn", None)
 
     if transform_fn and (input_fn or predict_fn or output_fn):
-        raise ValueError(
+        raise exc.UserError(
             "Cannot use transform_fn implementation with input_fn, predict_fn, and/or output_fn"
         )
 
