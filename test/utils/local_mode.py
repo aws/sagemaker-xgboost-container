@@ -134,7 +134,7 @@ def save_as_json(data, filename):
 
 def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperparameters=None,
           additional_volumes=None, additional_env_vars=None, use_gpu=False, entrypoint=None,
-          source_dir=None):
+          source_dir=None, early_stopping=False, train_time=30):
     additional_env_vars = additional_env_vars or []
     additional_volumes = additional_volumes or []
     hyperparameters = hyperparameters or {}
@@ -144,7 +144,10 @@ def train(customer_script, data_dir, image_name, opt_ml, cluster_size=1, hyperpa
                              hyperparameters, cluster_size, entrypoint=entrypoint,
                              source_dir=source_dir, use_gpu=use_gpu)
     command = create_docker_command(tmpdir, use_gpu)
-    start_docker(tmpdir, command)
+    if early_stopping:
+        early_stop_docker(tmpdir, command, train_time)
+    else:
+        start_docker(tmpdir, command)
     purge()
 
 
@@ -237,6 +240,14 @@ def shutdown(compose_file):
     subprocess.call(['docker-compose', '-f', compose_file, 'down'])
 
 
+def early_stop_docker(tmpdir, command, train_time):
+    compose_file = os.path.join(tmpdir, DOCKER_COMPOSE_FILENAME)
+
+    subprocess.Popen(command)
+    sleep(train_time)
+    shutdown(compose_file)
+
+
 def create_docker_command(tmpdir, use_gpu=False, detached=False):
 
     command = [
@@ -266,8 +277,8 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
     hosts = create_host_names(cluster_size)
     print('creating hosts: {}'.format(hosts))
 
-    config = create_input_data_config(data_dir)
-    hyperparameters = read_hyperparameters(additional_hps)
+    config = create_input_data_config(data_dir, customer_script)
+    hyperparameters = read_hyperparameters(customer_script, additional_hps)
 
     if customer_script:
         timestamp = utils.sagemaker_timestamp()
@@ -285,7 +296,7 @@ def create_training(data_dir, customer_script, optml, image, additional_volumes,
         for d in ['input', 'input/config', 'output', 'model']:
             os.makedirs(os.path.join(tmpdir, host, d))
 
-        write_hyperparameters(tmpdir, host, hyperparameters)
+        write_hyperparameters(tmpdir, host, hyperparameters, customer_script)
         write_resource_config(tmpdir, hosts, host)
         write_inputdataconfig(tmpdir, host, config)
 
@@ -306,31 +317,42 @@ def write_inputdataconfig(path, current_host, inputdataconfig):
     write_json_file(filename, inputdataconfig)
 
 
-def write_hyperparameters(path, current_host, hyperparameters):
+def write_hyperparameters(path, current_host, hyperparameters, customer_script):
 
-    serialized = {k: json.dumps(v) for k, v in hyperparameters.items()}
     filename = os.path.join(path, current_host, 'input', 'config', 'hyperparameters.json')
-    write_json_file(filename, serialized)
+    if customer_script:
+        serialized = {k: json.dumps(v) for k, v in hyperparameters.items()}
+        write_json_file(filename, serialized)
+    else:
+        write_json_file(filename, hyperparameters)
 
 
-def read_hyperparameters(additonal_hyperparameters=None):
+def read_hyperparameters(customer_script, additonal_hyperparameters=None):
 
     additonal_hyperparameters = additonal_hyperparameters or {}
 
-    hyperparameters = DEFAULT_HYPERPARAMETERS.copy()
+    hyperparameters = {}
+    if customer_script:
+        hyperparameters = DEFAULT_HYPERPARAMETERS.copy()
     hyperparameters.update(additonal_hyperparameters)
 
     print('hyperparameters: {}'.format(hyperparameters))
     return hyperparameters
 
 
-def create_input_data_config(data_path):
+def create_input_data_config(data_path, customer_script):
     channels = []
     for (_, dirs, _) in os.walk(data_path):
         channels.extend(dirs)
         del dirs
 
-    config = {c: {'ContentType': 'application/octet-stream'} for c in channels}
+    if customer_script:
+        config = {c: {'ContentType': 'application/octet-stream'} for c in channels}
+    else:
+        config = {c: {"ContentType":  "libsvm",
+                      "S3DistributionType": "FullyReplicated",
+                      "TrainingInputMode": "File"}
+                  for c in channels}
     print('input data config: {}'.format(config))
     return config
 
