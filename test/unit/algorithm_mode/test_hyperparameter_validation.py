@@ -87,3 +87,26 @@ class TestHyperparameterValidation(unittest.TestCase):
 
         with self.assertRaises(exc.UserError):
             hyperparameters.validate(test_hp3)
+
+    def test_early_stopping_support(self):
+        test_hp1 = {
+            'num_round': '5',
+            'early_stopping_support': "true"
+        }
+
+        assert hyperparameters.validate(test_hp1)
+
+        test_hp2 = {
+            'num_round': '5',
+            'early_stopping_support': "false"
+        }
+
+        assert hyperparameters.validate(test_hp2)
+
+        test_hp3 = {
+            'num_round': '5',
+            'early_stopping_support': "incorrect"
+        }
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp3)

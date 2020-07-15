@@ -104,9 +104,6 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     :param sm_current_host:
     :param checkpoint_config:
     """
-    hpo_early_stopping = train_config.pop("hpo_early_stopping", False)
-    hpo_early_stopping = True if hpo_early_stopping == "true" else False
-
     metrics = metrics_mod.initialize()
 
     hyperparameters = hpv.initialize(metrics)
@@ -136,8 +133,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
         train_dmatrix=train_dmatrix,
         val_dmatrix=val_dmatrix,
         model_dir=model_dir,
-        checkpoint_dir=checkpoint_dir,
-        hpo_early_stopping=hpo_early_stopping)
+        checkpoint_dir=checkpoint_dir)
 
     # Obtain information about training resources to determine whether to set up Rabit or not
     num_hosts = len(sm_hosts)
@@ -166,7 +162,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
         raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
 
-def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master, hpo_early_stopping):
+def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master):
     """Train and save XGBoost model using data on current node.
 
     If doing distributed training, XGBoost will use rabit to sync the trained model between each boosting iteration.
@@ -177,8 +173,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     :param val_dmatrix: Validation Data Matrix
     :param model_dir: Directory where model will be saved
     :param is_master: True if single node training, or the current node is the master node in distributed training.
-    :param hpo_early_stopping: True if hpo_early_stopping support is enabled
     """
+    # Parse arguments for intermediate model callback
+    early_stopping_support = train_cfg.pop('early_stopping_support', False)
+
     # Parse arguments for train() API
     early_stopping_rounds = train_cfg.get('early_stopping_rounds')
     num_round = train_cfg["num_round"]
@@ -210,7 +208,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
         save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
         callbacks.append(save_checkpoint)
 
-    if hpo_early_stopping:
+    if early_stopping_support == "true":
         save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
         callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)
