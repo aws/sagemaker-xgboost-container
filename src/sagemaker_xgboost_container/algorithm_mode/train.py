@@ -175,7 +175,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
     # Parse arguments for intermediate model callback
-    early_stopping_support = train_cfg.pop('early_stopping_support', False)
+    save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
 
     # Parse arguments for train() API
     early_stopping_rounds = train_cfg.get('early_stopping_rounds')
@@ -208,7 +208,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
         save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
         callbacks.append(save_checkpoint)
 
-    if early_stopping_support == "true":
+    if save_model_on_termination == "true":
         save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
         callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)

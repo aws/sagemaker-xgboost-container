@@ -36,7 +36,7 @@ def get_default_hyperparameters(num_round=100):
 
 def test_xgboost_training_single_machine_with_early_stopping(docker_image, opt_ml):
     hyperparameters = get_default_hyperparameters(100000)
-    hyperparameters['early_stopping_support'] = 'true'
+    hyperparameters['save_model_on_termination'] = 'true'
 
     local_mode.train(
         False,
@@ -53,7 +53,7 @@ def test_xgboost_training_single_machine_with_early_stopping(docker_image, opt_m
 
 def test_xgboost_training_single_machine_without_early_stopping(docker_image, opt_ml):
     hyperparameters = get_default_hyperparameters(100000)
-    hyperparameters['early_stopping_support'] = 'false'
+    hyperparameters['save_model_on_termination'] = 'false'
 
     local_mode.train(
         False,
@@ -70,7 +70,7 @@ def test_xgboost_training_single_machine_without_early_stopping(docker_image, op
 
 def test_xgboost_training_multiple_machines_with_early_stopping(docker_image, opt_ml):
     hyperparameters = get_default_hyperparameters(100000)
-    hyperparameters['early_stopping_support'] = 'true'
+    hyperparameters['save_model_on_termination'] = 'true'
 
     local_mode.train(
         False,
@@ -90,7 +90,7 @@ def test_xgboost_training_multiple_machines_with_early_stopping(docker_image, op
 
 def test_xgboost_training_multiple_machines_without_early_stopping(docker_image, opt_ml):
     hyperparameters = get_default_hyperparameters(100000)
-    hyperparameters['early_stopping_support'] = 'false'
+    hyperparameters['save_model_on_termination'] = 'false'
 
     local_mode.train(
         False,
