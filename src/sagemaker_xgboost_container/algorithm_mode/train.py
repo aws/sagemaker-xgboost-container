@@ -13,6 +13,7 @@
 import logging
 import pickle as pkl
 import os
+import signal
 
 import xgboost as xgb
 
@@ -28,8 +29,29 @@ from sagemaker_xgboost_container.algorithm_mode import train_utils
 from sagemaker_xgboost_container.callback import add_debugging
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
 
+MODEL_NAME = "xgboost-model"
 
 logger = logging.getLogger(__name__)
+
+
+def add_sigterm_handler(model_dir, is_master):
+    """Stop training and cleanup model directory when SIGTERM is received.
+
+    Model directory is only cleaned if is_master is True. Otherwise program terminates.
+
+    :param model_dir: Directory where model is saved
+    :param is_master: True if single node training, or the current node is the master node in distributed training
+    """
+    def _terminate():
+        os._exit(0)
+
+    def _cleanup_files(signo, frame):
+        if is_master:
+            train_utils.cleanup_dir(model_dir, MODEL_NAME)
+
+        _terminate()
+
+    signal.signal(signal.SIGTERM, _cleanup_files)
 
 
 def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights=0, is_pipe=False):
@@ -152,6 +174,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     :param model_dir: Directory where model will be saved
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
+    # Parse arguments for intermediate model callback
+    save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
+
     # Parse arguments for train() API
     early_stopping_rounds = train_cfg.get('early_stopping_rounds')
     num_round = train_cfg["num_round"]
@@ -182,6 +207,11 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     if checkpoint_dir:
         save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
         callbacks.append(save_checkpoint)
+
+    if save_model_on_termination == "true":
+        save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
+        callbacks.append(save_intermediate_model)
+        add_sigterm_handler(model_dir, is_master)
 
     add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                   val_dmatrix=val_dmatrix)

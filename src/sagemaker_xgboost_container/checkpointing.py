@@ -1,5 +1,6 @@
 import logging
 import os
+import pickle as pkl
 import tempfile
 import threading
 import queue
@@ -322,3 +323,65 @@ class SaveCheckpoint(object):
         training_has_ended = (current_iteration + 1 >= self.start_iteration + offset_iteration)
         if training_has_ended:
             self.stop()
+
+
+def save_intermediate_model(intermediate_model_dir, model_name):
+    """A callback function that saves intermediate models to disk.
+
+    This is a wrapper function around SaveIntermediateModel.
+    For details, see SaveIntermediateModel.
+    """
+    return SaveIntermediateModel(intermediate_model_dir=intermediate_model_dir, model_name=model_name)
+
+
+class SaveIntermediateModel(object):
+    """Create a callback that saves intermediate models to model directory on disk.
+
+    The main purpose of this class is to support external early stopping techniques such as HPO,
+    by saving intermediate copies of model directly to model_dir after each iteration of training.
+
+    This is accomplished by overwriting the model after each iteration with 'model_name'.
+
+    Attributes:
+        intermediate_model_dir: path to the model directory where intermediate model
+            will be saved.
+        model_name: name of model
+
+    Example:
+        >>> save_intermediate_model = SaveIntermediateModel("/opt/ml/model", "xgboost-model")
+        >>> xgboost.train(prams, dtrain, callbacks=[save_intermediate_model])
+    """
+    def __init__(self, intermediate_model_dir, model_name):
+        """Init SaveIntermediateModel with intermediate_model_dir"""
+        self.intermediate_model_dir = intermediate_model_dir
+        self.model_name = model_name
+
+        if not os.path.exists(self.intermediate_model_dir):
+            os.makedirs(self.intermediate_model_dir)
+
+    def __call__(self, env):
+        """Make the class callable since it is meant be used as a callback"""
+        return self.callback(env)
+
+    def format_path(self):
+        """Return a file path to intermediate model"""
+        intermediate_path = os.path.join(self.intermediate_model_dir, self.model_name)
+        return intermediate_path
+
+    def _save_intermediate_model(self, model):
+        """Save intermediate model to intermediate model directory"""
+        with tempfile.NamedTemporaryFile(
+                dir=self.intermediate_model_dir, delete=False) as tf:
+            pkl.dump(model, tf)
+
+        save_file_path = self.format_path()
+        os.rename(tf.name, save_file_path)
+
+    def callback(self, env):
+        # env.rank: rabit rank of the node/process. master node has rank 0.
+        # env.model: model object
+        if env.rank != 0:
+            logger.debug("Not master (rank = %d). Exiting intermediate model callback.", env.rank)
+            return
+
+        self._save_intermediate_model(env.model)

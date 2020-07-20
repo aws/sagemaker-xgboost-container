@@ -11,6 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import logging
+import os
 from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
 
 
@@ -67,6 +68,32 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
             cleaned_eval_metrics = union_metrics
 
     return cleaned_eval_metrics, configured_eval
+
+
+def cleanup_dir(dir, file):
+    """Clean up directory
+
+    This function is used to remove extra files from a directory other than 'file'.
+
+    :param dir: model directory which needs to be cleaned
+    :param file: name of file which isn't removed if present
+    """
+    def _format_path(file_name):
+        path = os.path.join(dir, file_name)
+        return path
+
+    def _remove(path):
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+
+    for data_file in os.listdir(dir):
+        path = _format_path(data_file)
+        if os.path.isfile(path):
+            if data_file == file:
+                continue
+            _remove(path)
 
 
 class MetricNameComponents(object):
