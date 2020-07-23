@@ -110,3 +110,77 @@ class TestHyperparameterValidation(unittest.TestCase):
 
         with self.assertRaises(exc.UserError):
             hyperparameters.validate(test_hp3)
+
+    def test_tree_method(self):
+        test_hp1 = {
+            'num_round': '5',
+            'tree_method': "auto"
+        }
+
+        assert hyperparameters.validate(test_hp1)
+
+        test_hp2 = {
+            'num_round': '5',
+            'tree_method': "exact"
+        }
+
+        assert hyperparameters.validate(test_hp2)
+
+        test_hp3 = {
+            'num_round': '5',
+            'tree_method': "approx"
+        }
+
+        assert hyperparameters.validate(test_hp3)
+
+        test_hp4 = {
+            'num_round': '5',
+            'tree_method': "hist"
+        }
+
+        assert hyperparameters.validate(test_hp4)
+
+        test_hp5 = {
+            'num_round': '5',
+            'tree_method': "gpu_hist"
+        }
+
+        assert hyperparameters.validate(test_hp5)
+
+        test_hp6 = {
+            'num_round': '5',
+            'tree_method': "gpu"
+        }
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp6)
+
+    def test_predictor(self):
+        test_hp1 = {
+            'num_round': '5',
+            'predictor': "auto"
+        }
+
+        assert hyperparameters.validate(test_hp1)
+
+        test_hp2 = {
+            'num_round': '5',
+            'predictor': "cpu_predictor"
+        }
+
+        assert hyperparameters.validate(test_hp2)
+
+        test_hp3 = {
+            'num_round': '5',
+            'predictor': "gpu_predictor"
+        }
+
+        assert hyperparameters.validate(test_hp3)
+
+        test_hp4 = {
+            'num_round': '5',
+            'predictor': "gpu"
+        }
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp4)

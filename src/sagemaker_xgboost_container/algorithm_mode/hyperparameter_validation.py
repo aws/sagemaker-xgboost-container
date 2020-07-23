@@ -17,10 +17,8 @@ from sagemaker_xgboost_container.constants.xgb_constants import XGB_MAXIMIZE_MET
 
 
 def initialize(metrics):
-    @hpv.range_validator(["auto", "exact", "approx", "hist"])
+    @hpv.range_validator(["auto", "exact", "approx", "hist", "gpu_hist"])
     def tree_method_range_validator(CATEGORIES, value):
-        if "gpu" in value:
-            raise exc.UserError("GPU training is not supported yet.")
         return value in CATEGORIES
 
     @hpv.dependencies_validator(["booster", "process_type"])
@@ -57,10 +55,8 @@ def initialize(metrics):
                                     "following: 'grow_colmaker', 'distcol', 'grow_histmaker', "
                                     "'grow_local_histmaker', 'grow_skmaker'")
 
-    @hpv.range_validator(["cpu_predictor"])
+    @hpv.range_validator(["auto", "cpu_predictor", "gpu_predictor"])
     def predictor_validator(CATEGORIES, value):
-        if "gpu" in value:
-            raise exc.UserError("GPU training is not supported yet.")
         return value in CATEGORIES
 
     @hpv.dependencies_validator(["num_class"])
