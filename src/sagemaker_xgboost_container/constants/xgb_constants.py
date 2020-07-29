@@ -15,25 +15,25 @@ XGB_MAXIMIZE_METRICS = [
     'accuracy',
     'auc',
     'aucpr',
-    "cox-nloglik",
     'f1',
-    "gamma-nloglik",
     'map',
-    'ndcg',
-    "poisson-nloglik",
-    "tweedie-nloglik"
+    'ndcg'
 ]
 
 XGB_MINIMIZE_METRICS = [
+    'cox-nloglik',
     'error',
-    "gamma-deviance",
+    'gamma-deviance',
+    'gamma-nloglik',
     'logloss',
     'mae',
     'merror',
     'mlogloss',
     'mse',
+    'poisson-nloglik',
     'rmse',
-    'rmsle'
+    'rmsle',
+    'tweedie-nloglik'
 ]
 
 LOGISTIC_REGRESSION_LABEL_RANGE_ERROR = "label must be in [0,1] for logistic regression"
