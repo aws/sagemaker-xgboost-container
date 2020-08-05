@@ -17,8 +17,7 @@ import logging
 import os
 import sys
 
-from sagemaker_containers import _env
-import sagemaker_containers.beta.framework as framework
+from sagemaker_training import entry_point, environment
 from sagemaker_xgboost_container.algorithm_mode.train import sagemaker_train
 from sagemaker_xgboost_container.constants import sm_env_constants
 
@@ -80,16 +79,18 @@ def train(training_environment):
     """
     if training_environment.user_entry_point is not None:
         logger.info('Invoking user training script.')
-        framework.modules.run_module(training_environment.module_dir, training_environment.to_cmd_args(),
-                                     training_environment.to_env_vars(), training_environment.module_name,
-                                     capture_error=False)
+        entry_point.run(uri=training_environment.module_dir,
+                        user_entry_point=training_environment.user_entry_point,
+                        args=training_environment.to_cmd_args(),
+                        env_vars=training_environment.to_env_vars(),
+                        capture_error=False)
     else:
         logger.info("Running XGBoost Sagemaker in algorithm mode")
-        _env.write_env_vars(training_environment.to_env_vars())
+        environment.write_env_vars(training_environment.to_env_vars())
 
         run_algorithm_mode()
 
 
 def main():
-    train(framework.training_env())
+    train(environment.Environment())
     sys.exit(0)
