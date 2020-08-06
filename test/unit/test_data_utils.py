@@ -61,12 +61,15 @@ class TestTrainUtils(unittest.TestCase):
             data_utils.get_content_type('label_size=1; text/csv')
 
     def test_validate_csv_files(self):
-        csv_file_paths = ['train.csv', 'train.csv.weights', 'csv_files']
+        csv_file_paths = ['train.csv', 'train_nonnumeric.csv', 'train.csv.weights', 'csv_files']
 
         for file_path in csv_file_paths:
             with self.subTest(file_path=file_path):
                 csv_path = os.path.join(self.data_path, 'csv', file_path)
-                data_utils.validate_data_file_path(csv_path, 'csv')
+                if file_path == 'train_nonnumeric.csv':
+                    self.assertRaises(exc.UserError, data_utils.validate_data_file_path, *{csv_path, 'csv'})
+                else:
+                    data_utils.validate_data_file_path(csv_path, 'csv')
 
     def test_validate_libsvm_files(self):
         libsvm_file_paths = ['train.libsvm', 'train.libsvm.weights', 'libsvm_files']
