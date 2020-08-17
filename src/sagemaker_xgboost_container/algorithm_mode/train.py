@@ -237,5 +237,5 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
 
     if is_master:
         model_location = model_dir + '/xgboost-model'
-        pkl.dump(bst, open(model_location, 'wb'))
+        pkl.dump(bst, open(model_location, 'wb'), protocol=4)
         logging.debug("Stored trained model at {}".format(model_location))
