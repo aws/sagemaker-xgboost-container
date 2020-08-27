@@ -61,7 +61,7 @@ Base Images
 The "base" Dockerfile encompass the installation of the framework and all of the dependencies
 needed.
 
-Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. |XGBoostLatestVersion|-cpu-py3), where
+Tagging scheme is based on <SageMaker-XGBoost-version> (e.g. |XGBoostLatestVersion|), where
  <SageMaker-XGBoost-version> is comprised of <XGBoost-version>-<SageMaker-version>.
 
 All "final" Dockerfiles build images using base images that use the tagging scheme
@@ -74,14 +74,14 @@ If you want to build your base docker image, then use:
     # All build instructions assume you're building from the root directory of the sagemaker-xgboost-container.
 
     # CPU
-    docker build -t xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3 -f docker/<SageMaker-XGBoost-version>/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:<SageMaker-XGBoost-version> -f docker/<SageMaker-XGBoost-version>/base/Dockerfile .
 
 .. parsed-literal::
 
     # Example
 
     # CPU
-    docker build -t xgboost-container-base:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/base/Dockerfile.cpu .
+    docker build -t xgboost-container-base:|XGBoostLatestVersion| -f docker/|XGBoostLatestVersion|/base/Dockerfile .
 
 
 Final Images
@@ -92,7 +92,7 @@ The "final" Dockerfiles encompass the installation of the SageMaker specific sup
 All "final" Dockerfiles use base images for building.
 
 These "base" images are specified with the naming convention of
-xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3.
+xgboost-container-base:<SageMaker-XGBoost-version>.
 
 Before building "final" images:
 
@@ -103,7 +103,7 @@ Dockerfile.
 
     # Create the SageMaker XGBoost Container Python package.
     cd sagemaker-xgboost-container
-    python setup.py bdist_wheel --universal
+    python setup.py bdist_wheel
 
 If you want to build "final" Docker images, then use:
 
@@ -112,14 +112,14 @@ If you want to build "final" Docker images, then use:
     # All build instructions assume you're building from the root directory of the sagemaker-xgboost-container.
 
     # CPU
-    docker build -t <image_name>:<tag> -f docker/<xgboost-version>/final/Dockerfile.cpu .
+    docker build -t <image_name>:<tag> -f docker/<xgboost-version>/final/Dockerfile .
 
 .. parsed-literal::
 
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-container:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/final/Dockerfile.cpu .
+    docker build -t preprod-xgboost-container:|XGBoostLatestVersion| -f docker/|XGBoostLatestVersion|/final/Dockerfile .
 
 Running the tests
 -----------------
@@ -195,7 +195,7 @@ If you want to run local integration tests, then use:
 
     # Example
     pytest test/integration/local --docker-base-name preprod-xgboost-container ``\``
-                      --tag |XGBoostLatestVersion|-cpu-py3 ``\``
+                      --tag |XGBoostLatestVersion| ``\``
                       --py-version 3 ``\``
                       --framework-version |XGBoostLatestVersion|
 
@@ -252,4 +252,4 @@ SageMaker XGboost Framework Container is licensed under the Apache 2.0 License. 
 .com, Inc. or its affiliates. All Rights Reserved. The license is available at:
 http://aws.amazon.com/apache2.0/
 
-.. |XGBoostLatestVersion| replace:: 1.0-1
+.. |XGBoostLatestVersion| replace:: 1.2-1
