@@ -300,9 +300,9 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
     """
     try:
         dataset = [mlio.SageMakerPipe(pipe_path)]
-        reader = mlio.CsvReader(dataset=dataset,
-                                batch_size=BATCH_SIZE,
-                                header_row_index=None)
+        reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=BATCH_SIZE)
+        csv_params = mlio.CsvParams(header_row_index=None)
+        reader = mlio.CsvReader(reader_params, csv_params)
 
         # Check if data is present in reader
         if reader.peek_example() is not None:
@@ -450,32 +450,26 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
     try:
         if is_pipe:
             dataset = [mlio.SageMakerPipe(path)]
-            reader = mlio.RecordIOProtobufReader(dataset=dataset,
-                                                 batch_size=BATCH_SIZE)
         else:
             dataset = mlio.list_files(path)
-            reader = mlio.RecordIOProtobufReader(dataset=dataset,
-                                                 batch_size=BATCH_SIZE)
+
+        reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=BATCH_SIZE)
+        reader = mlio.RecordIOProtobufReader(reader_params)
 
         if reader.peek_example() is not None:
             # recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
-            if type(reader.peek_example()['values']) is mlio.core.DenseTensor:
-                to_matrix = as_numpy
-                vstack = np.vstack
-            else:
-                to_matrix = to_coo_matrix
-                vstack = scipy_vstack
+            is_dense_tensor = type(reader.peek_example()['values']) is mlio.DenseTensor
 
             all_features = []
             all_labels = []
             for example in reader:
-                features = to_matrix(example['values'])
+                features = as_numpy(example['values']) if is_dense_tensor else to_coo_matrix(example['values'])
                 all_features.append(features)
 
                 labels = as_numpy(example['label_values'])
                 all_labels.append(labels)
 
-            all_features = vstack(all_features)
+            all_features = np.vstack(all_features) if is_dense_tensor else scipy_vstack(all_features).tocsr()
             all_labels = np.concatenate(all_labels, axis=None)
             dmatrix = xgb.DMatrix(all_features, label=all_labels)
             return dmatrix

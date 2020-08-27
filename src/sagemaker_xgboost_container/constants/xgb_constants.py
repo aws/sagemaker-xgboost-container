@@ -21,14 +21,17 @@ XGB_MAXIMIZE_METRICS = [
 ]
 
 XGB_MINIMIZE_METRICS = [
+    'aft-nloglik',
     'cox-nloglik',
     'error',
     'gamma-deviance',
     'gamma-nloglik',
+    'interval-regression-accuracy',
     'logloss',
     'mae',
     'merror',
     'mlogloss',
+    'mphe',
     'mse',
     'poisson-nloglik',
     'rmse',
