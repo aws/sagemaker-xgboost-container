@@ -103,7 +103,7 @@ Dockerfile.
 
     # Create the SageMaker XGBoost Container Python package.
     cd sagemaker-xgboost-container
-    python setup.py bdist_wheel
+    python setup.py bdist_wheel --universal
 
 If you want to build "final" Docker images, then use:
 
