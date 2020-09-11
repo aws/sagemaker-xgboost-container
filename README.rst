@@ -61,7 +61,7 @@ Base Images
 The "base" Dockerfile encompass the installation of the framework and all of the dependencies
 needed.
 
-Tagging scheme is based on <SageMaker-XGBoost-version> (e.g. |XGBoostLatestVersion|), where
+Tagging scheme is based on <SageMaker-XGBoost-version>-cpu-py3 (e.g. |XGBoostLatestVersion|-cpu-py3), where
  <SageMaker-XGBoost-version> is comprised of <XGBoost-version>-<SageMaker-version>.
 
 All "final" Dockerfiles build images using base images that use the tagging scheme
@@ -74,14 +74,14 @@ If you want to build your base docker image, then use:
     # All build instructions assume you're building from the root directory of the sagemaker-xgboost-container.
 
     # CPU
-    docker build -t xgboost-container-base:<SageMaker-XGBoost-version> -f docker/<SageMaker-XGBoost-version>/base/Dockerfile .
+    docker build -t xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3 -f docker/<SageMaker-XGBoost-version>/base/Dockerfile.cpu .
 
 .. parsed-literal::
 
     # Example
 
     # CPU
-    docker build -t xgboost-container-base:|XGBoostLatestVersion| -f docker/|XGBoostLatestVersion|/base/Dockerfile .
+    docker build -t xgboost-container-base:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/base/Dockerfile.cpu .
 
 
 Final Images
@@ -92,7 +92,7 @@ The "final" Dockerfiles encompass the installation of the SageMaker specific sup
 All "final" Dockerfiles use base images for building.
 
 These "base" images are specified with the naming convention of
-xgboost-container-base:<SageMaker-XGBoost-version>.
+xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3.
 
 Before building "final" images:
 
@@ -112,14 +112,14 @@ If you want to build "final" Docker images, then use:
     # All build instructions assume you're building from the root directory of the sagemaker-xgboost-container.
 
     # CPU
-    docker build -t <image_name>:<tag> -f docker/<xgboost-version>/final/Dockerfile .
+    docker build -t <image_name>:<tag> -f docker/<xgboost-version>/final/Dockerfile.cpu .
 
 .. parsed-literal::
 
     # Example
 
     # CPU
-    docker build -t preprod-xgboost-container:|XGBoostLatestVersion| -f docker/|XGBoostLatestVersion|/final/Dockerfile .
+    docker build -t preprod-xgboost-container:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/final/Dockerfile.cpu .
 
 Running the tests
 -----------------
@@ -195,7 +195,7 @@ If you want to run local integration tests, then use:
 
     # Example
     pytest test/integration/local --docker-base-name preprod-xgboost-container ``\``
-                      --tag |XGBoostLatestVersion| ``\``
+                      --tag |XGBoostLatestVersion|-cpu-py3 ``\``
                       --py-version 3 ``\``
                       --framework-version |XGBoostLatestVersion|
 
