@@ -17,10 +17,8 @@ from sagemaker_xgboost_container.constants.xgb_constants import XGB_MAXIMIZE_MET
 
 
 def initialize(metrics):
-    @hpv.range_validator(["auto", "exact", "approx", "hist"])
+    @hpv.range_validator(["auto", "exact", "approx", "hist", "gpu_hist"])
     def tree_method_range_validator(CATEGORIES, value):
-        if "gpu" in value:
-            raise exc.UserError("GPU training is not supported yet.")
         return value in CATEGORIES
 
     @hpv.dependencies_validator(["booster", "process_type"])
@@ -57,10 +55,8 @@ def initialize(metrics):
                                     "following: 'grow_colmaker', 'distcol', 'grow_histmaker', "
                                     "'grow_local_histmaker', 'grow_skmaker'")
 
-    @hpv.range_validator(["cpu_predictor"])
+    @hpv.range_validator(["auto", "cpu_predictor", "gpu_predictor"])
     def predictor_validator(CATEGORIES, value):
-        if "gpu" in value:
-            raise exc.UserError("GPU training is not supported yet.")
         return value in CATEGORIES
 
     @hpv.dependencies_validator(["num_class"])
@@ -94,10 +90,13 @@ def initialize(metrics):
 
     @hpv.dependencies_validator(["objective"])
     def eval_metric_dep_validator(value, dependencies):
+        objective = dependencies["objective"]
         if "auc" in value:
-            if not any(dependencies["objective"].startswith(metric_type) for metric_type in [
-                    'binary:', 'rank:']):
+            if not any(objective.startswith(metric_type) for metric_type in ['binary:', 'rank:']):
                 raise exc.UserError("Metric 'auc' can only be applied for classification and ranking problems.")
+        if "aft-nloglik" in value:
+            if objective not in ["survival:aft"]:
+                raise exc.UserError("Metric 'aft-nloglik' can only be applied for 'survival:aft' objective.")
 
     @hpv.dependencies_validator(["tree_method"])
     def monotone_constraints_validator(value, dependencies):
@@ -123,7 +122,6 @@ def initialize(metrics):
         hpv.IntegerHyperparameter(name="csv_weights", range=hpv.Interval(min_closed=0, max_closed=1), required=False),
         hpv.IntegerHyperparameter(name="early_stopping_rounds", range=hpv.Interval(min_closed=1), required=False),
         hpv.CategoricalHyperparameter(name="booster", range=["gbtree", "gblinear", "dart"], required=False),
-        hpv.IntegerHyperparameter(name="silent", range=hpv.Interval(min_closed=0, max_closed=1), required=False),
         hpv.IntegerHyperparameter(name="verbosity", range=hpv.Interval(min_closed=0, max_closed=3), required=False),
         hpv.IntegerHyperparameter(name="nthread", range=hpv.Interval(min_closed=1), required=False),
         hpv.ContinuousHyperparameter(name="eta", range=hpv.Interval(min_closed=0, max_closed=1), required=False,
@@ -204,11 +202,11 @@ def initialize(metrics):
         hpv.ContinuousHyperparameter(name="tweedie_variance_power", range=hpv.Interval(min_open=1, max_open=2),
                                      required=False),
         hpv.CategoricalHyperparameter(name="objective",
-                                      range=["binary:logistic", "binary:logitraw", "binary:hinge",
-                                             "count:poisson", "multi:softmax", "multi:softprob",
+                                      range=["aft_loss_distribution", "binary:logistic", "binary:logitraw",
+                                             "binary:hinge", "count:poisson", "multi:softmax", "multi:softprob",
                                              "rank:pairwise", "rank:ndcg", "rank:map", "reg:linear",
-                                             "reg:squarederror", "reg:logistic", "reg:gamma",
-                                             "reg:squaredlogerror", "reg:tweedie", "survival:cox"],
+                                             "reg:squarederror", "reg:logistic", "reg:gamma", "reg:pseudohubererror",
+                                             "reg:squaredlogerror", "reg:tweedie", "survival:aft", "survival:cox"],
                                       dependencies=objective_validator,
                                       required=False),
         hpv.IntegerHyperparameter(name="num_class",
@@ -223,7 +221,13 @@ def initialize(metrics):
         hpv.IntegerHyperparameter(name="seed", range=hpv.Interval(min_open=-2**31, max_open=2**31-1),
                                   required=False),
         hpv.IntegerHyperparameter(name="num_parallel_tree", range=hpv.Interval(min_closed=1), required=False),
-        hpv.CategoricalHyperparameter(name="save_model_on_termination", range=["true", "false"], required=False)
+        hpv.CategoricalHyperparameter(name="save_model_on_termination", range=["true", "false"], required=False),
+        hpv.CategoricalHyperparameter(name="aft_loss_distribution", range=["normal", "logistic", "extreme"],
+                                      required=False),
+        hpv.ContinuousHyperparameter(name="aft_loss_distribution_scale", range=hpv.Interval(min_closed=0),
+                                     required=False),
+        hpv.CategoricalHyperparameter(name="single_precision_histogram", range=["true", "false"], required=False),
+        hpv.CategoricalHyperparameter(name="deterministic_histogram", range=["true", "false"], required=False),
         )
 
     hyperparameters.declare_alias("eta", "learning_rate")

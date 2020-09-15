@@ -110,3 +110,19 @@ class TestHyperparameterValidation(unittest.TestCase):
 
         with self.assertRaises(exc.UserError):
             hyperparameters.validate(test_hp3)
+
+    def test_survival_analysis(self):
+        test_hp1 = {
+            "num_round": "1",
+            "eval_metric": "aft-nloglik",
+            "objective": "reg:squarederror",
+        }
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp1)
+
+        test_hp2 = {
+            "num_round": "1",
+            "eval_metric": "aft-nloglik",
+            "objective": "survival:aft",
+        }
+        assert hyperparameters.validate(test_hp2)

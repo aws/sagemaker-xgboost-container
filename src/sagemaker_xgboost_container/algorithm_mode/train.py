@@ -179,7 +179,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
 
     # Parse arguments for train() API
     early_stopping_rounds = train_cfg.get('early_stopping_rounds')
-    num_round = train_cfg["num_round"]
+    num_round = train_cfg.pop("num_round")
 
     # Evaluation metrics to use with train() API
     tuning_objective_metric_param = train_cfg.get("_tuning_objective_metric")

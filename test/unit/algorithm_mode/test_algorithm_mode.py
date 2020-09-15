@@ -40,7 +40,6 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "gamma": "4",
             "min_child_weight": "6",
             "subsample": "0.8",
-            "silent": "0",
             "objective": "binary:logistic",
             "num_round": "100"}
         hps = hpv.initialize(self.metrics)
@@ -64,7 +63,6 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "gamma": "4",
             "min_child_weight": "6",
             "subsample": "0.7",
-            "silent": "0",
             "objective": "reg:squarederror",
             "num_round": "50"
         }
@@ -77,7 +75,6 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "eta": "0.2",
             "gamma": "4",
             "min_child_weight": "6",
-            "silent": "0",
             "objective": "multi:softmax",
             "num_class": "10",
             "num_round": "10"
@@ -153,7 +150,6 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "gamma": "4",
             "reg_lambda": "10",
             "min_child_weight": "6",
-            "silent": "0",
             "objective": "multi:softmax",
             "num_class": "10",
             "num_round": "10"
@@ -168,7 +164,6 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "gamma": "4",
             "reg_alpha": "10",
             "min_child_weight": "6",
-            "silent": "0",
             "objective": "multi:softmax",
             "num_class": "10",
             "num_round": "10"
