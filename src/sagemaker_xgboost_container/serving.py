@@ -114,7 +114,7 @@ def _user_module_transformer(user_module):
         return transformer.Transformer(
             model_fn=model_fn,
             input_fn=input_fn or default_input_fn,
-            predict_fn=default_predict_fn,
+            predict_fn=predict_fn or default_predict_fn,
             output_fn=output_fn or default_output_fn,
         )
 
