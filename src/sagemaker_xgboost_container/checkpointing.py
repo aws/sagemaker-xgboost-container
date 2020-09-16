@@ -372,7 +372,7 @@ class SaveIntermediateModel(object):
         """Save intermediate model to intermediate model directory"""
         with tempfile.NamedTemporaryFile(
                 dir=self.intermediate_model_dir, delete=False) as tf:
-            pkl.dump(model, tf)
+            pkl.dump(model, tf, protocol=4)
 
         save_file_path = self.format_path()
         os.rename(tf.name, save_file_path)
