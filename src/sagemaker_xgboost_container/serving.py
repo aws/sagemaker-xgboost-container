@@ -13,7 +13,9 @@
 from __future__ import absolute_import
 import logging
 import os
+import pkg_resources
 
+import sagemaker_containers
 from sagemaker_containers.beta.framework import (
     encoders,
     env,
@@ -151,4 +153,12 @@ def serving_entrypoint():
     if is_multi_model():
         start_mxnet_model_server()
     else:
+        # Overwrite existing NGINX config
+        nginx_config_template_file = pkg_resources.resource_filename(
+            sagemaker_containers.__name__, "/etc/nginx.conf.template"
+        )
+        with open("/opt/ml/nginx/nginx.conf.template", "r") as f:
+            with open(nginx_config_template_file, "w") as g:
+                g.write(f.read())
+
         server.start(env.ServingEnv().framework_module)

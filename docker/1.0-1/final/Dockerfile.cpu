@@ -47,6 +47,12 @@ RUN chmod +rwx /opt/ml/models
 # Required label for multi-model loading
 LABEL com.amazonaws.sagemaker.capabilities.multi-models=true
 
+#########
+# NGINX #
+#########
+RUN mkdir -p /opt/ml/nginx
+COPY docker/${SAGEMAKER_XGBOOST_VERSION}/resources/nginx.conf.template /opt/ml/nginx
+
 #####################
 # Required ENV vars #
 #####################
