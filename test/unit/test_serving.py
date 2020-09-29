@@ -17,9 +17,9 @@ import os
 import pytest
 import xgboost as xgb
 
+from sagemaker_algorithm_toolkit.exceptions import UserError
 from sagemaker_containers.beta.framework import (content_types, encoders, errors)
 from sagemaker_xgboost_container import serving
-
 
 TEST_CONFIG_FILE = "test_dir"
 
@@ -107,3 +107,68 @@ def test_serving_entrypoint_start_gunicorn(mock_server):
 def test_serving_entrypoint_start_mms(mock_start_mxnet_model_server):
     serving.serving_entrypoint()
     mock_start_mxnet_model_server.assert_called_once()
+
+
+@patch('sagemaker_xgboost_container.serving.transformer')
+def test_user_module_transformer_with_transform_and_other_fn(mock_transformer):
+    mock_module = MagicMock(spec=["model_fn", "transform_fn", "input_fn"])
+    with pytest.raises(UserError):
+        serving._user_module_transformer(mock_module)
+
+
+@patch('sagemaker_xgboost_container.serving.transformer')
+def test_user_module_transformer_with_transform_and_no_other_fn(mock_transformer):
+    mock_module = MagicMock(spec=["model_fn", "transform_fn"])
+    serving._user_module_transformer(mock_module)
+    mock_transformer.Transformer.assert_called_once_with(
+        model_fn=mock_module.model_fn,
+        transform_fn=mock_module.transform_fn
+    )
+
+
+@patch('sagemaker_xgboost_container.serving.transformer')
+def test_user_module_transformer_with_model_fn_only(mock_transformer):
+    mock_module = MagicMock(spec=["model_fn"])
+    serving._user_module_transformer(mock_module)
+    mock_transformer.Transformer.assert_called_once_with(
+        model_fn=mock_module.model_fn,
+        input_fn=serving.default_input_fn,
+        predict_fn=serving.default_predict_fn,
+        output_fn=serving.default_output_fn
+    )
+
+
+@patch('sagemaker_xgboost_container.serving.transformer')
+def test_user_module_transformer_with_input_fn(mock_transformer):
+    mock_module = MagicMock(spec=["model_fn", "input_fn"])
+    serving._user_module_transformer(mock_module)
+    mock_transformer.Transformer.assert_called_once_with(
+        model_fn=mock_module.model_fn,
+        input_fn=mock_module.input_fn,
+        predict_fn=serving.default_predict_fn,
+        output_fn=serving.default_output_fn
+    )
+
+
+@patch('sagemaker_xgboost_container.serving.transformer')
+def test_user_module_transformer_with_predict_fn(mock_transformer):
+    mock_module = MagicMock(spec=["model_fn", "predict_fn"])
+    serving._user_module_transformer(mock_module)
+    mock_transformer.Transformer.assert_called_once_with(
+        model_fn=mock_module.model_fn,
+        input_fn=serving.default_input_fn,
+        predict_fn=mock_module.predict_fn,
+        output_fn=serving.default_output_fn
+    )
+
+
+@patch('sagemaker_xgboost_container.serving.transformer')
+def test_user_module_transformer_with_output_fn(mock_transformer):
+    mock_module = MagicMock(spec=["model_fn", "output_fn"])
+    serving._user_module_transformer(mock_module)
+    mock_transformer.Transformer.assert_called_once_with(
+        model_fn=mock_module.model_fn,
+        input_fn=serving.default_input_fn,
+        predict_fn=serving.default_predict_fn,
+        output_fn=mock_module.output_fn
+    )
