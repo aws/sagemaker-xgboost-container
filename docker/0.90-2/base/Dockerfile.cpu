@@ -17,9 +17,10 @@ RUN apt-get -y install openjdk-8-jdk-headless
 
 # Install mlio
 RUN echo 'installing miniconda' && \
-    curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    bash Miniconda3-latest-Linux-x86_64.sh -bfp /miniconda3 && \
-    rm Miniconda3-latest-Linux-x86_64.sh
+    curl -LO https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.2-Linux-x86_64.sh && \
+    echo "87e77f097f6ebb5127c77662dfc3165e Miniconda3-py37_4.8.2-Linux-x86_64.sh" | md5sum -c - && \
+    bash Miniconda3-py37_4.8.2-Linux-x86_64.sh -bfp /miniconda3 && \
+    rm Miniconda3-py37_4.8.2-Linux-x86_64.sh
 
 ENV PATH=/miniconda3/bin:${PATH}
 
