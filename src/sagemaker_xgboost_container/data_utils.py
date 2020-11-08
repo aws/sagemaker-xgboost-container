@@ -14,6 +14,7 @@ import cgi
 import csv
 import logging
 import os
+import re
 
 import mlio
 from mlio.integ.arrow import as_arrow_file
@@ -133,6 +134,16 @@ def _get_csv_delimiter(sample_csv_line):
     return delimiter
 
 
+def _validate_numeric_characters(sample_csv_line, file_path):
+    match = re.search('[a-df-zA-DF-Z]', sample_csv_line)
+    if match is not None:
+        raise exc.UserError("Non-numeric value '{}' found in the header line '{}...' of file '{}'."
+                            "CSV format requires no header in it. If the header line is already removed,"
+                            "XGBoost does not support non-numeric values in the data.".format(match.group(0),
+                                                                                              sample_csv_line[:50],
+                                                                                              file_path.split('/')[-1]))
+
+
 def _get_num_valid_libsvm_features(libsvm_line):
     """Get number of valid LIBSVM features.
 
@@ -199,6 +210,7 @@ def _validate_csv_format(file_path):
     with open(file_path, 'r', errors='ignore') as read_file:
         line_to_validate = read_file.readline()
         _get_csv_delimiter(line_to_validate)
+        _validate_numeric_characters(line_to_validate, file_path)
 
 
 def _validate_libsvm_format(file_path):
