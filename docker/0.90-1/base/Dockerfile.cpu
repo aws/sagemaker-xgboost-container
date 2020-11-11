@@ -31,4 +31,4 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING='utf-8'
 
 # Install latest version of XGBoost
-RUN pip install --no-cache -I xgboost==0.90
+RUN python3 -m pip install --no-cache -I xgboost==0.90

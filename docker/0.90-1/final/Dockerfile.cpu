@@ -18,12 +18,14 @@ ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_container.serving:main
 ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker
 
 COPY requirements.txt /requirements.txt
-RUN pip install -r /requirements.txt && rm /requirements.txt
+RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
 
 # DMLC patches; TODO: remove after making contributions back to xgboost for tracker.py
 COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
    /usr/local/lib/python3.5/dist-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
 
 COPY dist/sagemaker_xgboost_container-1.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
-RUN pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
+# https://github.com/googleapis/google-cloud-python/issues/6647
+RUN rm -rf /miniconda3/lib/python3.7/site-packages/numpy-1.19.4.dist-info && \
+    python3 -m pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
     rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
