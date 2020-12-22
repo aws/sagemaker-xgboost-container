@@ -1,11 +1,13 @@
 ARG UBUNTU_VERSION=18.04
 ARG CUDA_VERSION=10.2
+ARG IMAGE_DIGEST=1774efa6e102a9bdfa393521c6b2254ea751dc1af9cff25c51376128bfb08d5e
 
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
-ARG CONDA_VERSION=4.8.3
+ARG MINICONDA_VERSION=4.8.3
 ARG CONDA_PY_VERSION=38
 ARG CONDA_CHECKSUM="d63adf39f2c220950a063e0529d4ff74"
+ARG CONDA_PKG_VERSION=4.9.0
 ARG PYTHON_VERSION=3.7
 ARG PYARROW_VERSION=0.16.0
 ARG MLIO_VERSION=0.6.0
@@ -51,7 +53,8 @@ RUN apt-get update && \
         autoconf \
         automake \
         build-essential \
-        cmake \
+        cmake=3.18.4-0kitware1 \
+        cmake-data=3.18.4-0kitware1 \
         doxygen \
         libcurl4-openssl-dev \
         libssl-dev \
@@ -66,7 +69,7 @@ RUN apt-get update && \
 
 # Install conda
 RUN cd /tmp && \
-    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${CONDA_VERSION}-Linux-x86_64.sh && \
+    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-Linux-x86_64.sh && \
     echo "${CONDA_CHECKSUM} /tmp/Miniconda3.sh" | md5sum -c - && \
     bash /tmp/Miniconda3.sh -bfp /miniconda3 && \
     rm /tmp/Miniconda3.sh
@@ -76,7 +79,14 @@ ENV PATH=/miniconda3/bin:${PATH}
 # Install MLIO with Apache Arrow integration
 # We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
 # which increases training time. We build from source to minimize the image size.
-RUN conda install python=${PYTHON_VERSION} && \
+RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
+    # Conda configuration see https://conda.io/projects/conda/en/latest/configuration.html
+    conda config --system --set auto_update_conda false && \
+    conda config --system --set show_channel_urls true && \
+    echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
+    conda install python=${PYTHON_VERSION} && \
+    conda install python=${PYTHON_VERSION} && \
+    conda install conda=${CONDA_PKG_VERSION} && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} && \
     cd /tmp && \
