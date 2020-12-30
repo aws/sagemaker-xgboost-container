@@ -6,7 +6,7 @@ PYTHON_MAJOR_VERSION = 3
 PYTHON_MINOR_VERSION = 7
 REQUIREMENTS = """\
 Flask==1.1.1
-PyYAML==3.13
+PyYAML==5.1
 boto3==1.14.62
 botocore==1.17.62
 conda==4.9.0

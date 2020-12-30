@@ -1,5 +1,5 @@
 Flask==1.1.1  # sagemaker-containers requires flask 1.1.1
-PyYAML==3.13
+PyYAML==5.1
 boto3==1.14.62
 botocore==1.17.62
 gunicorn==19.10.0
