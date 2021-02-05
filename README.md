@@ -38,7 +38,7 @@ docker push {ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/multi-model-xgboost:lat
 ```
 
 # Update Endpoint
-### Rationale
+### Caveat
 Currently, SageMaker Endpoint does not automatically update upon the new push of ECR image. As a short term solution, we create a new configuration file that points to the latest pushed ECR image, and make the endpoint to point to it to trigger the update.
 
 ## Steps
