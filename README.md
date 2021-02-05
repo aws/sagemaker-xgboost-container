@@ -2,9 +2,6 @@
 A gateway service front our backend API requests.
 A SageMaker XGBoost Container that is used for Inference Endpoint
 
-# XGen API Gateway
-A gateway service front our backend API requests.   
-
 ### AWS ECR login
 ```
 aws ecr get-login-password --profile dev --region us-east-1 | docker login --username AWS --password-stdin {ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com
