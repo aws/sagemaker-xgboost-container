@@ -1,5 +1,4 @@
 # XGen SageMaker XGBoost Container
-A gateway service front our backend API requests.
 A SageMaker XGBoost Container that is used for Inference Endpoint
 
 ### AWS ECR login
