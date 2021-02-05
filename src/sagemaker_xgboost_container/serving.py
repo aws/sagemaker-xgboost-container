@@ -77,8 +77,10 @@ def _set_mms_configs(is_multi_model, handler):
     max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024**2) * 1.2) + 128
 
     if is_multi_model:
-        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '16'
-        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = '400'
+ #       os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '16'
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(max_workers*2)
+ #       os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = '400'
+        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = str(max_workers*2)
         os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
         os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
     else:
