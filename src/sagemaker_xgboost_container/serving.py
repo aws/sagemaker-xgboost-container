@@ -77,8 +77,8 @@ def _set_mms_configs(is_multi_model, handler):
     max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024**2) * 1.2) + 128
 
     if is_multi_model:
-        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '1'
-        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = '2'
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '16'
+        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = '400'
         os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
         os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
     else:
@@ -103,7 +103,7 @@ def _set_mms_configs(is_multi_model, handler):
     try:
         with open('/home/model-server/config.properties.tmp', 'r') as f:
             with open('/home/model-server/config.properties', 'w+') as g:
-                g.write("vmargs=-XX:-UseLargePages -XX:+UseG1GC -XX:MaxMetaspaceSize=32M -XX:+ExitOnOutOfMemoryError "
+                g.write("vmargs=-XX:-UseLargePages -XX:-UseContainerSupport -XX:+UseG1GC -XX:MaxMetaspaceSize=32M -XX:+ExitOnOutOfMemoryError "
                         + "-Xmx" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
                         + " -XX:MaxDirectMemorySize=" + os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] + "\n")
                 g.write(f.read())
