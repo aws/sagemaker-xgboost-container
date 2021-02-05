@@ -49,3 +49,48 @@ Currently, SageMaker Endpoint does not automatically update upon the new push of
 7. Click on the `multi-model-xgboost` and 'Update endpoint'
 8. 'Change Endpoint configuration' -> 'Use an existing endpoint configuration' -> Choose the configuration created from Step 5 -> 'Select endpoint configuration' -> 'Update endpoint'
 9. Wait until the Status = `InService`
+
+# TESTING
+## Configuration Change
+### Steps
+1. Go to AWS CloudWatch Console -> Insights -> 'Select log group(s)' -> `/aws/sagemaker/Endpoints/multi-model-xgboost`
+2. Query following for last 5 mins
+```
+fields @timestamp, @message
+| filter 
+@message like "CPU" or 
+@message like "GPU" or 
+@message like "workers" or
+@message like {WHATEVER METRICS OF INTEREST}
+| sort @timestamp desc
+| limit 20
+```
+3. Observe the values are shown as expected.
+Ex.
+```
+1
+2021-02-05T10:06:17.014-08:00
+Number of GPUs: 0
+2
+2021-02-05T10:06:17.014-08:00
+Number of CPUs: 2
+3
+2021-02-05T10:06:17.014-08:00
+Default workers per model: 16
+```
+## Test the Inference Locally
+### Steps
+Test script: `xgen/x2mind/test/test_inference.py`
+1. Set the `customer_id`, `model_id`, `user_id` with valid Customer ID, Model ID, User ID respectively.
+2. Run the script by `python3 test_inference.py`
+3. Go to AWS CloudWatch Console -> Insights -> 'Select log group(s)' -> `/aws/sagemaker/Endpoints/multi-model-xgboost`
+2. Query following:
+```
+fields @timestamp, @message
+| filter 
+@message like "Error" or 
+@message like {WHATEVER METRICS OF INTEREST}
+| sort @timestamp desc
+| limit 20
+```
+3. Observe the values are shown as expected.
