@@ -230,8 +230,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
         if nfold is not None:
             all_dmatrix = train_dmatrix
             # TODO: XGBoost doesn't support DMatrix concatenation.
-            #if val_dmatrix is not None:
-            #    all_dmatrix = bind(train_dmatrix, val_dmatrix)
+            # if val_dmatrix is not None:
+            #     all_dmatrix = bind(train_dmatrix, val_dmatrix)
             xgb.cv(train_cfg, all_dmatrix, nfold=nfold, num_boost_round=num_round,
                    feval=configured_feval, show_stdv=False, verbose_eval=True)
     except Exception as e:
