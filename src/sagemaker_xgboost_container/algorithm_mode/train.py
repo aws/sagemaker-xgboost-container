@@ -81,7 +81,7 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
 
     train_dmatrix = get_dmatrix(train_path, content_type, csv_weights=csv_weights, is_pipe=is_pipe) \
         if train_files_size > 0 else None
-    val_dmatrix = get_dmatrix(validate_path, content_type, is_pipe=is_pipe) \
+    val_dmatrix = get_dmatrix(validate_path, content_type, csv_weights=csv_weights, is_pipe=is_pipe) \
         if val_files_size > 0 else None
 
     return train_dmatrix, val_dmatrix
