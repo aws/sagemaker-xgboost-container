@@ -8,7 +8,7 @@ from unittest.mock import patch
 import numpy as np
 import xgboost as xgb
 from sagemaker_xgboost_container import checkpointing
-from sagemaker_xgboost_container.checkpointing import SaveCheckpoint
+from sagemaker_xgboost_container.checkpointing import SaveCheckpoint, _sort_checkpoints
 
 
 class TestSaveCheckpoint(unittest.TestCase):
@@ -258,3 +258,20 @@ def test_train_zero_or_negative_rounds(tmpdir, caplog):
     bst = checkpointing.train(train_args, checkpoint_dir)
     assert isinstance(bst, xgb.Booster)
     assert not os.listdir(checkpoint_dir)
+
+
+def test_sort_checkpoints():
+    input_checkpoints = [
+        "xgboost-checkpoint.100",
+        "xgboost-checkpoint.989",
+        "xgboost-checkpoint.101",
+        "xgboost-checkpoint.99",
+    ]
+    _sort_checkpoints(input_checkpoints)
+    expected_sorted_checkpoints = [
+        "xgboost-checkpoint.99",
+        "xgboost-checkpoint.100",
+        "xgboost-checkpoint.101",
+        "xgboost-checkpoint.989",
+    ]
+    assert input_checkpoints == expected_sorted_checkpoints
