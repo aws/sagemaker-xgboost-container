@@ -115,7 +115,7 @@ def load_checkpoint(checkpoint_dir, max_try=5):
     checkpoints = [f for f in os.listdir(checkpoint_dir) if re.match(regex, f)]
     if not checkpoints:
         return None, 0
-    checkpoints.sort()
+    _sort_checkpoints(checkpoints)
 
     xgb_model, iteration = None, 0
 
@@ -133,6 +133,11 @@ def load_checkpoint(checkpoint_dir, max_try=5):
             logging.debug("Wrong checkpoint model format %s", latest_checkpoint)
 
     return xgb_model, iteration
+
+
+def _sort_checkpoints(checkpoint_files):
+    checkpoint_files.sort(key=lambda x: int(x.split('.')[1]))
+    return checkpoint_files
 
 
 def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None):
