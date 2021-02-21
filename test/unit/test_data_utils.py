@@ -86,7 +86,7 @@ class TestTrainUtils(unittest.TestCase):
 
         self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
 
-    def _check_piped_dmatrix(self, file_path, pipe_path, pipe_dir, reader, num_col, num_row, *args):
+    def _check_piped_dmatrix(self, file_path, pipe_dir, reader, num_col, num_row, *args):
         python_exe = sys.executable
         pipe_cmd = '{}/sagemaker_pipe.py train {} {}'.format(self.utils_path, file_path, pipe_dir)
 
@@ -94,9 +94,27 @@ class TestTrainUtils(unittest.TestCase):
 
         try:
             time.sleep(1)
+            pipe_path = os.path.join(pipe_dir, 'train')
             self._check_dmatrix(reader, pipe_path, num_col, num_row, *args)
         finally:
             os.kill(proc.pid, signal.SIGTERM)
+            shutil.rmtree(pipe_dir)
+
+    def _check_piped_dmatrix2(self, file_path, pipe_dir, reader, num_col, num_row, *args):
+        python_exe = sys.executable
+        pipe_cmd = '{}/sagemaker_pipe.py train2 {} {}'.format(self.utils_path, file_path, pipe_dir)
+        pipe_cmd2 = '{}/sagemaker_pipe.py validation {} {}'.format(self.utils_path, file_path, pipe_dir)
+
+        proc = subprocess.Popen([python_exe] + pipe_cmd.split(" "))
+        proc2 = subprocess.Popen([python_exe] + pipe_cmd2.split(" "))
+
+        try:
+            time.sleep(1)
+            pipes_path = [os.path.join(pipe_dir, 'train2'), os.path.join(pipe_dir, 'validation')]
+            self._check_dmatrix(reader, pipes_path, num_col, 2*num_row, *args)
+        finally:
+            os.kill(proc.pid, signal.SIGTERM)
+            os.kill(proc2.pid, signal.SIGTERM)
             shutil.rmtree(pipe_dir)
 
     def test_parse_csv_dmatrix(self):
@@ -115,10 +133,20 @@ class TestTrainUtils(unittest.TestCase):
             with self.subTest(file_path=file_path, csv_weight=csv_weight):
                 csv_path = os.path.join(self.data_path, 'csv', file_path)
                 pipe_dir = os.path.join(self.data_path, 'csv', 'pipe_path', file_path)
-                pipe_path = os.path.join(pipe_dir, 'train')
                 reader = data_utils.get_csv_dmatrix
                 is_pipe = True
-                self._check_piped_dmatrix(csv_path, pipe_path, pipe_dir, reader, 5, 5, csv_weight, is_pipe)
+                self._check_piped_dmatrix(csv_path, pipe_dir, reader, 5, 5, csv_weight, is_pipe)
+
+    def test_parse_csv_dmatrix_pipe2(self):
+        csv_file_paths_and_weight = [('csv_files', 0), ('weighted_csv_files', 1)]
+
+        for file_path, csv_weight in csv_file_paths_and_weight:
+            with self.subTest(file_path=file_path, csv_weight=csv_weight):
+                csv_path = os.path.join(self.data_path, 'csv', file_path)
+                pipe_dir = os.path.join(self.data_path, 'csv', 'pipe_path', file_path)
+                reader = data_utils.get_csv_dmatrix
+                is_pipe = True
+                self._check_piped_dmatrix2(csv_path, pipe_dir, reader, 5, 5, csv_weight, is_pipe)
 
     def test_parse_libsvm_dmatrix(self):
         libsvm_file_paths = ['train.libsvm', 'train.libsvm.weights', 'libsvm_files']
@@ -145,10 +173,9 @@ class TestTrainUtils(unittest.TestCase):
             with self.subTest(file_path=file_path):
                 pq_path = os.path.join(self.data_path, 'parquet', file_path)
                 pipe_dir = os.path.join(self.data_path, 'parquet', 'pipe_path')
-                pipe_path = os.path.join(pipe_dir, 'train')
                 reader = data_utils.get_parquet_dmatrix
                 is_pipe = True
-                self._check_piped_dmatrix(pq_path, pipe_path, pipe_dir, reader, 5, 5, is_pipe)
+                self._check_piped_dmatrix(pq_path, pipe_dir, reader, 5, 5, is_pipe)
 
     def test_parse_protobuf_dmatrix(self):
         pb_file_paths = ['train.pb', 'pb_files']
@@ -166,10 +193,9 @@ class TestTrainUtils(unittest.TestCase):
             with self.subTest(file_path=file_path):
                 pb_path = os.path.join(self.data_path, 'recordio_protobuf', file_path)
                 pipe_dir = os.path.join(self.data_path, 'recordio_protobuf', 'pipe_path')
-                pipe_path = os.path.join(pipe_dir, 'train')
                 reader = data_utils.get_recordio_protobuf_dmatrix
                 is_pipe = True
-                self._check_piped_dmatrix(pb_path, pipe_path, pipe_dir, reader, 5, 5, is_pipe)
+                self._check_piped_dmatrix(pb_path, pipe_dir, reader, 5, 5, is_pipe)
 
     def test_parse_sparse_protobuf_dmatrix(self):
         pb_file_paths = ['sparse', 'sparse_edge_cases']

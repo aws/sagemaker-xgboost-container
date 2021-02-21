@@ -299,7 +299,8 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
     :return: xgb.DMatrix or None
     """
     try:
-        dataset = [mlio.SageMakerPipe(pipe_path)]
+        pipes_path = pipe_path if isinstance(pipe_path, list) else [pipe_path]
+        dataset = [mlio.SageMakerPipe(path) for path in pipes_path]
         reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=BATCH_SIZE)
         csv_params = mlio.CsvParams(header_row_index=None)
         reader = mlio.CsvReader(reader_params, csv_params)
@@ -401,18 +402,20 @@ def _get_parquet_dmatrix_pipe_mode(pipe_path):
     :return: xgb.DMatrix or None
     """
     try:
-        f = mlio.SageMakerPipe(pipe_path)
         examples = []
 
-        with f.open_read() as strm:
-            reader = mlio.ParquetRecordReader(strm)
+        pipes_path = pipe_path if isinstance(pipe_path, list) else [pipe_path]
+        for path in pipes_path:
+            f = mlio.SageMakerPipe(path)
+            with f.open_read() as strm:
+                reader = mlio.ParquetRecordReader(strm)
 
-            for record in reader:
-                table = pq.read_table(as_arrow_file(record))
-                array = table.to_pandas()
-                if type(array) is pd.DataFrame:
-                    array = array.to_numpy()
-                examples.append(array)
+                for record in reader:
+                    table = pq.read_table(as_arrow_file(record))
+                    array = table.to_pandas()
+                    if type(array) is pd.DataFrame:
+                        array = array.to_numpy()
+                    examples.append(array)
 
         if examples:
             data = np.vstack(examples)
@@ -449,7 +452,8 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
     """
     try:
         if is_pipe:
-            dataset = [mlio.SageMakerPipe(path)]
+            pipes_path = path if isinstance(path, list) else [path]
+            dataset = [mlio.SageMakerPipe(pipe_path) for pipe_path in pipes_path]
         else:
             dataset = mlio.list_files(path)
 
@@ -492,31 +496,48 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     :param is_pipe: Boolean to indicate if data is being read in pipe mode
     :return: xgb.DMatrix or None
     """
-    if not (os.path.exists(data_path) or (is_pipe and os.path.exists(data_path + '_0'))):
-        return None
-    else:
-        if os.path.isfile(data_path) or is_pipe:
+    if is_pipe:
+        if isinstance(data_path, list):
             files_path = data_path
-        elif not is_pipe:
-            for root, dirs, files in os.walk(data_path):
-                if dirs == []:
-                    files_path = root
-                    break
-        if content_type.lower() == CSV:
-            dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
-        elif content_type.lower() == LIBSVM:
-            dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
-        elif content_type.lower() == PARQUET:
-            dmatrix = get_parquet_dmatrix(files_path, is_pipe)
-        elif content_type.lower() == RECORDIO_PROTOBUF:
-            dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
+        else:
+            files_path = [data_path]
+            if not os.path.exists(data_path + '_0'):
+                logging.info('Pipe path {} does not exist!'.format(data_path))
+                return None
+    else:
+        if not isinstance(data_path, list):
+            if not os.path.exists(data_path):
+                logging.info('File path {} does not exist!'.format(data_path))
+                return None
+            files_path = get_files_path(data_path)
+        else:
+            # Create a directory with symlinks to input files.
+            files_path = "/tmp/sagemaker_xgboost_input_data"
+            os.mkdir(files_path)
+            for path in data_path:
+                if not os.path.exists(path):
+                    return None
+                if os.path.isfile(path):
+                    os.symlink(path, os.path.join(files_path, os.path.basename(path)))
+                else:
+                    for file in os.scandir(path):
+                        os.symlink(file, os.path.join(files_path, file.name))
 
-        if dmatrix and dmatrix.get_label().size == 0:
-            raise exc.UserError(
-                "Got input data without labels. Please check the input data set. "
-                "If training job is running on multiple instances, please switch "
-                "to using single instance if number of records in the data set "
-                "is less than number of workers (16 * number of instance) in the cluster.")
+    if content_type.lower() == CSV:
+        dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
+    elif content_type.lower() == LIBSVM:
+        dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == PARQUET:
+        dmatrix = get_parquet_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == RECORDIO_PROTOBUF:
+        dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
+
+    if dmatrix and dmatrix.get_label().size == 0:
+        raise exc.UserError(
+            "Got input data without labels. Please check the input data set. "
+            "If training job is running on multiple instances, please switch "
+            "to using single instance if number of records in the data set "
+            "is less than number of workers (16 * number of instance) in the cluster.")
 
     return dmatrix
 
@@ -546,3 +567,15 @@ def get_size(data_path, is_pipe=False):
                     file_path = os.path.join(root, current_file)
                     total_size += os.path.getsize(file_path)
             return total_size
+
+
+def get_files_path(data_path):
+    if os.path.isfile(data_path):
+        files_path = data_path
+    else:
+        for root, dirs, files in os.walk(data_path):
+            if dirs == []:
+                files_path = root
+                break
+
+    return files_path
