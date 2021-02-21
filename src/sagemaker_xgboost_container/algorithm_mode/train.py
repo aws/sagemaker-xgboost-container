@@ -231,8 +231,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     logging.info("Train matrix has {} rows".format(train_dmatrix.num_row()))
     if val_dmatrix:
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
-    if train_val_dmatrix:
-        logging.info("Train+Validation matrix has {} rows".format(train_val_dmatrix.num_row()))
 
     try:
         nfold = train_cfg.pop("nfold", None)
@@ -242,7 +240,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                         verbose_eval=False)
 
         if nfold is not None and train_val_dmatrix is not None:
-            logging.info("Run {} fold cross validation".format(nfold))
+            logging.info("Run {} fold cross validation on the data of {} rows".format(nfold,
+                                                                                      train_val_dmatrix.num_row()))
             xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
                    feval=configured_feval, early_stopping_rounds=early_stopping_rounds, show_stdv=False,
                    verbose_eval=True)
