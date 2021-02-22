@@ -261,4 +261,3 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         with open(model_location, 'wb') as f:
             pkl.dump(bst, f, protocol=4)
         logging.debug("Stored trained model at {}".format(model_location))
-
