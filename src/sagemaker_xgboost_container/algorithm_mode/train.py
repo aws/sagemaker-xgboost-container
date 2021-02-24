@@ -243,7 +243,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
             logging.info("Run {} fold cross validation on the data of {} rows".format(nfold,
                                                                                       train_val_dmatrix.num_row()))
             xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
-                   feval=configured_feval, early_stopping_rounds=early_stopping_rounds, show_stdv=False,
+                   feval=configured_feval, early_stopping_rounds=early_stopping_rounds, show_stdv=True,
                    verbose_eval=True)
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
