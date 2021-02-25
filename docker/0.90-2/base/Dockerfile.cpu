@@ -24,8 +24,9 @@ RUN echo 'installing miniconda' && \
 
 ENV PATH=/miniconda3/bin:${PATH}
 
-RUN conda install python=3.6 && \
+RUN conda install -c conda-forge python=3.6.13 && \
     conda update -y conda && \
+    conda install pip=20.1 && \
     conda install -c conda-forge pyarrow=0.14.1 && \
     conda install -c mlio -c conda-forge mlio-py=0.1
 
