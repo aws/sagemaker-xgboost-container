@@ -86,7 +86,7 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     val_dmatrix = get_dmatrix(validate_path, content_type, is_pipe=is_pipe) \
         if val_files_size > 0 else None
 
-    train_val_dmatrix = train_dmatrix
+    train_val_dmatrix = None
     if combine_train_val and train_dmatrix is not None and val_dmatrix is not None:
         logging.info("Read both train and validation data into one DMatrix")
         train_val_dmatrix = get_dmatrix([train_path, validate_path], content_type,
@@ -132,7 +132,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     is_pipe = (input_mode == Channel.PIPE_MODE)
 
     validation_channel = validated_data_config.get('validation', None)
-    combine_train_val = 'nfold' in validated_train_config
+    combine_train_val = '_nfold' in validated_train_config
     train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type,
                                                                             csv_weights, is_pipe, combine_train_val)
 
@@ -233,7 +233,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
 
     try:
-        nfold = train_cfg.pop("nfold", None)
+        nfold = train_cfg.pop("_nfold", None)
 
         bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds, callbacks=callbacks, xgb_model=xgb_model,
