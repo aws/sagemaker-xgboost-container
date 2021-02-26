@@ -102,7 +102,7 @@ class TestTrainUtils(unittest.TestCase):
 
     def _check_piped_dmatrix2(self, file_path, pipe_dir, reader, num_col, num_row, *args):
         python_exe = sys.executable
-        pipe_cmd = '{}/sagemaker_pipe.py train2 {} {}'.format(self.utils_path, file_path, pipe_dir)
+        pipe_cmd = '{}/sagemaker_pipe.py train {} {}'.format(self.utils_path, file_path, pipe_dir)
         pipe_cmd2 = '{}/sagemaker_pipe.py validation {} {}'.format(self.utils_path, file_path, pipe_dir)
 
         proc = subprocess.Popen([python_exe] + pipe_cmd.split(" "))
@@ -110,12 +110,22 @@ class TestTrainUtils(unittest.TestCase):
 
         try:
             time.sleep(1)
-            pipes_path = [os.path.join(pipe_dir, 'train2'), os.path.join(pipe_dir, 'validation')]
+            pipes_path = [os.path.join(pipe_dir, 'train'), os.path.join(pipe_dir, 'validation')]
             self._check_dmatrix(reader, pipes_path, num_col, 2*num_row, *args)
         finally:
             os.kill(proc.pid, signal.SIGTERM)
             os.kill(proc2.pid, signal.SIGTERM)
             shutil.rmtree(pipe_dir)
+
+    def test_get_dmatrix(self):
+        current_path = Path(os.path.abspath(__file__))
+        data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
+        file_path = [os.path.join(data_path, path) for path in ['train', 'validation']]
+
+        dmatrix = data_utils.get_dmatrix(file_path, 'libsvm', 0, False)
+
+        self.assertEqual(9, dmatrix.num_col())
+        self.assertEqual(3548, dmatrix.num_row())
 
     def test_parse_csv_dmatrix(self):
         csv_file_paths_and_weight = [('train.csv', 0), ('train.csv.weights', 1), ('csv_files', 0)]
@@ -143,7 +153,7 @@ class TestTrainUtils(unittest.TestCase):
         for file_path, csv_weight in csv_file_paths_and_weight:
             with self.subTest(file_path=file_path, csv_weight=csv_weight):
                 csv_path = os.path.join(self.data_path, 'csv', file_path)
-                pipe_dir = os.path.join(self.data_path, 'csv', 'pipe_path', file_path)
+                pipe_dir = os.path.join(self.data_path, 'csv', 'pipe_path2', file_path)
                 reader = data_utils.get_csv_dmatrix
                 is_pipe = True
                 self._check_piped_dmatrix2(csv_path, pipe_dir, reader, 5, 5, csv_weight, is_pipe)

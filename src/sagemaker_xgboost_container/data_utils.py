@@ -14,6 +14,7 @@ import cgi
 import csv
 import logging
 import os
+import shutil
 
 import mlio
 from mlio.integ.arrow import as_arrow_file
@@ -527,6 +528,7 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
         else:
             # Create a directory with symlinks to input files.
             files_path = "/tmp/sagemaker_xgboost_input_data"
+            shutil.rmtree(files_path)
             os.mkdir(files_path)
             for path in data_path:
                 if not os.path.exists(path):
