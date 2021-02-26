@@ -496,6 +496,20 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     :param is_pipe: Boolean to indicate if data is being read in pipe mode
     :return: xgb.DMatrix or None
     """
+
+    # To get best results from cross validation, we should merge train_dmatrix
+    # and val_dmatrix for bigger data. However, DMatrix doesn't support concat
+    # operation and it cannot be exported to other formats (e.g. numpy).
+    # It is possible to write it to a file in binary format matrix.save("data.buffer").
+    # However, xgb doesn't support read multiple buffer files.
+    #
+    # So the only way to combine the data is to read them in one shot.
+    # Fortunately, milo can read multiple pipes together. So we extends
+    # the parameter data_path to support list. If data_path is string as usual,
+    # get_dmatrix will work as before. When it is a list, we work as follows.
+    # For pipe mode, it leverages mlio directly by creating a list of SageMakerPipe.
+    # In file mode, we create a temp directory with symlink to all input files or
+    # directories to meet XGB's assumption that all files are in the same directory.
     if is_pipe:
         if isinstance(data_path, list):
             files_path = data_path
