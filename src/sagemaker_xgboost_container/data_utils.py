@@ -528,7 +528,7 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
         else:
             # Create a directory with symlinks to input files.
             files_path = "/tmp/sagemaker_xgboost_input_data"
-            shutil.rmtree(files_path)
+            shutil.rmtree(files_path, ignore_errors=True)
             os.mkdir(files_path)
             for path in data_path:
                 if not os.path.exists(path):
