@@ -242,9 +242,21 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         if nfold is not None and train_val_dmatrix is not None:
             logging.info("Run {} fold cross validation on the data of {} rows".format(nfold,
                                                                                       train_val_dmatrix.num_row()))
-            xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
-                   feval=configured_feval, early_stopping_rounds=early_stopping_rounds, show_stdv=True,
-                   verbose_eval=True)
+            # xgb.cv returns a pandas data frame of evaluation results.
+            cv_eval_result = xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
+                                    feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
+                                    show_stdv=True, verbose_eval=True)
+
+            logging.info("Print the metrics of last epoch in the format expected by HPO")
+            cv_last_epoch = len(cv_eval_result.index) - 1
+            cv_eval_report = f"[{cv_last_epoch}]"
+            cv_eval_columns = cv_eval_result.columns
+            # Skip the standard deviation columns
+            for j in range(0, len(cv_eval_columns), 2):
+                metric_name = cv_eval_columns[j][:-5].replace("test-", "validation-", 1)
+                metric_val = cv_eval_result.at[cv_last_epoch, cv_eval_columns[j]]
+                cv_eval_report += '\t{0}:{1:.5f}'.format(metric_name, metric_val)
+            print(cv_eval_report)
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):
