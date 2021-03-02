@@ -54,7 +54,8 @@ def add_sigterm_handler(model_dir, is_master):
     signal.signal(signal.SIGTERM, _cleanup_files)
 
 
-def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights=0, is_pipe=False):
+def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights=0, is_pipe=False,
+                            combine_train_val=False):
     """Get training and validation Data Matrices for XGBoost training.
 
     Check size and format of both training and validation data channels, and return parsed
@@ -65,6 +66,7 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     :param content_type: Content type of data. Supports 'libsvm' or 'csv'
     :param csv_weights: 1 if instance weights are in the second column of csv data files; otherwise, 0
     :param is_pipe: Boolean to indicate if data is being read in pipe mode
+    :combine_train_val: Boolean to indicate if returns a DMatrix combining train and validation data
     :return: Parsed xgb.DMatrix
     """
     train_files_size = get_size(train_path, is_pipe) if train_path else 0
@@ -84,7 +86,13 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     val_dmatrix = get_dmatrix(validate_path, content_type, csv_weights=csv_weights, is_pipe=is_pipe) \
         if val_files_size > 0 else None
 
-    return train_dmatrix, val_dmatrix
+    train_val_dmatrix = None
+    if combine_train_val and train_dmatrix is not None and val_dmatrix is not None:
+        logging.info("Read both train and validation data into one DMatrix")
+        train_val_dmatrix = get_dmatrix([train_path, validate_path], content_type,
+                                        csv_weights=csv_weights, is_pipe=is_pipe)
+
+    return train_dmatrix, val_dmatrix, train_val_dmatrix
 
 
 def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, sm_hosts, sm_current_host,
@@ -124,7 +132,9 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     is_pipe = (input_mode == Channel.PIPE_MODE)
 
     validation_channel = validated_data_config.get('validation', None)
-    train_dmatrix, val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type, csv_weights, is_pipe)
+    combine_train_val = '_nfold' in validated_train_config
+    train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type,
+                                                                            csv_weights, is_pipe, combine_train_val)
 
     checkpoint_dir = checkpoint_config.get("LocalPath", None)
 
@@ -132,6 +142,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
         train_cfg=validated_train_config,
         train_dmatrix=train_dmatrix,
         val_dmatrix=val_dmatrix,
+        train_val_dmatrix=train_val_dmatrix,
         model_dir=model_dir,
         checkpoint_dir=checkpoint_dir)
 
@@ -162,7 +173,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
         raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
 
-def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master):
+def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_dir, checkpoint_dir, is_master):
     """Train and save XGBoost model using data on current node.
 
     If doing distributed training, XGBoost will use rabit to sync the trained model between each boosting iteration.
@@ -171,6 +182,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
     :param train_cfg: Training hyperparameter configurations
     :param train_dmatrix: Training Data Matrix
     :param val_dmatrix: Validation Data Matrix
+    :param train_val_dmatrix: Training + Validation Data Matrix
     :param model_dir: Directory where model will be saved
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
@@ -221,9 +233,30 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, 
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
 
     try:
+        nfold = train_cfg.pop("_nfold", None)
+
         bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
                         early_stopping_rounds=early_stopping_rounds, callbacks=callbacks, xgb_model=xgb_model,
                         verbose_eval=False)
+
+        if nfold is not None and train_val_dmatrix is not None:
+            logging.info("Run {} fold cross validation on the data of {} rows".format(nfold,
+                                                                                      train_val_dmatrix.num_row()))
+            # xgb.cv returns a pandas data frame of evaluation results.
+            cv_eval_result = xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
+                                    feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
+                                    show_stdv=True, verbose_eval=True)
+
+            logging.info("Print the metrics of last epoch in the format expected by HPO")
+            cv_last_epoch = len(cv_eval_result.index) - 1
+            cv_eval_report = f"[{cv_last_epoch}]"
+            cv_eval_columns = cv_eval_result.columns
+            # Skip the standard deviation columns
+            for j in range(0, len(cv_eval_columns), 2):
+                metric_name = cv_eval_columns[j][:-5].replace("test-", "validation-", 1)
+                metric_val = cv_eval_result.at[cv_last_epoch, cv_eval_columns[j]]
+                cv_eval_report += '\t{0}:{1:.5f}'.format(metric_name, metric_val)
+            print(cv_eval_report)
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):
