@@ -12,15 +12,16 @@
 # language governing permissions and limitations under the License.
 import numpy as np
 import xgboost as xgb
-
+from math import log
 from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse
 
 
 binary_train_data = np.random.rand(10, 2)
 binary_train_label = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
 binary_dtrain = xgb.DMatrix(binary_train_data, label=binary_train_label)
-binary_preds = np.ones(10)
-binary_preds_logistic = np.asarray([[0.1, 0.9]] * 10)
+# log(x/(1-x)) is the inverse function of sigmoid
+binary_preds = [log(0.7/0.3) - 0.5] * 10
+binary_preds_logistic = np.asarray([[log(0.1/0.9) - 0.5, log(0.9/0.1) - 0.5]] * 10)
 
 
 def test_binary_accuracy():
@@ -45,12 +46,6 @@ def test_binary_f1_logistic():
     f1_score_name, f1_score_result = f1(binary_preds_logistic, binary_dtrain)
     assert f1_score_name == 'f1'
     assert f1_score_result == 1/3
-
-
-def test_mse():
-    mse_score_name, mse_score_result = mse(binary_preds, binary_dtrain)
-    assert mse_score_name == 'mse'
-    assert mse_score_result == .5
 
 
 multiclass_train_data = np.random.rand(10, 2)

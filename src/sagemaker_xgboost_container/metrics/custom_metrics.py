@@ -11,7 +11,20 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import numpy as np
+from math import exp
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
+
+
+# From 1.2, custom evaluation metric receives raw prediction.
+# For binary classification (binary:logistic as objective),
+# the raw prediction is log-odds, which can be translated to
+# probability by sigmoid function. Note that the raw prediction
+# of XGBoost has to be added 0.5 before passing to sigmoid.
+# https://github.com/dmlc/xgboost/releases/tag/v1.2.0
+# https://discuss.xgboost.ai/t/output-margin-and-leaf-probabilities/798
+def sigmoid(x):
+    """Transform binary classification margin output to probability"""
+    return 1 / (1 + exp(-x))
 
 
 # TODO: Rename both according to AutoML standards
@@ -23,7 +36,7 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    rounded_preds = [np.argmax(value) if (type(value) is np.ndarray) else round(value) for value in preds]
+    rounded_preds = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x+0.5)) for x in preds]
     return 'accuracy', accuracy_score(labels, rounded_preds)
 
 
@@ -37,7 +50,7 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    rounded_preds = [np.argmax(value) if (type(value) is np.ndarray) else round(value) for value in preds]
+    rounded_preds = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x+0.5)) for x in preds]
     return 'f1', f1_score(labels, rounded_preds, average='macro')
 
 
