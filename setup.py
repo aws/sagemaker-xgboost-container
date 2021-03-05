@@ -18,7 +18,7 @@ setup(
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
 
-    long_description=read('README.rst'),
+    long_description='a project without a readme',
     author='Amazon Web Services',
     license='Apache License 2.0',
 
