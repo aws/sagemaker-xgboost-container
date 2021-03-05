@@ -11,7 +11,6 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import numpy as np
-from math import exp
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 
 
@@ -23,8 +22,9 @@ from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 # https://github.com/dmlc/xgboost/releases/tag/v1.2.0
 # https://discuss.xgboost.ai/t/output-margin-and-leaf-probabilities/798
 def sigmoid(x):
-    """Transform binary classification margin output to probability"""
-    return 1 / (1 + exp(-x))
+    """Transform binary classification margin output to probability
+    Instead of exp(-x), we employ tanh as it is stable, fast, and fairly accurate."""
+    return .5 * (1 + np.tanh(.5 * x))
 
 
 # TODO: Rename both according to AutoML standards
