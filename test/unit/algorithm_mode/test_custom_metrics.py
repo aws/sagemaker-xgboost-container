@@ -86,3 +86,15 @@ def test_multiclass_f1_softprob():
     f1_score_name, f1_score_result = f1(multiclass_preds_softprob, multiclass_dtrain)
     assert f1_score_name == 'f1'
     assert f1_score_result == 1/15
+
+
+regression_train_data = np.random.rand(10, 2)
+regression_train_label = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
+regression_dtrain = xgb.DMatrix(regression_train_data, label=regression_train_label)
+regression_preds = np.ones(10)
+
+
+def test_mse():
+    mse_score_name, mse_score_result = mse(regression_preds, regression_dtrain)
+    assert mse_score_name == 'mse'
+    assert mse_score_result == .5
