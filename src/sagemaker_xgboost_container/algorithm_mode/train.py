@@ -247,7 +247,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                                     feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
                                     verbose_eval=True, show_stdv=True, shuffle=False)
 
-            logging.info("Print the metrics of last epoch in the format expected by HPO")
+            logging.info("The final metrics of cross validation")
             cv_last_epoch = len(cv_eval_result.index) - 1
             cv_eval_report = f"[{cv_last_epoch}]"
             cv_eval_columns = cv_eval_result.columns
