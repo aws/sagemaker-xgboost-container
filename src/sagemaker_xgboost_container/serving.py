@@ -73,6 +73,9 @@ def _set_mms_configs(is_multi_model, handler):
     max_workers = multiprocessing.cpu_count()
     max_job_queue_size = 2*max_workers
     
+    logging.info("Max Workers: {}".format(max_workers))
+    logging.info("Max Job Queue Size: {}".format(max_job_queue_size))
+    
     # Max heap size = (max workers + max job queue size) * max payload size * 1.2 (20% buffer) + 128 (base amount)
     max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024**2) * 1.2) + 128
 
