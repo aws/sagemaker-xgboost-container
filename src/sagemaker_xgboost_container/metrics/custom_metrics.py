@@ -17,14 +17,23 @@ from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 # From 1.2, custom evaluation metric receives raw prediction.
 # For binary classification (binary:logistic as objective),
 # the raw prediction is log-odds, which can be translated to
-# probability by sigmoid function. Note that the raw prediction
-# of XGBoost has to be added 0.5 before passing to sigmoid.
+# probability by sigmoid function.
 # https://github.com/dmlc/xgboost/releases/tag/v1.2.0
-# https://discuss.xgboost.ai/t/output-margin-and-leaf-probabilities/798
+
+
 def sigmoid(x):
     """Transform binary classification margin output to probability
     Instead of exp(-x), we employ tanh as it is stable, fast, and fairly accurate."""
     return .5 * (1 + np.tanh(.5 * x))
+
+
+def margin_to_class_label(preds):
+    """Converts raw margin output to class label. Instead of coverting margin output to
+    probablity as intermediate step, we compare in logodds space (i.e. check if logodds > 0)."""
+    if type(preds[0]) is np.ndarray:
+        return np.argmax(preds, axis=-1)
+    else:
+        return (preds > 0).astype(int)
 
 
 # TODO: Rename both according to AutoML standards
@@ -36,8 +45,9 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    rounded_preds = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x+0.5)) for x in preds]
-    return 'accuracy', accuracy_score(labels, rounded_preds)
+    # pred_labels = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x)) for x in preds]
+    pred_labels = margin_to_class_label(preds)
+    return 'accuracy', accuracy_score(labels, pred_labels)
 
 
 def f1(preds, dtrain):
@@ -50,8 +60,9 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    rounded_preds = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x+0.5)) for x in preds]
-    return 'f1', f1_score(labels, rounded_preds, average='macro')
+    # pred_labels = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x)) for x in preds]
+    pred_labels = margin_to_class_label(preds)
+    return 'f1', f1_score(labels, pred_labels, average='macro')
 
 
 def mse(preds, dtrain):
