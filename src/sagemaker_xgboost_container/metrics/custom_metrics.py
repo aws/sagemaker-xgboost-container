@@ -19,8 +19,6 @@ from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 # the raw prediction is log-odds, which can be translated to
 # probability by sigmoid function.
 # https://github.com/dmlc/xgboost/releases/tag/v1.2.0
-
-
 def sigmoid(x):
     """Transform binary classification margin output to probability
     Instead of exp(-x), we employ tanh as it is stable, fast, and fairly accurate."""
@@ -28,8 +26,8 @@ def sigmoid(x):
 
 
 def margin_to_class_label(preds):
-    """Converts raw margin output to class label. Instead of coverting margin output to
-    probablity as intermediate step, we compare in logodds space (i.e. check if logodds > 0)."""
+    """Converts raw margin output to class label. Instead of converting margin output to
+    probability as intermediate step, we compare in log-odds space (i.e. check if log-odds > 0)."""
     if type(preds[0]) is np.ndarray:
         return np.argmax(preds, axis=-1)
     else:
