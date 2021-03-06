@@ -45,7 +45,6 @@ def accuracy(preds, dtrain):
     :return: Metric name, accuracy value.
     """
     labels = dtrain.get_label()
-    # pred_labels = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x)) for x in preds]
     pred_labels = margin_to_class_label(preds)
     return 'accuracy', accuracy_score(labels, pred_labels)
 
@@ -60,7 +59,6 @@ def f1(preds, dtrain):
     :return: Metric name, f1 score
     """
     labels = dtrain.get_label()
-    # pred_labels = [np.argmax(x) if (type(x) is np.ndarray) else round(sigmoid(x)) for x in preds]
     pred_labels = margin_to_class_label(preds)
     return 'f1', f1_score(labels, pred_labels, average='macro')
 
