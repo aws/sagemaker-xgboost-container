@@ -228,7 +228,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                   val_dmatrix=val_dmatrix)
 
-    logging.info("Train matrix has {} rows".format(train_dmatrix.num_row()))
+    logging.info("Train matrix has {} rows and {} columns".format(train_dmatrix.num_row(), train_dmatrix.num_col()))
     if val_dmatrix:
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
 
@@ -240,14 +240,14 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                         verbose_eval=False)
 
         if nfold is not None and train_val_dmatrix is not None:
-            logging.info("Run {} fold cross validation on the data of {} rows".format(nfold,
+            logging.info("Run {}-fold cross validation on the data of {} rows".format(nfold,
                                                                                       train_val_dmatrix.num_row()))
             # xgb.cv returns a pandas data frame of evaluation results.
             cv_eval_result = xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
                                     feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
-                                    show_stdv=True, verbose_eval=True)
+                                    verbose_eval=True, show_stdv=True, shuffle=False)
 
-            logging.info("Print the metrics of last epoch in the format expected by HPO")
+            logging.info("The final metrics of cross validation")
             cv_last_epoch = len(cv_eval_result.index) - 1
             cv_eval_report = f"[{cv_last_epoch}]"
             cv_eval_columns = cv_eval_result.columns

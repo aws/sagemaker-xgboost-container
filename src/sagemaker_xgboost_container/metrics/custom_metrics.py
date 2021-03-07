@@ -14,6 +14,26 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
 
 
+# From 1.2, custom evaluation metric receives raw prediction.
+# For binary classification (binary:logistic as objective),
+# the raw prediction is log-odds, which can be translated to
+# probability by sigmoid function.
+# https://github.com/dmlc/xgboost/releases/tag/v1.2.0
+def sigmoid(x):
+    """Transform binary classification margin output to probability
+    Instead of exp(-x), we employ tanh as it is stable, fast, and fairly accurate."""
+    return .5 * (1 + np.tanh(.5 * x))
+
+
+def margin_to_class_label(preds):
+    """Converts raw margin output to class label. Instead of converting margin output to
+    probability as intermediate step, we compare in log-odds space (i.e. check if log-odds > 0)."""
+    if type(preds[0]) is np.ndarray:
+        return np.argmax(preds, axis=-1)
+    else:
+        return (preds > 0.).astype(int)
+
+
 # TODO: Rename both according to AutoML standards
 def accuracy(preds, dtrain):
     """Compute accuracy.
@@ -22,9 +42,12 @@ def accuracy(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, accuracy value.
     """
-    labels = dtrain.get_label()
-    rounded_preds = [np.argmax(value) if (type(value) is np.ndarray) else round(value) for value in preds]
-    return 'accuracy', accuracy_score(labels, rounded_preds)
+    score = 0.0
+    if preds.size > 0:
+        labels = dtrain.get_label()
+        pred_labels = margin_to_class_label(preds)
+        score = accuracy_score(labels, pred_labels)
+    return 'accuracy', score
 
 
 def f1(preds, dtrain):
@@ -36,9 +59,12 @@ def f1(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    labels = dtrain.get_label()
-    rounded_preds = [np.argmax(value) if (type(value) is np.ndarray) else round(value) for value in preds]
-    return 'f1', f1_score(labels, rounded_preds, average='macro')
+    score = 0.0
+    if preds.size > 0:
+        labels = dtrain.get_label()
+        pred_labels = margin_to_class_label(preds)
+        score = f1_score(labels, pred_labels, average='macro')
+    return 'f1', score
 
 
 def mse(preds, dtrain):
