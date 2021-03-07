@@ -31,7 +31,7 @@ def margin_to_class_label(preds):
     if type(preds[0]) is np.ndarray:
         return np.argmax(preds, axis=-1)
     else:
-        return (preds > 0).astype(int)
+        return (preds > 0.).astype(int)
 
 
 # TODO: Rename both according to AutoML standards
@@ -42,9 +42,12 @@ def accuracy(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, accuracy value.
     """
-    labels = dtrain.get_label()
-    pred_labels = margin_to_class_label(preds)
-    return 'accuracy', accuracy_score(labels, pred_labels)
+    score = 0.0
+    if preds.size > 0:
+        labels = dtrain.get_label()
+        pred_labels = margin_to_class_label(preds)
+        score = accuracy_score(labels, pred_labels)
+    return 'accuracy', score
 
 
 def f1(preds, dtrain):
@@ -56,9 +59,12 @@ def f1(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    labels = dtrain.get_label()
-    pred_labels = margin_to_class_label(preds)
-    return 'f1', f1_score(labels, pred_labels, average='macro')
+    score = 0.0
+    if preds.size > 0:
+        labels = dtrain.get_label()
+        pred_labels = margin_to_class_label(preds)
+        score = f1_score(labels, pred_labels, average='macro')
+    return 'f1', score
 
 
 def mse(preds, dtrain):

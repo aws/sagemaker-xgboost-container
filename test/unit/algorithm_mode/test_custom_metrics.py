@@ -20,7 +20,7 @@ binary_train_data = np.random.rand(10, 2)
 binary_train_label = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
 binary_dtrain = xgb.DMatrix(binary_train_data, label=binary_train_label)
 # log(x/(1-x)) is the inverse function of sigmoid
-binary_preds = [log(0.7/0.3) - 0.5] * 10
+binary_preds = np.asarray([log(0.7/0.3) - 0.5] * 10)
 binary_preds_logistic = np.asarray([[log(0.1/0.9) - 0.5, log(0.9/0.1) - 0.5]] * 10)
 
 
