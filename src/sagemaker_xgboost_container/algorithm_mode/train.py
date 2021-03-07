@@ -196,7 +196,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     # Evaluation metrics to use with train() API
     tuning_objective_metric_param = train_cfg.get("_tuning_objective_metric")
     eval_metric = train_cfg.get("eval_metric")
-    cleaned_eval_metric, configured_feval = train_utils.get_eval_metrics_and_feval(
+    cleaned_eval_metric, configured_feval, tuning_objective_metric = train_utils.get_eval_metrics_and_feval(
         tuning_objective_metric_param, eval_metric)
     if cleaned_eval_metric:
         train_cfg['eval_metric'] = cleaned_eval_metric
@@ -225,6 +225,23 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)
 
+    if early_stopping_rounds:
+        early_stopping_data_name = 'validation' if val_dmatrix else 'train'
+
+        if tuning_objective_metric:
+            early_stopping_metric_name = tuning_objective_metric[-1]
+        elif eval_metric:
+            early_stopping_metric_name = eval_metric[-1]
+
+        if early_stopping_metric_name:
+            maximize = train_utils.MAXIMIZE.get(early_stopping_metric_name, False)
+            early_stop = xgb.callback.EarlyStopping(rounds=early_stopping_rounds,
+                                                    data_name=early_stopping_data_name,
+                                                    metric_name=early_stopping_metric_name,
+                                                    maximize=maximize,
+                                                    save_best=True)
+            callbacks.append(early_stop)
+
     add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                   val_dmatrix=val_dmatrix)
 
@@ -236,16 +253,14 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         nfold = train_cfg.pop("_nfold", None)
 
         bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
-                        early_stopping_rounds=early_stopping_rounds, callbacks=callbacks, xgb_model=xgb_model,
-                        verbose_eval=False)
+                        callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
 
         if nfold is not None and train_val_dmatrix is not None:
             logging.info("Run {}-fold cross validation on the data of {} rows".format(nfold,
                                                                                       train_val_dmatrix.num_row()))
             # xgb.cv returns a pandas data frame of evaluation results.
             cv_eval_result = xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
-                                    feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
-                                    verbose_eval=True, show_stdv=True, shuffle=False)
+                                    feval=configured_feval, verbose_eval=True, show_stdv=True, shuffle=False)
 
             logging.info("The final metrics of cross validation")
             cv_last_epoch = len(cv_eval_result.index) - 1

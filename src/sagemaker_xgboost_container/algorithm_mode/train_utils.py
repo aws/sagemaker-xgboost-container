@@ -16,7 +16,14 @@ from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metric
 
 
 HPO_SEPARATOR = ':'
-
+MAXIMIZE = {
+    "auc": True,
+    "aucpr": True,
+    "ndcg": True,
+    "map": True,
+    "accuracy": True,
+    "f1": True
+}
 
 # These are helper functions for parsing the list of metrics to be outputted
 def get_union_metrics(metric_a, metric_b):
@@ -67,7 +74,7 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
         else:
             cleaned_eval_metrics = union_metrics
 
-    return cleaned_eval_metrics, configured_eval
+    return cleaned_eval_metrics, configured_eval, tuning_objective_metric
 
 
 def cleanup_dir(dir, file):
