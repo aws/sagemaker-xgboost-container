@@ -390,3 +390,13 @@ class SaveIntermediateModel(object):
             return
 
         self._save_intermediate_model(env.model)
+
+
+class SaveIntermediateModelCallBack(xgb.callback.TrainingCallback):
+    """The new implementation of callback functions from 1.3."""
+    def __init__(self, intermediate_model_dir, model_name):
+        self._callback = SaveIntermediateModel(intermediate_model_dir, model_name)
+
+    def after_iteration(self, model, epoch, evals_log) -> bool:
+        self._callback._save_intermediate_model(model)
+        return False

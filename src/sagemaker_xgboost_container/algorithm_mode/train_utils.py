@@ -25,6 +25,7 @@ MAXIMIZE = {
     "f1": True
 }
 
+
 # These are helper functions for parsing the list of metrics to be outputted
 def get_union_metrics(metric_a, metric_b):
     """Union of metric_a and metric_b

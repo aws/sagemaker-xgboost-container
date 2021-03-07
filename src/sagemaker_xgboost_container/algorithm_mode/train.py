@@ -219,10 +219,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     if checkpoint_dir:
         callbacks.append(xgb.callback.TrainingCheckPoint(checkpoint_dir, iterations=iterations))
 
-    # if save_model_on_termination == "true":
-    #     save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
-    #     callbacks.append(save_intermediate_model)
-    #     add_sigterm_handler(model_dir, is_master)
+    if save_model_on_termination == "true":
+        callbacks.append(checkpointing.SaveIntermediateModelCallBack(model_dir, MODEL_NAME))
+        add_sigterm_handler(model_dir, is_master)
 
     if early_stopping_rounds:
         early_stopping_data_name = 'validation' if val_dmatrix else 'train'
