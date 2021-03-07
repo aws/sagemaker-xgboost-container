@@ -208,22 +208,21 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     if val_dmatrix is not None:
         watchlist.append((val_dmatrix, 'validation'))
 
-    xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
-    num_round -= iteration
+    xgb_model, iterations = checkpointing.load_checkpoint(checkpoint_dir)
+    num_round -= iterations
     if xgb_model is not None:
         logging.info("Checkpoint loaded from %s", xgb_model)
-        logging.info("Resuming from iteration %s", iteration)
+        logging.info("Resuming from iteration %s", iterations)
 
     callbacks = []
-    callbacks.append(checkpointing.print_checkpointed_evaluation(start_iteration=iteration))
+    callbacks.append(xgb.callback.EvaluationMonitor())
     if checkpoint_dir:
-        save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
-        callbacks.append(save_checkpoint)
+        callbacks.append(xgb.callback.TrainingCheckPoint(checkpoint_dir, iterations=iterations))
 
-    if save_model_on_termination == "true":
-        save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
-        callbacks.append(save_intermediate_model)
-        add_sigterm_handler(model_dir, is_master)
+    # if save_model_on_termination == "true":
+    #     save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
+    #     callbacks.append(save_intermediate_model)
+    #     add_sigterm_handler(model_dir, is_master)
 
     if early_stopping_rounds:
         early_stopping_data_name = 'validation' if val_dmatrix else 'train'
