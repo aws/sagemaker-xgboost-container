@@ -127,24 +127,31 @@ def parse_content_data(input_data, input_content_type):
 def get_loaded_booster(model_dir):
     model_files = (data_file for data_file in os.listdir(model_dir)
                    if os.path.isfile(os.path.join(model_dir, data_file)))
-    model_file = next(model_files)
-    try:
-        booster = pkl.load(open(os.path.join(model_dir, model_file), 'rb'))
-        format = PKL_FORMAT
-    except Exception as exp_pkl:
+    models = []
+    formats = []
+    for model_file in model_files:
         try:
-            booster = xgb.Booster()
-            booster.load_model(os.path.join(model_dir, model_file))
-            format = XGB_FORMAT
-        except Exception as exp_xgb:
-            raise RuntimeError("Model at {} cannot be loaded:\n{}\n{}".format(model_dir, str(exp_pkl), str(exp_xgb)))
-    booster.set_param('nthread', 1)
-    return booster, format
+            path = os.path.join(model_dir, model_file)
+            logging.info("Loading the model from {}", path)
+            booster = pkl.load(open(path, 'rb'))
+            format = PKL_FORMAT
+        except Exception as exp_pkl:
+            try:
+                booster = xgb.Booster()
+                booster.load_model(os.path.join(model_dir, model_file))
+                format = XGB_FORMAT
+            except Exception as exp_xgb:
+                raise RuntimeError("Model at {} cannot be loaded:\n{}\n{}".format(model_dir, str(exp_pkl), str(exp_xgb)))
+        booster.set_param('nthread', 1)
+        models.append(booster)
+        formats.append(format)
+
+    return models, formats
 
 
-def predict(booster, model_format, dtest, input_content_type):
+def predict(models, model_format, dtest, input_content_type):
     if model_format == PKL_FORMAT:
-        x = len(booster.feature_names)
+        x = len(models[0].feature_names)
         y = len(dtest.feature_names)
 
         try:
@@ -163,9 +170,15 @@ def predict(booster, model_format, dtest, input_content_type):
                                  format(content_type, y, x))
         else:
             raise ValueError('Content type {} is not supported'.format(content_type))
-    return booster.predict(dtest,
-                           ntree_limit=getattr(booster, "best_ntree_limit", 0),
-                           validate_features=False)
+
+    ensemble = []
+    for booster in models:
+        preds = booster.predict(dtest,
+                                ntree_limit=getattr(booster, "best_ntree_limit", 0),
+                                validate_features=False)
+        ensemble.append(preds)
+
+    return ensemble[1] if len(ensemble) == 1 else np.mean(ensemble, axis=0)
 
 
 def is_selectable_inference_output():

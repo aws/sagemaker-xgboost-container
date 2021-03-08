@@ -89,7 +89,7 @@ class ScoringService(object):
 
         :return: xgboost booster's internal configuration (dict)
         """
-        return json.loads(cls.booster.save_config())
+        return json.loads(cls.booster[0].save_config())
 
     @staticmethod
     def post_worker_init(worker):
