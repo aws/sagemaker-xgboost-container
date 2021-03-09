@@ -130,18 +130,18 @@ def get_loaded_booster(model_dir):
     models = []
     formats = []
     for model_file in model_files:
+        path = os.path.join(model_dir, model_file)
+        logging.info(f"Loading the model from {path}")
         try:
-            path = os.path.join(model_dir, model_file)
-            logging.info("Loading the model from {}", path)
             booster = pkl.load(open(path, 'rb'))
             format = PKL_FORMAT
         except Exception as exp_pkl:
             try:
                 booster = xgb.Booster()
-                booster.load_model(os.path.join(model_dir, model_file))
+                booster.load_model(path)
                 format = XGB_FORMAT
             except Exception as exp_xgb:
-                raise RuntimeError("Model at {} cannot be loaded:\n{}\n{}".format(model_dir, str(exp_pkl), str(exp_xgb)))
+                raise RuntimeError("Model at {} cannot be loaded:\n{}\n{}".format(path, str(exp_pkl), str(exp_xgb)))
         booster.set_param('nthread', 1)
         models.append(booster)
         formats.append(format)
@@ -150,7 +150,7 @@ def get_loaded_booster(model_dir):
 
 
 def predict(models, model_format, dtest, input_content_type):
-    if model_format == PKL_FORMAT:
+    if model_format[0] == PKL_FORMAT:
         x = len(models[0].feature_names)
         y = len(dtest.feature_names)
 

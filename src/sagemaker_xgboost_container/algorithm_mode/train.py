@@ -229,9 +229,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 # The index range of validation fold
                 val_start = fold * fold_size
                 val_end = train_val_size if fold == kfold - 1 else val_start + fold_size
-                row_index = list(range(train_val_size))
-                train_row_index = [i for i in row_index if i < val_start or i >= val_end]
-                val_row_index = [i for i in row_index if i >= val_start or i < val_end]
+                train_row_index = [i for i in range(train_val_size) if i < val_start or i >= val_end]
+                val_row_index = [i for i in range(train_val_size) if val_start <= i < val_end]
                 cv_train_dmatrix = train_val_dmatrix.slice(train_row_index)
                 cv_val_dmatrix = train_val_dmatrix.slice(val_row_index)
 
@@ -269,13 +268,13 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
     if is_master:
         if type(bst) is not list:
-            model_location = os.path.join(model_dir, 'xgboost-model')
+            model_location = os.path.join(model_dir, MODEL_NAME)
             with open(model_location, 'wb') as f:
                 pkl.dump(bst, f, protocol=4)
             logging.debug("Stored trained model at {}".format(model_location))
         else:
             for fold in range(len(bst)):
-                model_location = os.path.join(model_dir, f"xgboost-model-{fold}")
+                model_location = os.path.join(model_dir, f"{MODEL_NAME}-{fold}")
                 with open(model_location, 'wb') as f:
                     pkl.dump(bst[fold], f, protocol=4)
                 logging.debug("Stored trained model {} at {}".format(fold, model_location))
@@ -283,7 +282,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
 def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, fold=None):
     if checkpoint_dir and fold:
-        checkpoint_dir = os.path.join(checkpoint_dir + f"cv{fold}")
+        checkpoint_dir = os.path.join(checkpoint_dir, f"cv{fold}")
 
     # Set callbacks
     xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
@@ -300,7 +299,7 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
     # Parse arguments for intermediate model callback
     save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
     if save_model_on_termination == "true":
-        model_name = f"{MODEL_NAME}{fold}" if fold else MODEL_NAME
+        model_name = f"{MODEL_NAME}-{fold}" if fold else MODEL_NAME
         save_intermediate_model = checkpointing.save_intermediate_model(model_dir, model_name)
         callbacks.append(save_intermediate_model)
         # add_sigterm_handler(model_dir, is_master)
@@ -310,4 +309,3 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
         watchlist.append((val_dmatrix, 'validation'))
 
     return xgb_model, iteration, callbacks, watchlist
-
