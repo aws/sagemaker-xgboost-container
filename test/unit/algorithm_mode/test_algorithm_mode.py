@@ -181,7 +181,7 @@ class TestAlgorithmModeHyperparameters(unittest.TestCase):
             "objective": "multi:softmax",
             "num_class": "10",
             "num_round": "10",
-            "_kfold": "5"
+            "_nfold": "5"
         }
         hps = hpv.initialize(self.metrics)
         hps.validate(hyperparameters)

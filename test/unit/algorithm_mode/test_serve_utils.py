@@ -68,7 +68,7 @@ def test_get_loaded_booster(model_info):
     model_dir_name, model_format = model_info
     model_dir = os.path.join(RESOURCES_PATH, 'models', model_dir_name)
     loaded_booster, loaded_model_format = serve_utils.get_loaded_booster(model_dir)
-    assert loaded_model_format == model_format
+    assert loaded_model_format[0] == model_format
 
 
 @pytest.mark.parametrize('correct_content_type', (CSV, LIBSVM, RECORDIO_PROTOBUF))
