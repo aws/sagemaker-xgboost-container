@@ -133,7 +133,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     is_pipe = (input_mode == Channel.PIPE_MODE)
 
     validation_channel = validated_data_config.get('validation', None)
-    combine_train_val = '_nfold' in validated_train_config
+    combine_train_val = '_kfold' in validated_train_config
     train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type,
                                                                             csv_weights, is_pipe, combine_train_val)
 
@@ -206,7 +206,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
 
     try:
-        kfold = train_cfg.pop("_nfold", None)
+        kfold = train_cfg.pop("_kfold", None)
 
         if kfold is None:
             xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
@@ -219,42 +219,47 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                             callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
 
         else:
-            logging.info("Run {}-fold cross validation with {} rows".format(kfold, train_val_dmatrix.num_row()))
             bst = []
             evals_results = []
 
-            train_val_size = train_val_dmatrix.num_row()
-            fold_size = round(train_val_size / kfold)
-            for fold in range(kfold):
-                # The index range of validation fold
-                val_start = fold * fold_size
-                val_end = train_val_size if fold == kfold - 1 else val_start + fold_size
-                train_row_index = [i for i in range(train_val_size) if i < val_start or i >= val_end]
-                val_row_index = [i for i in range(train_val_size) if val_start <= i < val_end]
-                cv_train_dmatrix = train_val_dmatrix.slice(train_row_index)
-                cv_val_dmatrix = train_val_dmatrix.slice(val_row_index)
+            num_cv_round = train_cfg.pop("_num_cv_round", 3)
+            for cv_round in range(num_cv_round):
+                logging.info(
+                    "Run round {} {}-fold cross validation with {} rows".format(
+                        cv_round, kfold, train_val_dmatrix.num_row()
+                    )
+                )
+                train_val_size = train_val_dmatrix.num_row()
+                row_index = np.random.permutation(range(train_val_size))
+                fold_size = round(train_val_size / kfold)
+                for fold in range(kfold):
+                    # The index range of validation fold
+                    val_start = fold * fold_size
+                    val_end = train_val_size if fold == kfold - 1 else val_start + fold_size
+                    train_row_index = [row_index[i] for i in range(train_val_size) if i < val_start or i >= val_end]
+                    val_row_index = [row_index[i] for i in range(train_val_size) if val_start <= i < val_end]
+                    cv_train_dmatrix = train_val_dmatrix.slice(train_row_index)
+                    cv_val_dmatrix = train_val_dmatrix.slice(val_row_index)
 
-                xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                    train_cfg, cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, fold)
-                add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
-                              val_dmatrix=cv_val_dmatrix)
+                    xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
+                        train_cfg, cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, cv_round * kfold + fold)
+                    add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
+                                  val_dmatrix=cv_val_dmatrix)
 
-                evals_result = {}
-                logging.info("Train cross validation fold {}".format(fold))
-                booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration, evals=watchlist,
-                                    feval=configured_feval, evals_result=evals_result,
-                                    early_stopping_rounds=early_stopping_rounds,
-                                    callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
-                bst.append(booster)
-                evals_results.append(evals_result)
+                    evals_result = {}
+                    logging.info("Train cross validation fold {}".format(fold))
+                    booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,
+                                        evals=watchlist, feval=configured_feval, evals_result=evals_result,
+                                        early_stopping_rounds=early_stopping_rounds,
+                                        callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
+                    bst.append(booster)
+                    evals_results.append(evals_result)
 
-            logging.info("The final metrics of cross validation")
-            cv_eval_report = f"[{num_round}]"
-            for metric_name in evals_results[0]['train']:
-                for data_name in ["train", "validation"]:
-                    metric_val = [evals_result[data_name][metric_name][-1] for evals_result in evals_results]
-                    cv_eval_report += '\t{0}-{1}:{2:.5f}'.format(data_name, metric_name, np.mean(metric_val))
-            print(cv_eval_report)
+                logging.info("The metrics of cross validation")
+                print_cv_metric(num_round, evals_results[-kfold:])
+
+            logging.info("The overall metrics of cross validation")
+            print_cv_metric(num_round, evals_results)
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):
@@ -282,7 +287,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
 def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, fold=None):
     if checkpoint_dir and fold:
-        checkpoint_dir = os.path.join(checkpoint_dir, f"cv{fold}")
+        checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
 
     # Set callbacks
     xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
@@ -309,3 +314,11 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
         watchlist.append((val_dmatrix, 'validation'))
 
     return xgb_model, iteration, callbacks, watchlist
+
+def print_cv_metric(num_round, evals_results):
+    cv_eval_report = f"[{num_round}]"
+    for metric_name in evals_results[0]['train']:
+        for data_name in ["train", "validation"]:
+            metric_val = [evals_result[data_name][metric_name][-1] for evals_result in evals_results]
+            cv_eval_report += '\t{0}-{1}:{2:.5f}'.format(data_name, metric_name, np.mean(metric_val))
+    print(cv_eval_report)
