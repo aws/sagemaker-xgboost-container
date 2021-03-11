@@ -133,7 +133,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     is_pipe = (input_mode == Channel.PIPE_MODE)
 
     validation_channel = validated_data_config.get('validation', None)
-    combine_train_val = '_kfold' in validated_train_config
+    combine_train_val = '_nfold' in validated_train_config
     train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type,
                                                                             csv_weights, is_pipe, combine_train_val)
 
@@ -206,7 +206,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
 
     try:
-        kfold = train_cfg.pop("_kfold", None)
+        kfold = train_cfg.pop("_nfold", None)
 
         if kfold is None:
             xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
@@ -219,16 +219,16 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                             callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
 
         else:
+            logging.info("Run {}-fold cross validation with {} rows".format(kfold, train_val_dmatrix.num_row()))
+
             bst = []
             evals_results = []
 
-            num_cv_round = train_cfg.pop("_num_cv_round", 3)
+            num_cv_round = train_cfg.pop("_num_cv_round", 3 if train_dmatrix.num_col() < 100 else 1)
             for cv_round in range(num_cv_round):
-                logging.info(
-                    "Run round {} {}-fold cross validation with {} rows".format(
-                        cv_round, kfold, train_val_dmatrix.num_row()
-                    )
-                )
+                if num_cv_round > 1:
+                    logging.info("Run round {} cross validation".format(cv_round+1))
+
                 train_val_size = train_val_dmatrix.num_row()
                 row_index = np.random.permutation(range(train_val_size))
                 fold_size = round(train_val_size / kfold)
@@ -247,7 +247,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                                   val_dmatrix=cv_val_dmatrix)
 
                     evals_result = {}
-                    logging.info("Train cross validation fold {}".format(fold))
+                    logging.info("Train cross validation fold {}".format(fold+1))
                     booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,
                                         evals=watchlist, feval=configured_feval, evals_result=evals_result,
                                         early_stopping_rounds=early_stopping_rounds,
@@ -258,8 +258,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 logging.info("The metrics of cross validation")
                 print_cv_metric(num_round, evals_results[-kfold:])
 
-            logging.info("The overall metrics of cross validation")
-            print_cv_metric(num_round, evals_results)
+            if num_cv_round > 1:
+                logging.info("The overall metrics of {}-round cross validation".format(num_cv_round))
+                print_cv_metric(num_round, evals_results)
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):

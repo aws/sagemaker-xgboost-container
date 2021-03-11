@@ -214,7 +214,7 @@ def initialize(metrics):
                                   required=False),
         hpv.ContinuousHyperparameter(name="base_score", range=hpv.Interval(min_closed=0), required=False),
         hpv.IntegerHyperparameter(name="_num_cv_round", range=hpv.Interval(min_closed=1), required=False, tunable=False),
-        hpv.IntegerHyperparameter(name="_kfold", range=hpv.Interval(min_closed=2), required=False, tunable=False),
+        hpv.IntegerHyperparameter(name="_nfold", range=hpv.Interval(min_closed=2), required=False, tunable=False),
         hpv.CategoricalHyperparameter(name="_tuning_objective_metric", range=metrics.names, required=False),
         hpv.CommaSeparatedListHyperparameter(name="eval_metric",
                                              range=eval_metric_range_validator,
