@@ -1,20 +1,16 @@
-Flask==1.1.1  # sagemaker-containers requires flask 1.1.1
-PyYAML==5.1
-boto3==1.14.62
-botocore==1.17.62
-gunicorn==19.10.0
-matplotlib==3.3.2
-multi-model-server==1.1.1
-numpy==1.19.2
-pandas==1.1.3
-psutil==5.6.7  # sagemaker-containers requires psutil 5.6.7
+PyYAML<4.3
+matplotlib
+model-archiver
+multi-model-server==1.0.8.1
+numpy
+pandas>=0.24.0
+psutil==5.4.8  # sagemaker-containers requires psutil 5.4.8
 python-dateutil==2.8.0
 requests==2.20.1
 retrying==1.3.3
-sagemaker-containers==2.8.6.post2
-sagemaker-inference==1.2.0
-scikit-learn==0.23.2
-scipy==1.5.3
-smdebug==0.9.2
-urllib3==1.24.3
-wheel==0.35.1
+sagemaker-containers>=2.5.6
+sagemaker-inference==1.1.2
+scikit-learn
+scipy
+urllib3<1.25
+wheel

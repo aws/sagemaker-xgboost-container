@@ -148,7 +148,63 @@ def serving_entrypoint():
     NOTE: If the inference server is multi-model, MxNet Model Server will be used as the base server. Otherwise,
         GUnicorn is used as the base server.
     """
-    if is_multi_model():
-        start_mxnet_model_server()
+    max_content_length = os.getenv("MAX_CONTENT_LENGTH", DEFAULT_MAX_CONTENT_LEN)
+    if int(max_content_length) > MAX_CONTENT_LEN_LIMIT:
+        # Cap at 20mb
+        max_content_length = MAX_CONTENT_LEN_LIMIT
+
+    max_workers = multiprocessing.cpu_count()
+    max_job_queue_size = 2*max_workers
+    
+    logging.info("Max Workers: {}".format(max_workers))
+    logging.info("Max Job Queue Size: {}".format(max_job_queue_size))
+    
+    # Max heap size = (max workers + max job queue size) * max payload size * 1.2 (20% buffer) + 128 (base amount)
+    max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024**2) * 1.2) + 128
+
+    if is_multi_model:
+ #       os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = '16'
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(max_workers*2)
+ #       os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = '400'
+        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = str(max_workers*2)
+        os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/'
+        os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ''
+    else:
+        os.environ["SAGEMAKER_NUM_MODEL_WORKERS"] = str(max_workers)
+        os.environ["SAGEMAKER_MODEL_JOB_QUEUE_SIZE"] = str(max_job_queue_size)
+        os.environ["SAGEMAKER_MMS_MODEL_STORE"] = '/opt/ml/model'
+        os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = 'ALL'
+
+    if not os.getenv("SAGEMAKER_BIND_TO_PORT", None):
+        os.environ["SAGEMAKER_BIND_TO_PORT"] = str(PORT)
+
+    os.environ["SAGEMAKER_MAX_HEAP_SIZE"] = str(max_heap_size) + 'm'
+    os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] = os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
+
+    os.environ["SAGEMAKER_MAX_REQUEST_SIZE"] = str(max_content_length)
+    os.environ["SAGEMAKER_MMS_DEFAULT_HANDLER"] = handler
+
+    # TODO: Revert config.properties.tmp to config.properties and add back in vmargs
+    # set with environment variables after MMS implements parsing environment variables
+    # for vmargs, update MMS section of final/Dockerfile.cpu to match, and remove the
+    # following code.
+    try:
+        with open('/home/model-server/config.properties.tmp', 'r') as f:
+            with open('/home/model-server/config.properties', 'w+') as g:
+                g.write("vmargs=-XX:-UseLargePages -XX:-UseContainerSupport -XX:+UseG1GC -XX:MaxMetaspaceSize=32M -XX:+ExitOnOutOfMemoryError "
+                        + "-Xmx" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
+                        + " -XX:MaxDirectMemorySize=" + os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] + "\n")
+                g.write(f.read())
+    except Exception:
+        pass
+
+
+def main():
+    serving_env = env.ServingEnv()
+    is_multi_model = _is_multi_model_endpoint()
+
+    if serving_env.module_name is None:
+        logging.info("Starting MXNet server in algorithm mode.")
+        _start_model_server(is_multi_model, ALGO_HANDLER_SERVICE)
     else:
         server.start(env.ServingEnv().framework_module)
