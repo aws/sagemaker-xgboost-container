@@ -13,7 +13,7 @@
 import numpy as np
 import xgboost as xgb
 from math import log
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse
+from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2
 
 
 binary_train_data = np.random.rand(10, 2)
@@ -98,3 +98,9 @@ def test_mse():
     mse_score_name, mse_score_result = mse(regression_preds, regression_dtrain)
     assert mse_score_name == 'mse'
     assert mse_score_result == .5
+
+
+def test_r2():
+    r2_score_name, r2_score_result = r2(regression_preds, regression_dtrain)
+    assert r2_score_name == 'r2'
+    assert r2_score_result == -1

@@ -17,7 +17,8 @@ XGB_MAXIMIZE_METRICS = [
     'aucpr',
     'f1',
     'map',
-    'ndcg'
+    'ndcg',
+    'r2'
 ]
 
 XGB_MINIMIZE_METRICS = [

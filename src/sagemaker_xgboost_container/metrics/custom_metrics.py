@@ -11,7 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, mean_squared_error
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score
 
 
 # From 1.2, custom evaluation metric receives raw prediction.
@@ -79,10 +79,23 @@ def mse(preds, dtrain):
     return 'mse', mean_squared_error(labels, preds)
 
 
+def r2(preds, dtrain):
+    """Compute R^2 (coefficient of determination) regression score.
+
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, coefficient of determination
+    """
+    labels = dtrain.get_label()
+    return 'r2', r2_score(labels, preds)
+
+
 CUSTOM_METRICS = {
     "accuracy": accuracy,
     "f1": f1,
-    "mse": mse
+    "mse": mse,
+    "r2": r2
 }
 
 
