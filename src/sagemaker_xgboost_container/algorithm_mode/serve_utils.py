@@ -176,6 +176,7 @@ def predict(model, model_format, dtest, input_content_type):
             raise ValueError('Content type {} is not supported'.format(content_type))
 
     if type(model) is list:
+        logging.info(f"Ensemble prediction with {len(model)} models")
         ensemble = []
         for booster in model:
             preds = booster.predict(dtest,
