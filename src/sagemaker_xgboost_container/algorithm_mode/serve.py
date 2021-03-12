@@ -74,9 +74,9 @@ class ScoringService(object):
     format = None
 
     @classmethod
-    def load_model(cls):
+    def load_model(cls, ensemble=False):
         if cls.booster is None:
-            cls.booster, cls.format = serve_utils.get_loaded_booster(ScoringService.MODEL_PATH)
+            cls.booster, cls.format = serve_utils.get_loaded_booster(ScoringService.MODEL_PATH, ensemble)
         return cls.format
 
     @classmethod
@@ -89,7 +89,8 @@ class ScoringService(object):
 
         :return: xgboost booster's internal configuration (dict)
         """
-        return json.loads(cls.booster[0].save_config())
+        booster = cls.booster[0] if type(cls.booster) is list else cls.booster
+        return json.loads(booster.save_config())
 
     @staticmethod
     def post_worker_init(worker):
@@ -101,7 +102,7 @@ class ScoringService(object):
         # See https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/core.py#L997
         """
         try:
-            ScoringService.load_model()
+            ScoringService.load_model(True)
         except Exception as e:
             logging.exception(e)
             sys.exit(1)
@@ -211,7 +212,7 @@ def invocations():
         return flask.Response(response=str(e), status=http.client.UNSUPPORTED_MEDIA_TYPE)
 
     try:
-        format = ScoringService.load_model()
+        format = ScoringService.load_model(True)
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to load model: %s" % e, status=http.client.INTERNAL_SERVER_ERROR)

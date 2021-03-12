@@ -124,9 +124,11 @@ def parse_content_data(input_data, input_content_type):
     return dtest, content_type
 
 
-def get_loaded_booster(model_dir):
-    model_files = (data_file for data_file in os.listdir(model_dir)
-                   if os.path.isfile(os.path.join(model_dir, data_file)))
+def get_loaded_booster(model_dir, ensemble=False):
+    model_files = [data_file for data_file in os.listdir(model_dir)
+                   if os.path.isfile(os.path.join(model_dir, data_file))]
+    model_files = model_files if ensemble else model_files[0:1]
+
     models = []
     formats = []
     for model_file in model_files:
@@ -146,12 +148,14 @@ def get_loaded_booster(model_dir):
         models.append(booster)
         formats.append(format)
 
-    return models, formats
+    return (models, formats) if ensemble else (models[0], formats[0])
 
 
-def predict(models, model_format, dtest, input_content_type):
-    if model_format[0] == PKL_FORMAT:
-        x = len(models[0].feature_names)
+def predict(model, model_format, dtest, input_content_type):
+    bst, bst_format = (model[0], model_format[0]) if type(model) is list else (model, model_format)
+
+    if bst_format == PKL_FORMAT:
+        x = len(bst.feature_names)
         y = len(dtest.feature_names)
 
         try:
@@ -171,14 +175,19 @@ def predict(models, model_format, dtest, input_content_type):
         else:
             raise ValueError('Content type {} is not supported'.format(content_type))
 
-    ensemble = []
-    for booster in models:
-        preds = booster.predict(dtest,
-                                ntree_limit=getattr(booster, "best_ntree_limit", 0),
-                                validate_features=False)
-        ensemble.append(preds)
+    if type(model) is list:
+        ensemble = []
+        for booster in model:
+            preds = booster.predict(dtest,
+                                    ntree_limit=getattr(booster, "best_ntree_limit", 0),
+                                    validate_features=False)
+            ensemble.append(preds)
 
-    return ensemble[1] if len(ensemble) == 1 else np.mean(ensemble, axis=0)
+        return np.mean(ensemble, axis=0)
+    else:
+        return model.predict(dtest,
+                             ntree_limit=getattr(model, "best_ntree_limit", 0),
+                             validate_features=False)
 
 
 def is_selectable_inference_output():
