@@ -16,6 +16,7 @@ import numpy as np
 import os
 import pickle as pkl
 
+from scipy import stats
 from scipy.sparse import csr_matrix
 from sagemaker_containers.record_pb2 import Record
 from sagemaker_containers._recordio import _write_recordio
@@ -176,15 +177,17 @@ def predict(model, model_format, dtest, input_content_type):
             raise ValueError('Content type {} is not supported'.format(content_type))
 
     if type(model) is list:
-        logging.info(f"Ensemble prediction with {len(model)} models")
-        ensemble = []
-        for booster in model:
-            preds = booster.predict(dtest,
+        ensemble = [booster.predict(dtest,
                                     ntree_limit=getattr(booster, "best_ntree_limit", 0),
-                                    validate_features=False)
-            ensemble.append(preds)
+                                    validate_features=False) for booster in model]
 
-        return np.mean(ensemble, axis=0)
+        config = json.loads(model[0].save_config())
+        objective = config["learner"]["objective"]["name"]
+        logging.info(f"Ensemble prediction of {objective} with {len(model)} models")
+        if objective in ["multi:softmax", "binary:hinge"]:
+            return stats.mode(ensemble).mode
+        else:
+            return np.mean(ensemble, axis=0)
     else:
         return model.predict(dtest,
                              ntree_limit=getattr(model, "best_ntree_limit", 0),
