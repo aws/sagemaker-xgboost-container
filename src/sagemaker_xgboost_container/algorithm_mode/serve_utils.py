@@ -185,7 +185,7 @@ def predict(model, model_format, dtest, input_content_type):
         objective = config["learner"]["objective"]["name"]
         logging.info(f"Ensemble prediction of {objective} with {len(model)} models")
         if objective in ["multi:softmax", "binary:hinge"]:
-            return stats.mode(ensemble).mode
+            return stats.mode(ensemble).mode[0]
         else:
             return np.mean(ensemble, axis=0)
     else:
