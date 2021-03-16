@@ -261,6 +261,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
             if num_cv_round > 1:
                 logging.info("The overall metrics of {}-round cross validation".format(num_cv_round))
                 print_cv_metric(num_round, evals_results)
+
+            # Ensemble prediction may timeout when the number of classes/features is large.
+            if train_cfg.get("num_class", 0) > 20 and train_dmatrix.num_col() > 300:
+                bst = bst[0]
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):
@@ -287,12 +291,14 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
 
 def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, fold=None):
-    if checkpoint_dir and fold:
+    if checkpoint_dir and fold is not None:
         checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
 
     # Set callbacks
     xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
     if xgb_model is not None:
+        if fold is not None:
+            xgb_model = f"{xgb_model}-{fold}"
         logging.info("Checkpoint loaded from %s", xgb_model)
         logging.info("Resuming from iteration %s", iteration)
 
@@ -305,7 +311,7 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
     # Parse arguments for intermediate model callback
     save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
     if save_model_on_termination == "true":
-        model_name = f"{MODEL_NAME}-{fold}" if fold else MODEL_NAME
+        model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
         save_intermediate_model = checkpointing.save_intermediate_model(model_dir, model_name)
         callbacks.append(save_intermediate_model)
         # add_sigterm_handler(model_dir, is_master)

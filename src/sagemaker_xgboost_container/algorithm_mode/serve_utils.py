@@ -183,10 +183,11 @@ def predict(model, model_format, dtest, input_content_type):
 
         config = json.loads(model[0].save_config())
         objective = config["learner"]["objective"]["name"]
-        logging.info(f"Ensemble prediction of {objective} with {len(model)} models")
         if objective in ["multi:softmax", "binary:hinge"]:
+            logging.info(f"Vote ensemble prediction of {objective} with {len(model)} models")
             return stats.mode(ensemble).mode[0]
         else:
+            logging.info(f"Average ensemble prediction of {objective} with {len(model)} models")
             return np.mean(ensemble, axis=0)
     else:
         return model.predict(dtest,
