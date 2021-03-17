@@ -176,7 +176,7 @@ def execution_parameters():
         parameters = {
             "MaxConcurrentTransforms": number_of_workers(),
             "BatchStrategy": "MULTI_RECORD",
-            "MaxPayloadInMB": PARSED_MAX_CONTENT_LENGTH / (1024 ** 2)
+            "MaxPayloadInMB": int(PARSED_MAX_CONTENT_LENGTH / (1024 ** 2))
         }
     except Exception as e:
         return flask.Response(response="Unable to determine execution parameters: %s" % e,
