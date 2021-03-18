@@ -323,7 +323,7 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
             del examples
 
             if csv_weights == 1:
-                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weights=data[:, 1])
+                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weight=data[:, 1])
             else:
                 dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
 
@@ -472,11 +472,11 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
                 features = to_matrix(example['values'])
                 all_features.append(features)
 
-                labels = as_numpy(example['label_values']).squeeze()
+                labels = as_numpy(example['label_values'])
                 all_labels.append(labels)
 
             all_features = vstack(all_features)
-            all_labels = np.concatenate(all_labels)
+            all_labels = np.concatenate(all_labels, axis=None)
             dmatrix = xgb.DMatrix(all_features, label=all_labels)
             return dmatrix
         else:

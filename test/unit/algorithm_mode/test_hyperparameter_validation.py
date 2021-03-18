@@ -43,3 +43,23 @@ class TestHyperparameterValidation(unittest.TestCase):
 
             with self.assertRaises(exc.UserError):
                 hyperparameters.validate(test_hp)
+
+    def test_verbosity(self):
+        test_hp = {
+            'num_round': '1',
+            'verbosity': '0'}
+
+        assert hyperparameters.validate(test_hp)
+
+        test_hp2 = {
+            'num_round': '1',
+            'verbosity': '3'}
+
+        assert hyperparameters.validate(test_hp2)
+
+        test_hp3 = {
+            'num_round': '1',
+            'verbosity': '4'}
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp3)
