@@ -1,6 +1,6 @@
 Flask==1.1.1  # sagemaker-containers requires flask 1.1.1
 PyYAML==5.4
-Pillow==8.1.0
+Pillow==8.1.1
 boto3==1.14.62
 botocore==1.17.62
 cryptography==3.3.2
