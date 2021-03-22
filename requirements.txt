@@ -1,8 +1,9 @@
 Flask==1.1.1  # sagemaker-containers requires flask 1.1.1
-PyYAML<4.3
+PyYAML==5.4.1
 boto3==1.10.14
 botocore==1.13.14
 gunicorn<20.0.0
+cryptography==3.4.6
 matplotlib==3.3.2
 multi-model-server==1.1.1
 numpy==1.19.2
@@ -16,5 +17,5 @@ sagemaker-inference==1.2.0
 scikit-learn==0.23.2
 scipy==1.2.2
 smdebug==0.4.13
-urllib3<1.25
+urllib3==1.25.9
 wheel
