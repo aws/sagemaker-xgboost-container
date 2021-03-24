@@ -6,12 +6,12 @@ PYTHON_MAJOR_VERSION = 3
 PYTHON_MINOR_VERSION = 7
 REQUIREMENTS = """\
 Flask==1.1.1
-Pillow==8.1.0
+Pillow==8.1.1
 PyYAML==5.4
 boto3==1.14.62
 botocore==1.17.62
 conda==4.9.0
-cryptography==3.3.2
+cryptography==3.4.6
 gunicorn==19.10.0
 matplotlib==3.3.2
 multi-model-server==1.1.1
