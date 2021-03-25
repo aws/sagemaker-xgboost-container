@@ -263,7 +263,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 print_cv_metric(num_round, evals_results)
 
             # Ensemble prediction may timeout when the number of classes/features is large.
-            if train_cfg.get("num_class", 0) > 20 and train_dmatrix.num_col() > 300:
+            if train_cfg.get("num_class", 0) > 15 and train_dmatrix.num_col() > 300:
                 bst = bst[0]
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
