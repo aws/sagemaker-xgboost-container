@@ -10,6 +10,8 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+from collections import Counter
+
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score
 
@@ -52,6 +54,39 @@ def accuracy(preds, dtrain):
 
 def f1(preds, dtrain):
     """Compute f1 score. This can be used for multiclassification training.
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, f1 score
+    """
+    score = 0.0
+    if preds.size > 0:
+        labels = dtrain.get_label()
+        pred_labels = margin_to_class_label(preds)
+        score = f1_score(labels, pred_labels, average='macro')
+    return 'f1', score
+
+
+def f1_binary(preds, dtrain):
+    """Compute f1 binary score. This can be used for binaryclassification training.
+
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, f1 score
+    """
+    score = 0.0
+    if preds.size > 0:
+        labels = dtrain.get_label()
+        pred_labels = margin_to_class_label(preds)
+        # this function is used only for AutoPilot and the least frequent label is already encoded as 1.
+        score = f1_score(labels, pred_labels, average='binary')
+    return 'f1_binary', score
+
+
+def f1_macro(preds, dtrain):
+    """Compute f1 score. This can be used for multiclassification training.
 
     For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
 
@@ -64,7 +99,7 @@ def f1(preds, dtrain):
         labels = dtrain.get_label()
         pred_labels = margin_to_class_label(preds)
         score = f1_score(labels, pred_labels, average='macro')
-    return 'f1', score
+    return 'f1_macro', score
 
 
 def mse(preds, dtrain):
@@ -94,6 +129,8 @@ def r2(preds, dtrain):
 CUSTOM_METRICS = {
     "accuracy": accuracy,
     "f1": f1,
+    "f1_binary": f1_binary,
+    "f1_macro": f1_macro,
     "mse": mse,
     "r2": r2
 }

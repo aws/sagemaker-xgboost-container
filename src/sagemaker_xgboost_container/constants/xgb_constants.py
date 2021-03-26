@@ -16,6 +16,8 @@ XGB_MAXIMIZE_METRICS = [
     'auc',
     'aucpr',
     'f1',
+    'f1_binary',
+    'f1_macro',
     'map',
     'ndcg',
     'r2'

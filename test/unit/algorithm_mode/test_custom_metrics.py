@@ -13,7 +13,7 @@
 import numpy as np
 import xgboost as xgb
 from math import log
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2
+from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro
 
 
 binary_train_data = np.random.rand(10, 2)
@@ -46,6 +46,18 @@ def test_binary_f1_logistic():
     f1_score_name, f1_score_result = f1(binary_preds_logistic, binary_dtrain)
     assert f1_score_name == 'f1'
     assert f1_score_result == 1/3
+
+
+def test_binary_f1_binary():
+    f1_score_name, f1_score_result = f1_binary(binary_preds, binary_dtrain)
+    assert f1_score_name == 'f1_binary'
+    assert f1_score_result == 2/3
+
+
+def test_binary_f1_binary_logistic():
+    f1_score_name, f1_score_result = f1_binary(binary_preds_logistic, binary_dtrain)
+    assert f1_score_name == 'f1_binary'
+    assert f1_score_result == 2/3
 
 
 multiclass_train_data = np.random.rand(10, 2)
@@ -85,6 +97,18 @@ def test_multiclass_f1():
 def test_multiclass_f1_softprob():
     f1_score_name, f1_score_result = f1(multiclass_preds_softprob, multiclass_dtrain)
     assert f1_score_name == 'f1'
+    assert f1_score_result == 1/15
+
+
+def test_multiclass_f1_macro():
+    f1_score_name, f1_score_result = f1_macro(multiclass_preds, multiclass_dtrain)
+    assert f1_score_name == 'f1_macro'
+    assert f1_score_result == 2/9
+
+
+def test_multiclass_f1_macro_softprob():
+    f1_score_name, f1_score_result = f1_macro(multiclass_preds_softprob, multiclass_dtrain)
+    assert f1_score_name == 'f1_macro'
     assert f1_score_result == 1/15
 
 
