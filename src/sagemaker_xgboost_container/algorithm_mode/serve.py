@@ -84,7 +84,7 @@ class ScoringService(object):
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
-        return serve_utils.predict(cls.booster, model_format, cls.objective, data, content_type)
+        return serve_utils.predict(cls.booster, model_format, data, content_type, cls.objective)
 
     @classmethod
     def get_config_json(cls):
@@ -138,7 +138,6 @@ class ScoringService(object):
     @staticmethod
     def csdk_start():
         ScoringService.app.config["MAX_CONTENT_LENGTH"] = ScoringService.MAX_CONTENT_LENGTH
-        ScoringService.app.before_first_request(ScoringService.load_model)
         return ScoringService.app
 
 

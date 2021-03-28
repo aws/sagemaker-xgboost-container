@@ -152,7 +152,7 @@ def get_loaded_booster(model_dir, ensemble=False):
     return (models, formats) if ensemble else (models[0], formats[0])
 
 
-def predict(model, model_format, objective, dtest, input_content_type):
+def predict(model, model_format, dtest, input_content_type, objective=None):
     bst, bst_format = (model[0], model_format[0]) if type(model) is list else (model, model_format)
 
     if bst_format == PKL_FORMAT:
