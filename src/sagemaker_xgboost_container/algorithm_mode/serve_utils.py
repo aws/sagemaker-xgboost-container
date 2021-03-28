@@ -152,7 +152,7 @@ def get_loaded_booster(model_dir, ensemble=False):
     return (models, formats) if ensemble else (models[0], formats[0])
 
 
-def predict(model, model_format, dtest, input_content_type):
+def predict(model, model_format, objective, dtest, input_content_type):
     bst, bst_format = (model[0], model_format[0]) if type(model) is list else (model, model_format)
 
     if bst_format == PKL_FORMAT:
@@ -176,13 +176,11 @@ def predict(model, model_format, dtest, input_content_type):
         else:
             raise ValueError('Content type {} is not supported'.format(content_type))
 
-    if type(model) is list:
+    if isinstance(model, list):
         ensemble = [booster.predict(dtest,
                                     ntree_limit=getattr(booster, "best_ntree_limit", 0),
                                     validate_features=False) for booster in model]
 
-        config = json.loads(model[0].save_config())
-        objective = config["learner"]["objective"]["name"]
         if objective in ["multi:softmax", "binary:hinge"]:
             logging.info(f"Vote ensemble prediction of {objective} with {len(model)} models")
             return stats.mode(ensemble).mode[0]

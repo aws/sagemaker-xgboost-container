@@ -72,16 +72,19 @@ class ScoringService(object):
     app = flask.Flask(__name__)
     booster = None
     format = None
+    config_json = None
+    objective = None
 
     @classmethod
     def load_model(cls, ensemble=True):
         if cls.booster is None:
             cls.booster, cls.format = serve_utils.get_loaded_booster(ScoringService.MODEL_PATH, ensemble)
+            cls.get_config_json()
         return cls.format
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
-        return serve_utils.predict(cls.booster, model_format, data, content_type)
+        return serve_utils.predict(cls.booster, model_format, cls.objective, data, content_type)
 
     @classmethod
     def get_config_json(cls):
@@ -89,8 +92,12 @@ class ScoringService(object):
 
         :return: xgboost booster's internal configuration (dict)
         """
-        booster = cls.booster[0] if type(cls.booster) is list else cls.booster
-        return json.loads(booster.save_config())
+        if cls.config_json is None:
+            booster = cls.booster[0] if isinstance(cls.booster, list) else cls.booster
+            cls.config_json = json.loads(booster.save_config())
+            cls.objective = cls.config_json["learner"]["objective"]["name"]
+            logging.info("Model objective : {}".format(cls.objective))
+        return cls.config_json
 
     @staticmethod
     def post_worker_init(worker):
@@ -131,6 +138,7 @@ class ScoringService(object):
     @staticmethod
     def csdk_start():
         ScoringService.app.config["MAX_CONTENT_LENGTH"] = ScoringService.MAX_CONTENT_LENGTH
+        ScoringService.app.before_first_request(ScoringService.load_model)
         return ScoringService.app
 
 
