@@ -19,4 +19,5 @@ from sagemaker_xgboost_container.algorithm_mode import serve
 # Otherwise, the model will be loaded when serving the first request per worker.
 # When the model is large, the request may timeout.
 if os.environ.get("SERVER_SOFTWARE") is not None and env.ServingEnv().module_name is None:
-    serve.ScoringService.load_model()
+    ensemble = os.environ.get("SAGEMAKER _MODEL_SERVER_ENSEMBLE") != "false"
+    serve.ScoringService.load_model(ensemble=ensemble)

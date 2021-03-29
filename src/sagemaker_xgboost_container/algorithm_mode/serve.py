@@ -219,7 +219,8 @@ def invocations():
         return flask.Response(response=str(e), status=http.client.UNSUPPORTED_MEDIA_TYPE)
 
     try:
-        format = ScoringService.load_model()
+        ensemble = os.environ.get("SAGEMAKER _MODEL_SERVER_ENSEMBLE") != "false"
+        format = ScoringService.load_model(ensemble=ensemble)
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to load model: %s" % e, status=http.client.INTERNAL_SERVER_ERROR)
