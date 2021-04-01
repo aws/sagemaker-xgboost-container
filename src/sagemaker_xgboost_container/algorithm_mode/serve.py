@@ -25,6 +25,7 @@ import gunicorn.app.base
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
 
 
 SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
@@ -219,7 +220,7 @@ def invocations():
         return flask.Response(response=str(e), status=http.client.UNSUPPORTED_MEDIA_TYPE)
 
     try:
-        ensemble = os.environ.get("SAGEMAKER _MODEL_SERVER_ENSEMBLE") != "false"
+        ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE) != "false"
         format = ScoringService.load_model(ensemble=ensemble)
     except Exception as e:
         logging.exception(e)

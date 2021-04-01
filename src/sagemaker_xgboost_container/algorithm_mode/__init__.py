@@ -13,11 +13,12 @@
 import os
 from sagemaker_containers.beta.framework import env
 from sagemaker_xgboost_container.algorithm_mode import serve
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
 
 
 # Pre-load the model in the algorithm mode.
 # Otherwise, the model will be loaded when serving the first request per worker.
 # When the model is large, the request may timeout.
 if os.environ.get("SERVER_SOFTWARE") is not None and env.ServingEnv().module_name is None:
-    ensemble = os.environ.get("SAGEMAKER _MODEL_SERVER_ENSEMBLE") != "false"
+    ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE) != "false"
     serve.ScoringService.load_model(ensemble=ensemble)

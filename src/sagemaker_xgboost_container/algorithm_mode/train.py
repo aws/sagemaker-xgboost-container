@@ -261,10 +261,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
             if num_cv_round > 1:
                 logging.info("The overall metrics of {}-round cross validation".format(num_cv_round))
                 print_cv_metric(num_round, evals_results)
-
-            # Ensemble prediction may timeout when the number of classes/features is large.
-            # if train_cfg.get("num_class", 0) > 15 or train_dmatrix.num_col() > 300:
-            #    bst = bst[0]
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):
