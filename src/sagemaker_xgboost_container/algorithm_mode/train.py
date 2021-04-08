@@ -211,7 +211,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
         if kfold is None:
             xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir)
+                train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master)
             add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                           val_dmatrix=val_dmatrix)
 
@@ -234,7 +234,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 cv_val_dmatrix = train_val_dmatrix.slice(val_index)
 
                 xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                    train_cfg, cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, len(bst))
+                    train_cfg, cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, is_master, len(bst))
                 add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
                               val_dmatrix=cv_val_dmatrix)
 
@@ -279,7 +279,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 logging.debug("Stored trained model {} at {}".format(fold, model_location))
 
 
-def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, fold=None):
+def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master, fold=None):
     if checkpoint_dir and fold is not None:
         checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
 
@@ -303,7 +303,7 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
         model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
         save_intermediate_model = checkpointing.save_intermediate_model(model_dir, model_name)
         callbacks.append(save_intermediate_model)
-        # add_sigterm_handler(model_dir, is_master)
+        add_sigterm_handler(model_dir, is_master)
 
     watchlist = [(train_dmatrix, 'train')]
     if val_dmatrix is not None:
