@@ -110,7 +110,7 @@ class ScoringService(object):
         # See https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/core.py#L997
         """
         try:
-            ScoringService.load_model()
+            load_model()
         except Exception as e:
             logging.exception(e)
             sys.exit(1)
@@ -142,9 +142,15 @@ class ScoringService(object):
         return ScoringService.app
 
 
+def load_model():
+    ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE) != "false"
+    return ScoringService.load_model(ensemble=ensemble)
+
+
 @ScoringService.app.route("/ping", methods=["GET"])
 def ping():
     # TODO: implement health checks
+    load_model()
     return flask.Response(status=http.client.OK)
 
 
@@ -220,8 +226,7 @@ def invocations():
         return flask.Response(response=str(e), status=http.client.UNSUPPORTED_MEDIA_TYPE)
 
     try:
-        ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE) != "false"
-        format = ScoringService.load_model(ensemble=ensemble)
+        format = load_model()
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to load model: %s" % e, status=http.client.INTERNAL_SERVER_ERROR)
