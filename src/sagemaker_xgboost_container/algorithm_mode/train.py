@@ -15,8 +15,10 @@ import pickle as pkl
 import os
 import signal
 
+import numpy as np
 import xgboost as xgb
 
+from sklearn.model_selection import RepeatedKFold
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import Channel
 from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path
@@ -86,7 +88,7 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     val_dmatrix = get_dmatrix(validate_path, content_type, csv_weights=csv_weights, is_pipe=is_pipe) \
         if val_files_size > 0 else None
 
-    train_val_dmatrix = None
+    train_val_dmatrix = train_dmatrix
     if combine_train_val and train_dmatrix is not None and val_dmatrix is not None:
         logging.info("Read both train and validation data into one DMatrix")
         train_val_dmatrix = get_dmatrix([train_path, validate_path], content_type,
@@ -132,7 +134,7 @@ def sagemaker_train(train_config, data_config, train_path, val_path, model_dir, 
     is_pipe = (input_mode == Channel.PIPE_MODE)
 
     validation_channel = validated_data_config.get('validation', None)
-    combine_train_val = '_nfold' in validated_train_config
+    combine_train_val = '_kfold' in validated_train_config
     train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(train_path, val_path, file_type,
                                                                             csv_weights, is_pipe, combine_train_val)
 
@@ -186,15 +188,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     :param model_dir: Directory where model will be saved
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
-    # Parse arguments for intermediate model callback
-    save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
-
     # Parse arguments for train() API
-    early_stopping_rounds = train_cfg.get('early_stopping_rounds')
+    early_stopping_rounds = train_cfg.pop('early_stopping_rounds', None)
     num_round = train_cfg.pop("num_round")
 
     # Evaluation metrics to use with train() API
-    tuning_objective_metric_param = train_cfg.get("_tuning_objective_metric")
+    tuning_objective_metric_param = train_cfg.pop("_tuning_objective_metric", None)
     eval_metric = train_cfg.get("eval_metric")
     cleaned_eval_metric, configured_feval = train_utils.get_eval_metrics_and_feval(
         tuning_objective_metric_param, eval_metric)
@@ -203,60 +202,58 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     else:
         train_cfg.pop('eval_metric', None)
 
-    # Set callback evals
-    watchlist = [(train_dmatrix, 'train')]
-    if val_dmatrix is not None:
-        watchlist.append((val_dmatrix, 'validation'))
-
-    xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
-    num_round -= iteration
-    if xgb_model is not None:
-        logging.info("Checkpoint loaded from %s", xgb_model)
-        logging.info("Resuming from iteration %s", iteration)
-
-    callbacks = []
-    callbacks.append(checkpointing.print_checkpointed_evaluation(start_iteration=iteration))
-    if checkpoint_dir:
-        save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
-        callbacks.append(save_checkpoint)
-
-    if save_model_on_termination == "true":
-        save_intermediate_model = checkpointing.save_intermediate_model(model_dir, MODEL_NAME)
-        callbacks.append(save_intermediate_model)
-        add_sigterm_handler(model_dir, is_master)
-
-    add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
-                  val_dmatrix=val_dmatrix)
-
     logging.info("Train matrix has {} rows and {} columns".format(train_dmatrix.num_row(), train_dmatrix.num_col()))
     if val_dmatrix:
         logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
 
     try:
-        nfold = train_cfg.pop("_nfold", None)
+        kfold = train_cfg.pop("_kfold", None)
 
-        bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round, evals=watchlist, feval=configured_feval,
-                        early_stopping_rounds=early_stopping_rounds, callbacks=callbacks, xgb_model=xgb_model,
-                        verbose_eval=False)
+        if kfold is None:
+            xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
+                train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master)
+            add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
+                          val_dmatrix=val_dmatrix)
 
-        if nfold is not None and train_val_dmatrix is not None:
-            logging.info("Run {}-fold cross validation on the data of {} rows".format(nfold,
-                                                                                      train_val_dmatrix.num_row()))
-            # xgb.cv returns a pandas data frame of evaluation results.
-            cv_eval_result = xgb.cv(train_cfg, train_val_dmatrix, nfold=nfold, num_boost_round=num_round,
-                                    feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
-                                    verbose_eval=True, show_stdv=True, shuffle=False)
+            bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round-iteration, evals=watchlist,
+                            feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
+                            callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
 
-            logging.info("The final metrics of cross validation")
-            cv_last_epoch = len(cv_eval_result.index) - 1
-            cv_eval_report = f"[{cv_last_epoch}]"
-            cv_eval_columns = cv_eval_result.columns
-            # Skip the standard deviation columns
-            for j in range(0, len(cv_eval_columns), 2):
-                metric_name = cv_eval_columns[j][:-5].replace("test-", "validation-", 1)
-                metric_val = cv_eval_result.at[cv_last_epoch, cv_eval_columns[j]]
-                cv_eval_report += '\t{0}:{1:.5f}'.format(metric_name, metric_val)
-            print(cv_eval_report)
+        else:
+            num_cv_round = train_cfg.pop("_num_cv_round", 1)
+            logging.info("Run {}-round of {}-fold cross validation with {} rows".format(num_cv_round,
+                                                                                        kfold,
+                                                                                        train_val_dmatrix.num_row()))
+
+            bst = []
+            evals_results = []
+
+            rkf = RepeatedKFold(n_splits=kfold, n_repeats=num_cv_round)
+            for train_index, val_index in rkf.split(range(train_val_dmatrix.num_row())):
+                cv_train_dmatrix = train_val_dmatrix.slice(train_index)
+                cv_val_dmatrix = train_val_dmatrix.slice(val_index)
+
+                xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
+                    train_cfg, cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, is_master, len(bst))
+                add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
+                              val_dmatrix=cv_val_dmatrix)
+
+                evals_result = {}
+                logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
+                booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,
+                                    evals=watchlist, feval=configured_feval, evals_result=evals_result,
+                                    early_stopping_rounds=early_stopping_rounds,
+                                    callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
+                bst.append(booster)
+                evals_results.append(evals_result)
+
+                if len(bst) % kfold == 0:
+                    logging.info("The metrics of round {} cross validation".format(int(len(bst) / kfold)))
+                    print_cv_metric(num_round, evals_results[-kfold:])
+
+            if num_cv_round > 1:
+                logging.info("The overall metrics of {}-round cross validation".format(num_cv_round))
+                print_cv_metric(num_round, evals_results)
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):
@@ -269,7 +266,56 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         os.makedirs(model_dir)
 
     if is_master:
-        model_location = model_dir + '/xgboost-model'
-        with open(model_location, 'wb') as f:
-            pkl.dump(bst, f, protocol=4)
-        logging.debug("Stored trained model at {}".format(model_location))
+        if type(bst) is not list:
+            model_location = os.path.join(model_dir, MODEL_NAME)
+            with open(model_location, 'wb') as f:
+                pkl.dump(bst, f, protocol=4)
+            logging.debug("Stored trained model at {}".format(model_location))
+        else:
+            for fold in range(len(bst)):
+                model_location = os.path.join(model_dir, f"{MODEL_NAME}-{fold}")
+                with open(model_location, 'wb') as f:
+                    pkl.dump(bst[fold], f, protocol=4)
+                logging.debug("Stored trained model {} at {}".format(fold, model_location))
+
+
+def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, is_master, fold=None):
+    if checkpoint_dir and fold is not None:
+        checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
+
+    # Set callbacks
+    xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
+    if xgb_model is not None:
+        if fold is not None:
+            xgb_model = f"{xgb_model}-{fold}"
+        logging.info("Checkpoint loaded from %s", xgb_model)
+        logging.info("Resuming from iteration %s", iteration)
+
+    callbacks = []
+    callbacks.append(checkpointing.print_checkpointed_evaluation(start_iteration=iteration))
+    if checkpoint_dir:
+        save_checkpoint = checkpointing.save_checkpoint(checkpoint_dir, start_iteration=iteration)
+        callbacks.append(save_checkpoint)
+
+    # Parse arguments for intermediate model callback
+    save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
+    if save_model_on_termination == "true":
+        model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
+        save_intermediate_model = checkpointing.save_intermediate_model(model_dir, model_name)
+        callbacks.append(save_intermediate_model)
+        add_sigterm_handler(model_dir, is_master)
+
+    watchlist = [(train_dmatrix, 'train')]
+    if val_dmatrix is not None:
+        watchlist.append((val_dmatrix, 'validation'))
+
+    return xgb_model, iteration, callbacks, watchlist
+
+
+def print_cv_metric(num_round, evals_results):
+    cv_eval_report = f"[{num_round}]"
+    for metric_name in evals_results[0]['train']:
+        for data_name in ["train", "validation"]:
+            metric_val = [evals_result[data_name][metric_name][-1] for evals_result in evals_results]
+            cv_eval_report += '\t{0}-{1}:{2:.5f}'.format(data_name, metric_name, np.mean(metric_val))
+    print(cv_eval_report)
