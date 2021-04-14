@@ -86,7 +86,7 @@ def f1_binary(preds, dtrain):
 
 
 def f1_macro(preds, dtrain):
-    """Compute f1 score. This can be used for multiclassification training.
+    """Compute f1 macro score. This can be used for multiclassification training.
 
     For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
 
