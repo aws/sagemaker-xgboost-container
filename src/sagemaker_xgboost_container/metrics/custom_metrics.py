@@ -34,26 +34,6 @@ def margin_to_class_label(preds):
         return (preds > 0.).astype(int)
 
 
-# From 1.2, custom evaluation metric receives raw prediction.
-# For binary classification (binary:logistic as objective),
-# the raw prediction is log-odds, which can be translated to
-# probability by sigmoid function.
-# https://github.com/dmlc/xgboost/releases/tag/v1.2.0
-def sigmoid(x):
-    """Transform binary classification margin output to probability
-    Instead of exp(-x), we employ tanh as it is stable, fast, and fairly accurate."""
-    return .5 * (1 + np.tanh(.5 * x))
-
-
-def margin_to_class_label(preds):
-    """Converts raw margin output to class label. Instead of converting margin output to
-    probability as intermediate step, we compare in log-odds space (i.e. check if log-odds > 0)."""
-    if type(preds[0]) is np.ndarray:
-        return np.argmax(preds, axis=-1)
-    else:
-        return (preds > 0.).astype(int)
-
-
 # TODO: Rename both according to AutoML standards
 def accuracy(preds, dtrain):
     """Compute accuracy.
