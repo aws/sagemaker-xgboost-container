@@ -401,15 +401,3 @@ class SaveIntermediateModelCallBack(xgb.callback.TrainingCallback):
         if rabit.get_rank() == 0:
             self._callback._save_intermediate_model(model)
         return False
-
-
-class SaveCrossValidationModelsCallBack(xgb.callback.TrainingCallback):
-    """The new implementation of callback functions from 1.3."""
-    def __init__(self, model_list):
-        self._model_list = model_list
-
-    def after_training(self, model):
-        if rabit.get_rank() == 0:
-            print(model)
-            self._model_list.append(model)
-        return model

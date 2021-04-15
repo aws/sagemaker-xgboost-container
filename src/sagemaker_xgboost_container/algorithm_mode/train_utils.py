@@ -54,7 +54,8 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
 
     :param tuning_objective_metric_param: HPO metric
     :param eval_metric: list of xgb metrics to output
-    :return: cleaned list of xgb supported evaluation metrics, method configured with container defined metrics.
+    :return: cleaned list of xgb supported evaluation metrics, method configured with container defined metrics,
+    and tuning objective metric.
     """
     tuning_objective_metric = None
     configured_eval = None

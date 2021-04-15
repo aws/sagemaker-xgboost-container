@@ -36,8 +36,8 @@ def test_get_eval_metrics_and_feval():
     test_objective = 'validation:logloss'
     test_evals = ['accuracy', 'rmse']
 
-    test_eval_metrics, test_configured_eval, tuning_metrics = train_utils.get_eval_metrics_and_feval(test_objective,
-                                                                                                     test_evals)
+    test_eval_metrics, test_configured_eval, tuning_metric = train_utils.get_eval_metrics_and_feval(test_objective,
+                                                                                                    test_evals)
 
     assert len(test_eval_metrics) == 2
     for metric in test_eval_metrics:
