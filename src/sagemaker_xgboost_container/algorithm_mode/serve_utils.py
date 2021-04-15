@@ -16,6 +16,7 @@ import numpy as np
 import os
 import pickle as pkl
 
+from scipy import stats
 from scipy.sparse import csr_matrix
 from sagemaker_containers.record_pb2 import Record
 from sagemaker_containers._recordio import _write_recordio
@@ -124,27 +125,38 @@ def parse_content_data(input_data, input_content_type):
     return dtest, content_type
 
 
-def get_loaded_booster(model_dir):
-    model_files = (data_file for data_file in os.listdir(model_dir)
-                   if os.path.isfile(os.path.join(model_dir, data_file)))
-    model_file = next(model_files)
-    try:
-        booster = pkl.load(open(os.path.join(model_dir, model_file), 'rb'))
-        format = PKL_FORMAT
-    except Exception as exp_pkl:
+def get_loaded_booster(model_dir, ensemble=False):
+    model_files = [data_file for data_file in os.listdir(model_dir)
+                   if os.path.isfile(os.path.join(model_dir, data_file))]
+    model_files = model_files if ensemble else model_files[0:1]
+
+    models = []
+    formats = []
+    for model_file in model_files:
+        path = os.path.join(model_dir, model_file)
+        logging.info(f"Loading the model from {path}")
         try:
-            booster = xgb.Booster()
-            booster.load_model(os.path.join(model_dir, model_file))
-            format = XGB_FORMAT
-        except Exception as exp_xgb:
-            raise RuntimeError("Model at {} cannot be loaded:\n{}\n{}".format(model_dir, str(exp_pkl), str(exp_xgb)))
-    booster.set_param('nthread', 1)
-    return booster, format
+            booster = pkl.load(open(path, 'rb'))
+            format = PKL_FORMAT
+        except Exception as exp_pkl:
+            try:
+                booster = xgb.Booster()
+                booster.load_model(path)
+                format = XGB_FORMAT
+            except Exception as exp_xgb:
+                raise RuntimeError("Model at {} cannot be loaded:\n{}\n{}".format(path, str(exp_pkl), str(exp_xgb)))
+        booster.set_param('nthread', 1)
+        models.append(booster)
+        formats.append(format)
+
+    return (models, formats) if ensemble else (models[0], formats[0])
 
 
-def predict(booster, model_format, dtest, input_content_type):
-    if model_format == PKL_FORMAT:
-        x = len(booster.feature_names)
+def predict(model, model_format, dtest, input_content_type, objective=None):
+    bst, bst_format = (model[0], model_format[0]) if type(model) is list else (model, model_format)
+
+    if bst_format == PKL_FORMAT:
+        x = len(bst.feature_names)
         y = len(dtest.feature_names)
 
         try:
@@ -163,9 +175,22 @@ def predict(booster, model_format, dtest, input_content_type):
                                  format(content_type, y, x))
         else:
             raise ValueError('Content type {} is not supported'.format(content_type))
-    return booster.predict(dtest,
-                           ntree_limit=getattr(booster, "best_ntree_limit", 0),
-                           validate_features=False)
+
+    if isinstance(model, list):
+        ensemble = [booster.predict(dtest,
+                                    ntree_limit=getattr(booster, "best_ntree_limit", 0),
+                                    validate_features=False) for booster in model]
+
+        if objective in ["multi:softmax", "binary:hinge"]:
+            logging.info(f"Vote ensemble prediction of {objective} with {len(model)} models")
+            return stats.mode(ensemble).mode[0]
+        else:
+            logging.info(f"Average ensemble prediction of {objective} with {len(model)} models")
+            return np.mean(ensemble, axis=0)
+    else:
+        return model.predict(dtest,
+                             ntree_limit=getattr(model, "best_ntree_limit", 0),
+                             validate_features=False)
 
 
 def is_selectable_inference_output():

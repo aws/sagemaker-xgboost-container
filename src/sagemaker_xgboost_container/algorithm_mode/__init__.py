@@ -10,3 +10,13 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import os
+from sagemaker_containers.beta.framework import env
+from sagemaker_xgboost_container.algorithm_mode import serve
+
+
+# Pre-load the model in the algorithm mode.
+# Otherwise, the model will be loaded when serving the first request per worker.
+# When the model is large, the request may timeout.
+if os.environ.get("SERVER_SOFTWARE") is not None and env.ServingEnv().module_name is None:
+    serve.load_model()

@@ -25,6 +25,7 @@ import gunicorn.app.base
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
 
 
 SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
@@ -72,16 +73,19 @@ class ScoringService(object):
     app = flask.Flask(__name__)
     booster = None
     format = None
+    config_json = None
+    objective = None
 
     @classmethod
-    def load_model(cls):
+    def load_model(cls, ensemble=True):
         if cls.booster is None:
-            cls.booster, cls.format = serve_utils.get_loaded_booster(ScoringService.MODEL_PATH)
+            cls.booster, cls.format = serve_utils.get_loaded_booster(ScoringService.MODEL_PATH, ensemble)
+            cls.get_config_json()
         return cls.format
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
-        return serve_utils.predict(cls.booster, model_format, data, content_type)
+        return serve_utils.predict(cls.booster, model_format, data, content_type, cls.objective)
 
     @classmethod
     def get_config_json(cls):
@@ -89,7 +93,12 @@ class ScoringService(object):
 
         :return: xgboost booster's internal configuration (dict)
         """
-        return json.loads(cls.booster.save_config())
+        if cls.config_json is None:
+            booster = cls.booster[0] if isinstance(cls.booster, list) else cls.booster
+            cls.config_json = json.loads(booster.save_config())
+            cls.objective = cls.config_json["learner"]["objective"]["name"]
+            logging.info("Model objective : {}".format(cls.objective))
+        return cls.config_json
 
     @staticmethod
     def post_worker_init(worker):
@@ -101,7 +110,7 @@ class ScoringService(object):
         # See https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/core.py#L997
         """
         try:
-            ScoringService.load_model()
+            load_model()
         except Exception as e:
             logging.exception(e)
             sys.exit(1)
@@ -133,9 +142,15 @@ class ScoringService(object):
         return ScoringService.app
 
 
+def load_model():
+    ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE) != "false"
+    return ScoringService.load_model(ensemble=ensemble)
+
+
 @ScoringService.app.route("/ping", methods=["GET"])
 def ping():
     # TODO: implement health checks
+    load_model()
     return flask.Response(status=http.client.OK)
 
 
@@ -211,7 +226,7 @@ def invocations():
         return flask.Response(response=str(e), status=http.client.UNSUPPORTED_MEDIA_TYPE)
 
     try:
-        format = ScoringService.load_model()
+        format = load_model()
     except Exception as e:
         logging.exception(e)
         return flask.Response(response="Unable to load model: %s" % e, status=http.client.INTERNAL_SERVER_ERROR)
