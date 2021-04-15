@@ -189,7 +189,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
     # Parse arguments for train() API
-    early_stopping_round = train_cfg.pop('early_stopping_round', None)
     num_round = train_cfg.pop("num_round")
 
     # Evaluation metrics to use with train() API
@@ -202,9 +201,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     else:
         train_cfg.pop('eval_metric', None)
 
+    early_stopping_round = train_cfg.pop('early_stopping_round', None)
+    early_stopping_data = 'validation' if val_dmatrix else 'train'
+    early_stopping_metric = None
     if early_stopping_round:
-        early_stopping_data = 'validation' if val_dmatrix else 'train'
-
         if tuning_objective_metric:
             early_stopping_metric = tuning_objective_metric[-1]
         elif eval_metric:
@@ -315,7 +315,7 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
         callbacks.append(checkpointing.SaveIntermediateModelCallBack(model_dir, model_name))
         add_sigterm_handler(model_dir, is_master)
 
-    if early_stopping_metric and early_stopping_round:
+    if early_stopping_data and early_stopping_metric and early_stopping_round:
         maximize = train_utils.MAXIMIZE.get(early_stopping_metric, False)
         early_stop = xgb.callback.EarlyStopping(rounds=early_stopping_round,
                                                 data_name=early_stopping_data,
