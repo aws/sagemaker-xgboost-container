@@ -18,7 +18,7 @@ import signal
 import numpy as np
 import xgboost as xgb
 
-from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import Channel
 from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path
@@ -228,8 +228,15 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
             bst = []
             evals_results = []
 
-            rkf = RepeatedKFold(n_splits=kfold, n_repeats=num_cv_round)
-            for train_index, val_index in rkf.split(range(train_val_dmatrix.num_row())):
+            num_class = train_cfg.get("num_class", None)
+            objective = train_cfg.get("objective", None)
+            # RepeatedStratifiedKFold expects X as array-like of shape (n_samples, n_features)
+            X = range(train_val_dmatrix.num_row())
+            y = train_val_dmatrix.get_label() if num_class or objective.startswith("binary:") else None
+            rkf = RepeatedStratifiedKFold(n_splits=kfold, n_repeats=num_cv_round) if y is not None \
+                else RepeatedKFold(n_splits=kfold, n_repeats=num_cv_round)
+
+            for train_index, val_index in rkf.split(X=X, y=y):
                 cv_train_dmatrix = train_val_dmatrix.slice(train_index)
                 cv_val_dmatrix = train_val_dmatrix.slice(val_index)
 
