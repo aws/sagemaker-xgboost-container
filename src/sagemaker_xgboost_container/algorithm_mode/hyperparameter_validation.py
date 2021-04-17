@@ -120,7 +120,7 @@ def initialize(metrics):
                                       max_closed=4000,
                                       scale=hpv.Interval.LINEAR_SCALE)),
         hpv.IntegerHyperparameter(name="csv_weights", range=hpv.Interval(min_closed=0, max_closed=1), required=False),
-        hpv.IntegerHyperparameter(name="early_stopping_round", range=hpv.Interval(min_closed=1), required=False),
+        hpv.IntegerHyperparameter(name="early_stopping_rounds", range=hpv.Interval(min_closed=1), required=False),
         hpv.CategoricalHyperparameter(name="booster", range=["gbtree", "gblinear", "dart"], required=False),
         hpv.IntegerHyperparameter(name="verbosity", range=hpv.Interval(min_closed=0, max_closed=3), required=False),
         hpv.IntegerHyperparameter(name="nthread", range=hpv.Interval(min_closed=1), required=False),

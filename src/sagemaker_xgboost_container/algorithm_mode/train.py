@@ -201,10 +201,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     else:
         train_cfg.pop('eval_metric', None)
 
-    early_stopping_round = train_cfg.pop('early_stopping_round', None)
+    early_stopping_rounds = train_cfg.pop('early_stopping_rounds', None)
     early_stopping_data = 'validation' if val_dmatrix else 'train'
     early_stopping_metric = None
-    if early_stopping_round:
+    if early_stopping_rounds:
         if tuning_objective_metric:
             early_stopping_metric = tuning_objective_metric[-1]
         elif eval_metric:
@@ -220,13 +220,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         if kfold is None:
             xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
                 train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir,
-                early_stopping_data, early_stopping_metric, early_stopping_round, is_master)
+                early_stopping_data, early_stopping_metric, early_stopping_rounds, is_master)
             add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                           val_dmatrix=val_dmatrix)
 
             bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round-iteration, evals=watchlist,
-                            feval=configured_feval, early_stopping_rounds=early_stopping_round,
-                            callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
+                            feval=configured_feval, callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
 
         else:
             num_cv_round = train_cfg.pop("_num_cv_round", 1)
@@ -244,7 +243,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
                 xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
                     train_cfg, cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir,
-                    early_stopping_data, early_stopping_metric, early_stopping_round, is_master, len(bst))
+                    early_stopping_data, early_stopping_metric, early_stopping_rounds, is_master, len(bst))
                 add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
                               val_dmatrix=cv_val_dmatrix)
 
@@ -252,7 +251,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
                 booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,
                                     evals=watchlist, feval=configured_feval, evals_result=evals_result,
-                                    early_stopping_rounds=early_stopping_round,
                                     callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
                 bst.append(booster)
                 evals_results.append(evals_result)
@@ -290,7 +288,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
 
 def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir,
-                            early_stopping_data, early_stopping_metric, early_stopping_round,
+                            early_stopping_data, early_stopping_metric, early_stopping_rounds,
                             is_master, fold=None):
     if checkpoint_dir and fold is not None:
         checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
@@ -315,9 +313,9 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
         callbacks.append(checkpointing.SaveIntermediateModelCallBack(model_dir, model_name))
         add_sigterm_handler(model_dir, is_master)
 
-    if early_stopping_data and early_stopping_metric and early_stopping_round:
+    if early_stopping_data and early_stopping_metric and early_stopping_rounds:
         maximize = train_utils.MAXIMIZE.get(early_stopping_metric, False)
-        early_stop = xgb.callback.EarlyStopping(rounds=early_stopping_round,
+        early_stop = xgb.callback.EarlyStopping(rounds=early_stopping_rounds,
                                                 data_name=early_stopping_data,
                                                 metric_name=early_stopping_metric,
                                                 maximize=maximize,
