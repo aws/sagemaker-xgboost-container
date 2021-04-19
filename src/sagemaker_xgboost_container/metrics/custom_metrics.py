@@ -78,7 +78,6 @@ def f1_binary(preds, dtrain):
     if preds.size > 0:
         labels = dtrain.get_label()
         pred_labels = margin_to_class_label(preds)
-        # this function is used only for AutoPilot and the least frequent label is already encoded as 1.
         score = f1_score(labels, pred_labels, average='binary')
     return 'f1_binary', score
 
