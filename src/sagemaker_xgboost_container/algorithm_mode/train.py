@@ -11,7 +11,6 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import logging
-import pickle as pkl
 import os
 import signal
 
@@ -275,14 +274,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     if is_master:
         if type(bst) is not list:
             model_location = os.path.join(model_dir, MODEL_NAME)
-            with open(model_location, 'wb') as f:
-                pkl.dump(bst, f, protocol=4)
+            bst.save_model(model_location)
             logging.debug("Stored trained model at {}".format(model_location))
         else:
             for fold in range(len(bst)):
                 model_location = os.path.join(model_dir, f"{MODEL_NAME}-{fold}")
-                with open(model_location, 'wb') as f:
-                    pkl.dump(bst[fold], f, protocol=4)
+                bst[fold].save_model(model_location)
                 logging.debug("Stored trained model {} at {}".format(fold, model_location))
 
 
