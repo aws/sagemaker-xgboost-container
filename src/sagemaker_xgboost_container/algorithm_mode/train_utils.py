@@ -22,7 +22,9 @@ MAXIMIZE = {
     "ndcg": True,
     "map": True,
     "accuracy": True,
-    "f1": True
+    "f1": True,
+    "f1_binary": True,
+    "f1_macro": True
 }
 
 
