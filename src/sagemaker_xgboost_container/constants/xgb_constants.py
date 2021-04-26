@@ -16,6 +16,8 @@ XGB_MAXIMIZE_METRICS = [
     'auc',
     'aucpr',
     'f1',
+    'f1_binary',
+    'f1_macro',
     'map',
     'ndcg',
     'r2'
@@ -42,6 +44,7 @@ XGB_MINIMIZE_METRICS = [
 
 LOGISTIC_REGRESSION_LABEL_RANGE_ERROR = "label must be in [0,1] for logistic regression"
 MULTI_CLASS_LABEL_RANGE_ERROR = "label must be in [0, num_class)"
+MULTI_CLASS_F1_BINARY_ERROR = "Target is multiclass but average='binary'"
 FEATURE_MISMATCH_ERROR = "feature_names mismatch"
 LABEL_PREDICTION_SIZE_MISMATCH = "Check failed: preds.size() == info.labels_.size()"
 ONLY_POS_OR_NEG_SAMPLES = "Check failed: !auc_error AUC: the dataset only contains pos or neg samples"
@@ -54,6 +57,7 @@ REG_LAMBDA_ERROR = "Parameter reg_lambda should be greater equal to 0"
 CUSTOMER_ERRORS = [
     LOGISTIC_REGRESSION_LABEL_RANGE_ERROR,
     MULTI_CLASS_LABEL_RANGE_ERROR,
+    MULTI_CLASS_F1_BINARY_ERROR,
     FEATURE_MISMATCH_ERROR,
     LABEL_PREDICTION_SIZE_MISMATCH,
     ONLY_POS_OR_NEG_SAMPLES,
