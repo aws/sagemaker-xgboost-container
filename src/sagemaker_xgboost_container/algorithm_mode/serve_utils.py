@@ -149,7 +149,7 @@ def get_loaded_booster(model_dir, ensemble=False):
         models.append(booster)
         formats.append(format)
 
-    return (models, formats) if ensemble else (models[0], formats[0])
+    return (models, formats) if ensemble and len(models) > 1 else (models[0], formats[0])
 
 
 def predict(model, model_format, dtest, input_content_type, objective=None):
