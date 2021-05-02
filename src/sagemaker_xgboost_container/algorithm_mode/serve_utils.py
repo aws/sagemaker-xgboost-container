@@ -181,7 +181,7 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
                                     ntree_limit=getattr(booster, "best_ntree_limit", 0),
                                     validate_features=False) for booster in model]
 
-        if objective in ["multi:softmax", "binary:hinge"]:
+        if objective in [MULTI_SOFTMAX, BINARY_HINGE]:
             logging.info(f"Vote ensemble prediction of {objective} with {len(model)} models")
             return stats.mode(ensemble).mode[0]
         else:

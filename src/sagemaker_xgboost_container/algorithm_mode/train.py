@@ -29,7 +29,7 @@ from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 from sagemaker_xgboost_container.callback import add_debugging
-from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS
+from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS, XGB_MAXIMIZE_METRICS
 
 MODEL_NAME = "xgboost-model"
 
@@ -321,7 +321,7 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
         add_sigterm_handler(model_dir, is_master)
 
     if early_stopping_data and early_stopping_metric and early_stopping_rounds:
-        maximize = train_utils.MAXIMIZE.get(early_stopping_metric, False)
+        maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
         early_stop = xgb.callback.EarlyStopping(rounds=early_stopping_rounds,
                                                 data_name=early_stopping_data,
                                                 metric_name=early_stopping_metric,

@@ -16,16 +16,6 @@ from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metric
 
 
 HPO_SEPARATOR = ':'
-MAXIMIZE = {
-    "auc": True,
-    "aucpr": True,
-    "ndcg": True,
-    "map": True,
-    "accuracy": True,
-    "f1": True,
-    "f1_binary": True,
-    "f1_macro": True
-}
 
 
 # These are helper functions for parsing the list of metrics to be outputted
