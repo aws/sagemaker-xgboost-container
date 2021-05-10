@@ -6,7 +6,7 @@ PYTHON_MAJOR_VERSION = 3
 PYTHON_MINOR_VERSION = 7
 REQUIREMENTS = """\
 Flask==1.1.1
-Pillow==8.1.1
+Pillow==8.2.0
 PyYAML==5.4
 boto3==1.14.62
 botocore==1.17.62
