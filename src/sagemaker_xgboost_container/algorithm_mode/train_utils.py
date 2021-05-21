@@ -13,6 +13,7 @@
 import logging
 import os
 from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
+from sagemaker_xgboost_container.constants.xgb_constants import XGB_MAXIMIZE_METRICS
 
 
 HPO_SEPARATOR = ':'
@@ -21,10 +22,12 @@ HPO_SEPARATOR = ':'
 # These are helper functions for parsing the list of metrics to be outputted
 def get_union_metrics(metric_a, metric_b):
     """Union of metric_a and metric_b
+    We make sure the tuning objective metrics are in the end of the list. XGBoost internal early stopping uses
+    the last metric (in this case the tuning objective metric) for early stopping.
 
-    :param metric_a: list
-    :param metric_b: list
-    :return: Union metrics list from metric_a and metric_b
+    :param metric_a: list, tuning objective metrics
+    :param metric_b: list, eval metrics defined within xgboost
+    :return: Union metrics list from metric_a and metric_b where metrics in metric_a are in the end
     """
     if metric_a is None and metric_b is None:
         return None
@@ -33,7 +36,12 @@ def get_union_metrics(metric_a, metric_b):
     elif metric_b is None:
         return metric_a
     else:
-        metric_list = list(set(metric_a).union(metric_b))
+        for metric in metric_a:
+            if metric in metric_b:
+                # remove duplicate metrics
+                metric_b.remove(metric)
+        metric_list = metric_b + metric_a
+        assert metric_list[-1] == metric_a[-1]
         return metric_list
 
 
@@ -59,15 +67,17 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
 
     union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
 
+    maximize_feval_metric = None
     if union_metrics is not None:
         feval_metrics = get_custom_metrics(union_metrics)
         if feval_metrics:
             configured_eval = configure_feval(feval_metrics)
-            cleaned_eval_metrics = list(set(union_metrics) - set(feval_metrics))
+            cleaned_eval_metrics = [metric for metric in union_metrics if metric not in feval_metrics]
+            maximize_feval_metric = True if feval_metrics[-1] in XGB_MAXIMIZE_METRICS else False
         else:
             cleaned_eval_metrics = union_metrics
 
-    return cleaned_eval_metrics, configured_eval
+    return cleaned_eval_metrics, configured_eval, maximize_feval_metric
 
 
 def cleanup_dir(dir, file_prefix):
