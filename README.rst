@@ -252,4 +252,4 @@ SageMaker XGboost Framework Container is licensed under the Apache 2.0 License. 
 .com, Inc. or its affiliates. All Rights Reserved. The license is available at:
 http://aws.amazon.com/apache2.0/
 
-.. |XGBoostLatestVersion| replace:: 1.2-1
+.. |XGBoostLatestVersion| replace:: 1.3-1

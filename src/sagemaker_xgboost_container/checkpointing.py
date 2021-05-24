@@ -1,6 +1,5 @@
 import logging
 import os
-import pickle as pkl
 import tempfile
 import threading
 import queue
@@ -377,7 +376,7 @@ class SaveIntermediateModel(object):
         """Save intermediate model to intermediate model directory"""
         with tempfile.NamedTemporaryFile(
                 dir=self.intermediate_model_dir, delete=False) as tf:
-            pkl.dump(model, tf, protocol=4)
+            model.save_model(tf.name)
 
         save_file_path = self.format_path()
         os.rename(tf.name, save_file_path)

@@ -32,6 +32,7 @@ XGB_MINIMIZE_METRICS = [
     'interval-regression-accuracy',
     'logloss',
     'mae',
+    'mape',
     'merror',
     'mlogloss',
     'mphe',
