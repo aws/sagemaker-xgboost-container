@@ -15,7 +15,7 @@ cryptography==3.4.6
 gunicorn==19.10.0
 matplotlib==3.3.2
 multi-model-server==1.1.1
-numpy==1.19.2
+numpy==1.20.3
 pandas==1.1.3
 psutil==5.6.7
 pyarrow==0.16.0
