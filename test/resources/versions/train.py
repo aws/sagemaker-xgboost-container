@@ -26,7 +26,7 @@ sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.2.0
 scikit-learn==0.23.2
 scipy==1.5.3
-smdebug==1.0.8
+smdebug==1.0.10
 urllib3==1.25.9
 wheel==0.35.1
 """.strip()
