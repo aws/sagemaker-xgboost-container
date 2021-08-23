@@ -11,8 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import numpy as np
-from scipy.special import softmax
-from sklearn.metrics import f1_score, mean_absolute_error, mean_squared_error, accuracy_score, r2_score, \
+from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, \
     precision_score, recall_score, balanced_accuracy_score
 
 
