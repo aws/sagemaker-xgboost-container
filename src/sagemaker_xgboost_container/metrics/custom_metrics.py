@@ -12,8 +12,8 @@
 # language governing permissions and limitations under the License.
 import numpy as np
 from scipy.special import softmax
-from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, mean_absolute_error, r2_score, roc_curve, \
-    auc, precision_score, recall_score, balanced_accuracy_score, log_loss as log_loss_value
+from sklearn.metrics import f1_score, mean_absolute_error, mean_squared_error, accuracy_score, r2_score, \
+    precision_score, recall_score, balanced_accuracy_score
 
 
 # From 1.2, custom evaluation metric receives raw prediction.
@@ -116,35 +116,6 @@ def f1_macro(preds, dtrain):
     return 'f1_macro', score
 
 
-def log_loss(preds, dtrain):
-    """Compute log-loss.
-
-    :param preds: Prediction values
-    :param dtrain: Training data with labels
-    :return: Metric name, log loss value.
-    """
-    score = 0.0
-    if preds.size > 0:
-        labels = dtrain.get_label()
-        if type(preds[0]) is np.ndarray:
-            pred_probabilities = softmax(preds)
-        else:
-            pred_probabilities = sigmoid(preds)
-        score = log_loss_value(labels, pred_probabilities)
-    return 'log_loss', score
-
-
-def mae(preds, dtrain):
-    """Compute mean absolute error.
-
-    :param preds: Prediction values
-    :param dtrain: Training data with labels
-    :return: Metric name, mean absolute error
-    """
-    labels = dtrain.get_label()
-    return 'mae', mean_absolute_error(labels, preds)
-
-
 def mse(preds, dtrain):
     """Compute mean squared error.
 
@@ -172,18 +143,6 @@ def precision(preds, dtrain):
     return 'precision', score
 
 
-def r2(preds, dtrain):
-    """Compute R^2 (coefficient of determination) regression score.
-
-    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
-    :param preds: Prediction values
-    :param dtrain: Training data with labels
-    :return: Metric name, coefficient of determination
-    """
-    labels = dtrain.get_label()
-    return 'r2', r2_score(labels, preds)
-
-
 def recall(preds, dtrain):
     """Compute recall.
 
@@ -199,48 +158,15 @@ def recall(preds, dtrain):
     return 'recall', score
 
 
-def rmse(preds, dtrain):
-    """Compute root mean squared error.
-
-    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
-    :param preds: Prediction values
-    :param dtrain: Training data with labels
-    :return: Metric name, root mean squared error
-    """
-    labels = dtrain.get_label()
-    return 'rmse', mean_squared_error(labels, preds, squared=False)
-
-
-def roc_auc(preds, dtrain):
-    """Compute roc_auc.
-
-    :param preds: Prediction values
-    :param dtrain: Training data with labels
-    :return: Metric name, roc_auc value.
-    """
-    score = 0.0
-    if preds.size > 0:
-        labels = dtrain.get_label()
-        pred_labels = margin_to_class_label(preds)
-        fpr, tpr, thresholds = roc_curve(labels, pred_labels)
-        score = auc(fpr, tpr)
-    return 'roc_auc', score
-
-
 CUSTOM_METRICS = {
     "accuracy": accuracy,
     "balanced_accuracy": balanced_accuracy,
     "f1": f1,
     "f1_binary": f1_binary,
     "f1_macro": f1_macro,
-    "log_loss": log_loss,
-    "mae": mean_absolute_error,
     "mse": mse,
     "precision": precision,
-    "r2": r2,
     "recall": recall,
-    "rmse": rmse,
-    "roc_auc": roc_auc
 }
 
 def get_custom_metrics(eval_metrics):
