@@ -12,7 +12,7 @@
 # language governing permissions and limitations under the License.
 import numpy as np
 from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, \
-    precision_score, recall_score, balanced_accuracy_score
+    precision_score, r2_score, recall_score, balanced_accuracy_score
 
 
 # From 1.2, custom evaluation metric receives raw prediction.
@@ -157,6 +157,17 @@ def recall(preds, dtrain):
     return 'recall', score
 
 
+def r2(preds, dtrain):
+    """Compute R^2 (coefficient of determination) regression score.
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, coefficient of determination
+    """
+    labels = dtrain.get_label()
+    return 'r2', r2_score(labels, preds)
+
+
 CUSTOM_METRICS = {
     "accuracy": accuracy,
     "balanced_accuracy": balanced_accuracy,
@@ -165,6 +176,7 @@ CUSTOM_METRICS = {
     "f1_macro": f1_macro,
     "mse": mse,
     "precision": precision,
+    "r2": r2,
     "recall": recall,
 }
 
