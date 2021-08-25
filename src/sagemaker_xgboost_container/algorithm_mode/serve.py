@@ -33,17 +33,7 @@ SUPPORTED_ACCEPTS = ["application/json", "application/jsonlines", "application/x
 logging = integration.setup_main_logger(__name__)
 
 
-def _get_max_content_length():
-    max_payload_size = 20 * 1024 ** 2
-    # NOTE: 6 MB max content length = 6 * 1024 ** 2
-    content_len = int(os.getenv("MAX_CONTENT_LENGTH", '6291456'))
-    if content_len < max_payload_size:
-        return content_len
-    else:
-        return max_payload_size
-
-
-PARSED_MAX_CONTENT_LENGTH = _get_max_content_length()
+PARSED_MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", '6291456'))
 
 
 def number_of_workers():
