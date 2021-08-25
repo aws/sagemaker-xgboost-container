@@ -177,7 +177,7 @@ def configure_feval(custom_metric_list):
     """Configure custom_feval method with metrics specified by user.
 
     XGBoost.train() can take a feval argument whose value is a function. This method configures that function with
-    multipl metrics if required, then returns to use during training.
+    multiple metrics if required, then returns to use during training.
 
     :param custom_metric_list: Metrics to evaluate using feval
     :return: Configured feval method
