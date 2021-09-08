@@ -11,7 +11,8 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score
+from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, \
+    precision_score, r2_score, recall_score, balanced_accuracy_score
 
 
 # From 1.2, custom evaluation metric receives raw prediction.
@@ -42,12 +43,17 @@ def accuracy(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, accuracy value.
     """
-    score = 0.0
-    if preds.size > 0:
-        labels = dtrain.get_label()
-        pred_labels = margin_to_class_label(preds)
-        score = accuracy_score(labels, pred_labels)
-    return 'accuracy', score
+    return 'accuracy', compute_multiclass_and_binary_metrics(accuracy_score, preds, dtrain)
+
+
+def balanced_accuracy(preds, dtrain):
+    """Compute balanced accuracy.
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, balanced accuracy value.
+    """
+    return 'balanced_accuracy', compute_multiclass_and_binary_metrics(balanced_accuracy_score, preds, dtrain)
 
 
 def f1(preds, dtrain):
@@ -57,12 +63,8 @@ def f1(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    score = 0.0
-    if preds.size > 0:
-        labels = dtrain.get_label()
-        pred_labels = margin_to_class_label(preds)
-        score = f1_score(labels, pred_labels, average='macro')
-    return 'f1', score
+    return 'f1', compute_multiclass_and_binary_metrics(lambda x, y:
+                                                       f1_score(x, y, average='macro'), preds, dtrain)
 
 
 def f1_binary(preds, dtrain):
@@ -74,12 +76,8 @@ def f1_binary(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    score = 0.0
-    if preds.size > 0:
-        labels = dtrain.get_label()
-        pred_labels = margin_to_class_label(preds)
-        score = f1_score(labels, pred_labels, average='binary')
-    return 'f1_binary', score
+    return 'f1_binary', compute_multiclass_and_binary_metrics(lambda x, y:
+                                                              f1_score(x, y, average='binary'), preds, dtrain)
 
 
 def f1_macro(preds, dtrain):
@@ -91,12 +89,8 @@ def f1_macro(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    score = 0.0
-    if preds.size > 0:
-        labels = dtrain.get_label()
-        pred_labels = margin_to_class_label(preds)
-        score = f1_score(labels, pred_labels, average='macro')
-    return 'f1_macro', score
+    return 'f1_macro', compute_multiclass_and_binary_metrics(lambda x, y:
+                                                             f1_score(x, y, average='macro'), preds, dtrain)
 
 
 def mse(preds, dtrain):
@@ -111,9 +105,28 @@ def mse(preds, dtrain):
     return 'mse', mean_squared_error(labels, preds)
 
 
+def precision(preds, dtrain):
+    """Compute precision.
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, precision value.
+    """
+    return 'precision', compute_multiclass_and_binary_metrics(precision_score, preds, dtrain)
+
+
+def recall(preds, dtrain):
+    """Compute recall.
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, recall value.
+    """
+    return 'recall', compute_multiclass_and_binary_metrics(recall_score, preds, dtrain)
+
+
 def r2(preds, dtrain):
     """Compute R^2 (coefficient of determination) regression score.
-
     For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
     :param preds: Prediction values
     :param dtrain: Training data with labels
@@ -123,13 +136,30 @@ def r2(preds, dtrain):
     return 'r2', r2_score(labels, preds)
 
 
+def compute_multiclass_and_binary_metrics(metricfunc, preds, dtrain):
+    """Compute multiclass and binary metrics based on metric calculator function defined in metricfunc
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric score calculated by 'metricfunc'
+    """
+    score = 0.0
+    if preds.size > 0:
+        labels = dtrain.get_label()
+        pred_labels = margin_to_class_label(preds)
+        score = metricfunc(labels, pred_labels)
+    return score
+
+
 CUSTOM_METRICS = {
     "accuracy": accuracy,
+    "balanced_accuracy": balanced_accuracy,
     "f1": f1,
     "f1_binary": f1_binary,
     "f1_macro": f1_macro,
     "mse": mse,
-    "r2": r2
+    "precision": precision,
+    "r2": r2,
+    "recall": recall,
 }
 
 
@@ -142,7 +172,7 @@ def configure_feval(custom_metric_list):
     """Configure custom_feval method with metrics specified by user.
 
     XGBoost.train() can take a feval argument whose value is a function. This method configures that function with
-    multipl metrics if required, then returns to use during training.
+    multiple metrics if required, then returns to use during training.
 
     :param custom_metric_list: Metrics to evaluate using feval
     :return: Configured feval method
