@@ -15,12 +15,15 @@ XGB_MAXIMIZE_METRICS = [
     'accuracy',
     'auc',
     'aucpr',
+    'balanced_accuracy',
     'f1',
     'f1_binary',
     'f1_macro',
     'map',
     'ndcg',
-    'r2'
+    'precision',
+    'r2',
+    'recall'
 ]
 
 XGB_MINIMIZE_METRICS = [
