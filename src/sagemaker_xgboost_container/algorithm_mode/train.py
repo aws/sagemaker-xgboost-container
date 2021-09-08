@@ -220,8 +220,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
         if kfold is None:
             xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, early_stopping_data_name,
-                early_stopping_metric, early_stopping_rounds, save_model_on_termination, is_master)
+                train_dmatrix=train_dmatrix, val_dmatrix=val_dmatrix, model_dir=model_dir,
+                checkpoint_dir=checkpoint_dir, early_stopping_data_name=early_stopping_data_name,
+                early_stopping_metric=early_stopping_metric, early_stopping_rounds=early_stopping_rounds,
+                save_model_on_termination=save_model_on_termination, is_master=is_master)
             add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                           val_dmatrix=val_dmatrix)
 
@@ -250,8 +252,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 cv_val_dmatrix = train_val_dmatrix.slice(val_index)
 
                 xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                    cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, early_stopping_data_name,
-                    early_stopping_metric, early_stopping_rounds, save_model_on_termination, is_master, len(bst))
+                    train_dmatrix=cv_train_dmatrix, val_dmatrix=cv_val_dmatrix, model_dir=model_dir,
+                    checkpoint_dir=checkpoint_dir, early_stopping_data_name=early_stopping_data_name,
+                    early_stopping_metric=early_stopping_metric, early_stopping_rounds=early_stopping_rounds,
+                    save_model_on_termination=save_model_on_termination, is_master=is_master, fold=len(bst))
                 add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
                               val_dmatrix=cv_val_dmatrix)
 
