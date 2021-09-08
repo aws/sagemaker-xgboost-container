@@ -372,7 +372,7 @@ class SaveIntermediateModel(object):
         intermediate_path = os.path.join(self.intermediate_model_dir, self.model_name)
         return intermediate_path
 
-    def _save_intermediate_model(self, model):
+    def save_intermediate_model(self, model):
         """Save intermediate model to intermediate model directory"""
         with tempfile.NamedTemporaryFile(
                 dir=self.intermediate_model_dir, delete=False) as tf:
@@ -388,15 +388,16 @@ class SaveIntermediateModel(object):
             logger.debug("Not master (rank = %d). Exiting intermediate model callback.", env.rank)
             return
 
-        self._save_intermediate_model(env.model)
+        self.save_intermediate_model(env.model)
 
 
 class SaveIntermediateModelCallBack(xgb.callback.TrainingCallback):
     """The new implementation of callback functions from 1.3."""
-    def __init__(self, intermediate_model_dir, model_name):
-        self._callback = SaveIntermediateModel(intermediate_model_dir, model_name)
+    def __init__(self, intermediate_model_dir, model_name, is_master):
+        self.callback = SaveIntermediateModel(intermediate_model_dir, model_name)
+        self.is_master = is_master
 
     def after_iteration(self, model, epoch, evals_log) -> bool:
-        if rabit.get_rank() == 0:
-            self._callback._save_intermediate_model(model)
+        if self.is_master:
+            self.callback.save_intermediate_model(model)
         return False

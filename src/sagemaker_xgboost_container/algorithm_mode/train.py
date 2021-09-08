@@ -189,6 +189,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     """
     # Parse arguments for train() API
     num_round = train_cfg.pop("num_round")
+    # Parse arguments for intermediate model callback
+    save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
 
     # Evaluation metrics to use with train() API
     tuning_objective_metric_param = train_cfg.pop("_tuning_objective_metric", None)
@@ -218,8 +220,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
         if kfold is None:
             xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir,
-                early_stopping_data, early_stopping_metric, early_stopping_rounds, is_master)
+                train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, early_stopping_data,
+                early_stopping_metric, early_stopping_rounds, save_model_on_termination, is_master)
             add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                           val_dmatrix=val_dmatrix)
 
@@ -248,8 +250,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 cv_val_dmatrix = train_val_dmatrix.slice(val_index)
 
                 xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                    train_cfg, cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir,
-                    early_stopping_data, early_stopping_metric, early_stopping_rounds, is_master, len(bst))
+                    cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, early_stopping_data,
+                    early_stopping_metric, early_stopping_rounds, save_model_on_termination, is_master, len(bst))
                 add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
                               val_dmatrix=cv_val_dmatrix)
 
@@ -291,9 +293,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 logging.debug("Stored trained model {} at {}".format(fold, model_location))
 
 
-def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, checkpoint_dir,
+def get_callbacks_watchlist(train_dmatrix, val_dmatrix, model_dir, checkpoint_dir,
                             early_stopping_data, early_stopping_metric, early_stopping_rounds,
-                            is_master, fold=None):
+                            save_model_on_termination, is_master, fold=None):
     if checkpoint_dir and fold is not None:
         checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
 
@@ -308,13 +310,15 @@ def get_callbacks_watchlist(train_cfg, train_dmatrix, val_dmatrix, model_dir, ch
     callbacks = []
     callbacks.append(xgb.callback.EvaluationMonitor())
     if checkpoint_dir:
-        callbacks.append(xgb.callback.TrainingCheckPoint(checkpoint_dir, iterations=iteration))
+        save_checkpoint = xgb.callback.TrainingCheckPoint(directory=checkpoint_dir,
+                                                          iterations=iteration,
+                                                          name=checkpointing.CHECKPOINT_FILENAME)
+        callbacks.append(save_checkpoint)
 
-    # Parse arguments for intermediate model callback
-    save_model_on_termination = train_cfg.pop('save_model_on_termination', "false")
     if save_model_on_termination == "true":
         model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
-        callbacks.append(checkpointing.SaveIntermediateModelCallBack(model_dir, model_name))
+        save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(model_dir, model_name, is_master)
+        callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)
 
     if early_stopping_data and early_stopping_metric and early_stopping_rounds:
