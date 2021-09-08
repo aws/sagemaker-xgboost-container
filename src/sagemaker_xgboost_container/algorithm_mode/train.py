@@ -203,7 +203,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         train_cfg.pop('eval_metric', None)
 
     early_stopping_rounds = train_cfg.pop('early_stopping_rounds', None)
-    early_stopping_data_name = 'validation' if val_dmatrix else 'train'
+    early_stopping_data_name = 'validation' if val_dmatrix else None
     early_stopping_metric = None
     if early_stopping_rounds:
         if tuning_objective_metric:
