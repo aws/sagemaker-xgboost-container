@@ -203,7 +203,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         train_cfg.pop('eval_metric', None)
 
     early_stopping_rounds = train_cfg.pop('early_stopping_rounds', None)
-    early_stopping_data = 'validation' if val_dmatrix else 'train'
+    early_stopping_data_name = 'validation' if val_dmatrix else 'train'
     early_stopping_metric = None
     if early_stopping_rounds:
         if tuning_objective_metric:
@@ -220,7 +220,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
         if kfold is None:
             xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, early_stopping_data,
+                train_dmatrix, val_dmatrix, model_dir, checkpoint_dir, early_stopping_data_name,
                 early_stopping_metric, early_stopping_rounds, save_model_on_termination, is_master)
             add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
                           val_dmatrix=val_dmatrix)
@@ -250,7 +250,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 cv_val_dmatrix = train_val_dmatrix.slice(val_index)
 
                 xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                    cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, early_stopping_data,
+                    cv_train_dmatrix, cv_val_dmatrix, model_dir, checkpoint_dir, early_stopping_data_name,
                     early_stopping_metric, early_stopping_rounds, save_model_on_termination, is_master, len(bst))
                 add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
                               val_dmatrix=cv_val_dmatrix)
@@ -294,7 +294,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
 
 def get_callbacks_watchlist(train_dmatrix, val_dmatrix, model_dir, checkpoint_dir,
-                            early_stopping_data, early_stopping_metric, early_stopping_rounds,
+                            early_stopping_data_name, early_stopping_metric, early_stopping_rounds,
                             save_model_on_termination, is_master, fold=None):
     if checkpoint_dir and fold is not None:
         checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
@@ -321,10 +321,10 @@ def get_callbacks_watchlist(train_dmatrix, val_dmatrix, model_dir, checkpoint_di
         callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)
 
-    if early_stopping_data and early_stopping_metric and early_stopping_rounds:
+    if early_stopping_data_name and early_stopping_metric and early_stopping_rounds:
         maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
         early_stop = xgb.callback.EarlyStopping(rounds=early_stopping_rounds,
-                                                data_name=early_stopping_data,
+                                                data_name=early_stopping_data_name,
                                                 metric_name=early_stopping_metric,
                                                 maximize=maximize,
                                                 save_best=True)
