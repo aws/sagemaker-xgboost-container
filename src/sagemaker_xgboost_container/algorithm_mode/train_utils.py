@@ -46,7 +46,8 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
 
     :param tuning_objective_metric_param: HPO metric
     :param eval_metric: list of xgb metrics to output
-    :return: cleaned list of xgb supported evaluation metrics, method configured with container defined metrics.
+    :return: cleaned list of xgb supported evaluation metrics, method configured with container defined metrics,
+    and tuning objective metric.
     """
     tuning_objective_metric = None
     configured_eval = None
@@ -67,7 +68,7 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
         else:
             cleaned_eval_metrics = union_metrics
 
-    return cleaned_eval_metrics, configured_eval
+    return cleaned_eval_metrics, configured_eval, tuning_objective_metric
 
 
 def cleanup_dir(dir, file_prefix):
@@ -79,8 +80,7 @@ def cleanup_dir(dir, file_prefix):
     :param file_prefix: file name prefix which isn't removed if present
     """
     def _format_path(file_name):
-        path = os.path.join(dir, file_name)
-        return path
+        return os.path.join(dir, file_name)
 
     def _remove(path):
         try:
@@ -90,9 +90,7 @@ def cleanup_dir(dir, file_prefix):
 
     for data_file in os.listdir(dir):
         path = _format_path(data_file)
-        if os.path.isfile(path):
-            if data_file.startswith(file_prefix):
-                continue
+        if os.path.isfile(path) and not data_file.startswith(file_prefix):
             _remove(path)
 
 

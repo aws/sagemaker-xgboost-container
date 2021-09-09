@@ -133,7 +133,7 @@ class ScoringService(object):
 
 
 def load_model():
-    ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE) != "false"
+    ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE, "true") == "true"
     return ScoringService.load_model(ensemble=ensemble)
 
 

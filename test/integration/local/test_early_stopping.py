@@ -45,7 +45,7 @@ def test_xgboost_training_single_machine_with_early_stopping(docker_image, opt_m
         opt_ml,
         hyperparameters=hyperparameters,
         early_stopping=True,
-        train_time=5
+        train_time=10
     )
 
     assert local_mode.file_exists(opt_ml, "model/xgboost-model"), "Model not saved"
@@ -62,7 +62,7 @@ def test_xgboost_training_single_machine_without_early_stopping(docker_image, op
         opt_ml,
         hyperparameters=hyperparameters,
         early_stopping=True,
-        train_time=5
+        train_time=10
     )
 
     assert not local_mode.file_exists(opt_ml, "model/xgboost-model"), "Model saved"
