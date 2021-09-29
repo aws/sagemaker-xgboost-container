@@ -6,7 +6,7 @@ PYTHON_MAJOR_VERSION = 3
 PYTHON_MINOR_VERSION = 7
 REQUIREMENTS = """\
 Flask==1.1.1
-Pillow==8.3.0
+Pillow==8.3.2
 PyYAML==5.4.1
 boto3==1.17.52
 botocore==1.20.52
@@ -27,7 +27,7 @@ sagemaker-inference==1.5.5
 scikit-learn==0.24.1
 scipy==1.6.2
 smdebug==1.0.10
-urllib3==1.26.4
+urllib3==1.26.5
 wheel==0.36.2
 """.strip()
 
