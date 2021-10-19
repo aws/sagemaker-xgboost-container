@@ -39,7 +39,8 @@ def _clean_csv_string(csv_string, delimiter):
 def csv_to_dmatrix(input: Union[str, bytes], dtype=None) -> xgb.DMatrix:
     """Convert a CSV object to a DMatrix object.
     Args:
-        input (str/binary): CSV string or binary object. Assumes the string has been stripped of leading or trailing newline chars.
+        input (str/binary): CSV string or binary object(encoded by UTF-8).
+                                Assumes the string has been stripped of leading or trailing newline chars.
         dtype (dtype, optional):  Data type of the resulting array. If None, the dtypes will be determined by the
                                         contents of each column, individually. This argument can only be used to
                                         'upcast' the array.  For downcasting, use the .astype(t) method.
