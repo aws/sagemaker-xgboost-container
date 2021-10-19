@@ -99,8 +99,8 @@ def test_decode(content_type):
 
 @pytest.mark.parametrize('content_type', ['text/csv; charset=UTF-8'])
 def test_decode_with_complex_csv_content_type(content_type):
-    encoder.decode("42.0,6.0,9.0\n42.0,6.0,9.0", content_type)
-    assert type(actual) is xgb.DMatrix
+    dmatrix_result = encoder.decode("42.0,6.0,9.0\n42.0,6.0,9.0", content_type)
+    assert type(dmatrix_result) is xgb.DMatrix
 
 
 def test_encoder_jsonlines_from_json():
