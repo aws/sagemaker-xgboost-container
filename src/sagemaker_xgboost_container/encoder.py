@@ -46,10 +46,7 @@ def csv_to_dmatrix(input: Union[str, bytes], dtype=None) -> xgb.DMatrix:
     Returns:
         (xgb.DMatrix): XGBoost DataMatrix
     """
-    if isinstance(input, bytes):
-        csv_string = input.decode()
-    else:
-        csv_string = input
+    csv_string = input.decode() if isinstance(input, bytes) else input
     sniff_delimiter = csv.Sniffer().sniff(csv_string.split('\n')[0][:512]).delimiter
     delimiter = ',' if sniff_delimiter.isalnum() else sniff_delimiter
     logging.info("Determined delimiter of CSV input is \'{}\'".format(delimiter))
