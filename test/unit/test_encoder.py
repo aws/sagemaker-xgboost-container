@@ -24,7 +24,7 @@ import xgboost as xgb
 from sagemaker_xgboost_container import encoder
 
 
-@pytest.mark.parametrize('target', ('42,6,9', '42.0,6.0,9.0', '42\n6\n9\n'))
+@pytest.mark.parametrize('target', ('42,6,9', '42.0,6.0,9.0', '42\n6\n9\n', b'42,6,9', b'42.0,6.0,9.0', b'42\n6\n9\n'))
 def test_csv_to_dmatrix(target):
     actual = encoder.csv_to_dmatrix(target)
     assert type(actual) is xgb.DMatrix
