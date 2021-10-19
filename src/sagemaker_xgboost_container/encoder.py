@@ -12,6 +12,7 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 
+import cgi
 import csv
 import io
 import json
@@ -134,7 +135,8 @@ def decode(obj, content_type):
         np.array: decoded object.
     """
     try:
-        decoder = _dmatrix_decoders_map[content_type]
+        media_content_type, _params = cgi.parse_header(content_type)
+        decoder = _dmatrix_decoders_map[media_content_type]
         return decoder(obj)
     except KeyError:
-        raise _errors.UnsupportedFormatError(content_type)
+        raise _errors.UnsupportedFormatError(media_content_type)

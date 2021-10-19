@@ -97,6 +97,12 @@ def test_decode(content_type):
     decoder.assert_called_once_with(42)
 
 
+@pytest.mark.parametrize('content_type', ['text/csv; charset=UTF-8'])
+def test_decode_with_complex_csv_content_type(content_type):
+    encoder.decode("42.0,6.0,9.0\n42.0,6.0,9.0", content_type)
+    assert type(actual) is xgb.DMatrix
+
+
 def test_encoder_jsonlines_from_json():
     json_response = json.dumps({'predictions': [{"predicted_label": 1, "probabilities": [0.4, 0.6]},
                                                 {"predicted_label": 0, "probabilities": [0.9, 0.1]}]})
