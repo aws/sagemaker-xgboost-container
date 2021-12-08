@@ -537,12 +537,14 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
                 if not os.path.exists(path):
                     return None
                 if os.path.isfile(path):
-                    base_name = os.path.basename(path) + str(index)
-                    os.symlink(path, os.path.join(files_path, base_name))
+                    base_name = os.path.join(files_path, os.path.basename(path) + str(index))
+                    logging.info('creating symlink between Path {} and destination {}'.format(path, base_name))
+                    os.symlink(path, base_name)
                 else:
                     for file in os.scandir(path):
-                        base_name = file.name + str(index)
-                        os.path.join(files_path, base_name)
+                        base_name = os.path.join(files_path, file.name + str(index))
+                        logging.info('creating symlink between Path {} and destination {}'.format(file, base_name))
+                        os.symlink(file, base_name)
 
     if content_type.lower() == CSV:
         dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
