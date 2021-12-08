@@ -530,11 +530,13 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
             files_path = "/tmp/sagemaker_xgboost_input_data"
             shutil.rmtree(files_path, ignore_errors=True)
             os.mkdir(files_path)
-            for path in set(data_path):
+            for path in data_path:
+                print(path) ### logging for debugging remove before final merge
                 if not os.path.exists(path):
                     return None
-                if os.path.isfile(path):
-                    os.symlink(path, os.path.join(files_path, os.path.basename(path)))
+                symlink_dest = os.path.join(files_path, os.path.basename(path))
+                if os.path.isfile(path) and not os.path.exists(symlink_dest):
+                    os.symlink(path, symlink_dest)
                 else:
                     for file in os.scandir(path):
                         os.symlink(file, os.path.join(files_path, file.name))
