@@ -526,24 +526,21 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
                 return None
             files_path = get_files_path(data_path)
         else:
+            logging.info('File path {} of input files'.format(data_path))
             # Create a directory with symlinks to input files.
             files_path = "/tmp/sagemaker_xgboost_input_data"
             shutil.rmtree(files_path, ignore_errors=True)
             os.mkdir(files_path)
-            for path in data_path:
+            for index, path in enumerate(data_path):
                 # logging for debugging remove before final merge
-                print(path)
+
                 if not os.path.exists(path):
                     return None
-                symlink_dest = os.path.join(files_path, os.path.basename(path))
-                if os.path.isfile(path) and not os.path.exists(symlink_dest):
-                    os.symlink(path, symlink_dest)
+                if os.path.isfile(path):
+                    os.symlink(path, os.path.join(files_path, os.path.basename(path), index))
                 else:
-
                     for file in os.scandir(path):
-                        symlink_dest_dir = os.path.join(files_path, file.name)
-                        if not os.path.exists(symlink_dest_dir):
-                            os.symlink(file, symlink_dest_dir)
+                        os.path.join(files_path, file.name, index)
 
     if content_type.lower() == CSV:
         dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
