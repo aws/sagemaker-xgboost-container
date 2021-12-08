@@ -537,10 +537,10 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
                 if not os.path.exists(path):
                     return None
                 if os.path.isfile(path):
-                    os.symlink(path, os.path.join(files_path, os.path.basename(path), index))
+                    os.symlink(path, os.path.join(files_path, os.path.basename(path), str(index)))
                 else:
                     for file in os.scandir(path):
-                        os.path.join(files_path, file.name, index)
+                        os.path.join(files_path, file.name, str(index))
 
     if content_type.lower() == CSV:
         dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
