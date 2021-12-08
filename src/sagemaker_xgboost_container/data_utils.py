@@ -531,7 +531,8 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
             shutil.rmtree(files_path, ignore_errors=True)
             os.mkdir(files_path)
             for path in data_path:
-                print(path) ### logging for debugging remove before final merge
+                # logging for debugging remove before final merge
+                print(path)
                 if not os.path.exists(path):
                     return None
                 symlink_dest = os.path.join(files_path, os.path.basename(path))
