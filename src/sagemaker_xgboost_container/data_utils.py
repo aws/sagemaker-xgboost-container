@@ -539,8 +539,9 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
                 if os.path.isfile(path) and not os.path.exists(symlink_dest):
                     os.symlink(path, symlink_dest)
                 else:
-                    for file in os.scandir(path):
-                        os.symlink(file, os.path.join(files_path, file.name))
+                    symlink_dest_dir = os.path.join(files_path, file.name)
+                    for file in os.scandir(path) and not os.path.exists(symlink_dest_dir):
+                        os.symlink(file, symlink_dest_dir)
 
     if content_type.lower() == CSV:
         dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
