@@ -483,34 +483,60 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
         raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
 
 
-def create_dmatrix_from_input(content_type, files_path, csv_weights=0, is_pipe=False):
-    """Create Data Matrix from CSV or LIBSVM file.
-     :param content_type:
-     :param files_path: Path to input files to generate Data Marix
-    :param csv_weights:
-    :param is_pipe:
-    :return: xgb.DMatrix or None
+def _get_pipe_mode_files_path(data_path):
     """
-    if content_type.lower() == CSV:
-        dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
-    elif content_type.lower() == LIBSVM:
-        dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
-    elif content_type.lower() == PARQUET:
-        dmatrix = get_parquet_dmatrix(files_path, is_pipe)
-    elif content_type.lower() == RECORDIO_PROTOBUF:
-        dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
+     :param data_path: Either directory or file
+    """
+    # For pipe mode, we leverages mlio directly by creating a list of SageMakerPipe.
+    if isinstance(data_path, list):
+        files_path = data_path
+    else:
+        files_path = [data_path]
+        if not os.path.exists(data_path + '_0'):
+            logging.info('Pipe path {} does not exist!'.format(data_path))
+            return None
+    return files_path
 
-    if dmatrix and dmatrix.get_label().size == 0:
-        raise exc.UserError(
-            "Got input data without labels. Please check the input data set. "
-            "If training job is running on multiple instances, please switch "
-            "to using single instance if number of records in the data set "
-            "is less than number of workers (16 * number of instance) in the cluster.")
-    return dmatrix
+
+def _get_file_mode_files_path(data_path):
+    """
+     :param data_path: Either directory or file
+    """
+    # In file mode, we create a temp directory with symlink to all input files or
+    # directories to meet XGB's assumption that all files are in the same directory.
+
+    if isinstance(data_path, list):
+        logging.info('File path {} of input files'.format(data_path))
+        # Create a directory with symlinks to input files.
+        files_path = "/tmp/sagemaker_xgboost_input_data"
+        shutil.rmtree(files_path, ignore_errors=True)
+        os.mkdir(files_path)
+        for index, path in enumerate(data_path):
+            # logging for debugging remove before final merge
+
+            if not os.path.exists(path):
+                return None
+            if os.path.isfile(path):
+                base_name = os.path.join(files_path, os.path.basename(path) + '_' + str(index))
+                logging.info('creating symlink between Path {} and destination {}'.format(path, base_name))
+                os.symlink(path, base_name)
+            else:
+                for file in os.scandir(path):
+                    base_name = os.path.join(files_path, file.name + '_' + str(index))
+                    logging.info('creating symlink between Path {} and destination {}'.format(file, base_name))
+                    os.symlink(file, base_name)
+
+    else:
+        if not os.path.exists(data_path):
+            logging.info('File path {} does not exist!'.format(data_path))
+            return None
+        files_path = get_files_path_from_string(data_path)
+
+    return files_path
 
 
 def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
-    """Generate files_path needed to create Data Matrix
+    """Create Data Matrix from CSV or LIBSVM file.
 
     Assumes that sanity validation for content type has been done.
 
@@ -531,46 +557,30 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     # So the only way to combine the data is to read them in one shot.
     # Fortunately, milo can read multiple pipes together. So we extends
     # the parameter data_path to support list. If data_path is string as usual,
-    # get_dmatrix will work as before. When it is a list, we work as follows.
-    # For pipe mode, it leverages mlio directly by creating a list of SageMakerPipe.
-    # In file mode, we create a temp directory with symlink to all input files or
-    # directories to meet XGB's assumption that all files are in the same directory.
+    # get_dmatrix will work as before. When it is a list, it works as explained in respective functions.
+
     if is_pipe:
-        if isinstance(data_path, list):
-            files_path = data_path
-        else:
-            files_path = [data_path]
-            if not os.path.exists(data_path + '_0'):
-                logging.info('Pipe path {} does not exist!'.format(data_path))
-                return None
+        files_path = _get_pipe_mode_files_path(data_path)
     else:
-        if not isinstance(data_path, list):
-            if not os.path.exists(data_path):
-                logging.info('File path {} does not exist!'.format(data_path))
-                return None
-            files_path = get_files_path(data_path)
-        else:
-            logging.info('File path {} of input files'.format(data_path))
-            # Create a directory with symlinks to input files.
-            files_path = "/tmp/sagemaker_xgboost_input_data"
-            shutil.rmtree(files_path, ignore_errors=True)
-            os.mkdir(files_path)
-            for index, path in enumerate(data_path):
-                # logging for debugging remove before final merge
+        files_path = _get_file_mode_files_path(data_path)
 
-                if not os.path.exists(path):
-                    return None
-                if os.path.isfile(path):
-                    base_name = os.path.join(files_path, os.path.basename(path) + str(index))
-                    logging.info('creating symlink between Path {} and destination {}'.format(path, base_name))
-                    os.symlink(path, base_name)
-                else:
-                    for file in os.scandir(path):
-                        base_name = os.path.join(files_path, file.name + str(index))
-                        logging.info('creating symlink between Path {} and destination {}'.format(file, base_name))
-                        os.symlink(file, base_name)
+    if content_type.lower() == CSV:
+        dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
+    elif content_type.lower() == LIBSVM:
+        dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == PARQUET:
+        dmatrix = get_parquet_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == RECORDIO_PROTOBUF:
+        dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
 
-    return create_dmatrix_from_input(content_type, files_path, csv_weights, is_pipe)
+    if dmatrix and dmatrix.get_label().size == 0:
+        raise exc.UserError(
+            "Got input data without labels. Please check the input data set. "
+            "If training job is running on multiple instances, please switch "
+            "to using single instance if number of records in the data set "
+            "is less than number of workers (16 * number of instance) in the cluster.")
+
+    return dmatrix
 
 
 def get_size(data_path, is_pipe=False):
@@ -600,7 +610,7 @@ def get_size(data_path, is_pipe=False):
             return total_size
 
 
-def get_files_path(data_path):
+def get_files_path_from_string(data_path):
     if os.path.isfile(data_path):
         files_path = data_path
     else:

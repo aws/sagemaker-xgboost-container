@@ -117,6 +117,18 @@ class TestTrainUtils(unittest.TestCase):
             os.kill(proc2.pid, signal.SIGTERM)
             shutil.rmtree(pipe_dir)
 
+    def test_get_pipe_mode_files_path(self):
+        data_path = os.path.join(self.data_path,'pq_files')
+        self.assertEqual([data_path], data_utils._get_pipe_mode_files_path(data_path))
+
+    def test_get_file_mode_files_path(self):
+        current_path = Path(os.path.abspath(__file__))
+        resource_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
+        data_path = [os.path.join(resource_path, path) for path in ['train', 'validation']]
+        self.assertTrue(os.path.exists('/tmp/sagemaker_xgboost_input_data/abalone.train_0_0'))
+        self.assertTrue(os.path.exists('/tmp/sagemaker_xgboost_input_data/abalone.train_1_0'))
+        self.assertTrue(os.path.exists('/tmp/sagemaker_xgboost_input_data/abalone.validation_1'))
+        self.assertEqual(data_path, data_utils._get_file_mode_files_path(data_path))
     def test_get_dmatrix(self):
         current_path = Path(os.path.abspath(__file__))
         data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
