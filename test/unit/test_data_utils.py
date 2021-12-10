@@ -130,7 +130,7 @@ class TestTrainUtils(unittest.TestCase):
     def test_create_dmatrix_from_input(self):
         current_path = Path(os.path.abspath(__file__))
         csv_data_path = os.path.join(str(current_path.parent.parent), 'resources', 'data', 'csv')
-        csv_files_path = [os.join(csv_data_path, 'csv_files')]
+        csv_files_path = [os.path.join(csv_data_path, 'csv_files')]
         dmatrix = data_utils.create_dmatrix_from_input(csv_files_path, 'csv', 0, False)
 
         self.assertEqual(6, dmatrix.num_col())
