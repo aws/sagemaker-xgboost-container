@@ -127,6 +127,15 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual(9, dmatrix.num_col())
         self.assertEqual(3548, dmatrix.num_row())
 
+    def test_create_dmatrix_from_input(self):
+        current_path = Path(os.path.abspath(__file__))
+        csv_data_path = os.path.join(str(current_path.parent.parent), 'resources', 'data', 'csv')
+        csv_files_path = [os.join(csv_data_path, 'csv_files')]
+        dmatrix = data_utils.create_dmatrix_from_input(csv_files_path, 'csv', 0, False)
+
+        self.assertEqual(6, dmatrix.num_col())
+        self.assertEqual(5, dmatrix.num_row())
+
     def test_parse_csv_dmatrix(self):
         csv_file_paths_and_weight = [('train.csv', 0), ('train.csv.weights', 1), ('csv_files', 0)]
 

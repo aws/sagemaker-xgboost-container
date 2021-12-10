@@ -30,7 +30,6 @@ import xgboost as xgb
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants import xgb_content_types
 
-
 BATCH_SIZE = 4000
 
 CSV = 'csv'
@@ -46,7 +45,6 @@ VALID_CONTENT_TYPES = [CSV, LIBSVM, PARQUET, RECORDIO_PROTOBUF,
 VALID_PIPED_CONTENT_TYPES = [CSV, PARQUET, RECORDIO_PROTOBUF,
                              _content_types.CSV, xgb_content_types.X_PARQUET,
                              xgb_content_types.X_RECORDIO_PROTOBUF]
-
 
 INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType: " + \
                              ", ".join(['%s' % c for c in VALID_CONTENT_TYPES]) + "."
@@ -89,8 +87,8 @@ def get_content_type(content_type_cfg_val):
             # CSV content type allows a label_size parameter
             # that should be 1 for XGBoost
             if (params and 'label_size' in params and params['label_size'] != '1'):
-                msg = "{} is not an accepted csv ContentType. "\
-                        "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
+                msg = "{} is not an accepted csv ContentType. " \
+                      "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
                 raise exc.UserError(msg)
             return CSV
         elif content_type in [LIBSVM, xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]:
@@ -485,8 +483,34 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
         raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
 
 
-def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
+def create_dmatrix_from_input(content_type, files_path, csv_weights=0, is_pipe=False):
     """Create Data Matrix from CSV or LIBSVM file.
+     :param content_type:
+     :param files_path: Path to input files to generate Data Marix
+    :param csv_weights:
+    :param is_pipe:
+    :return: xgb.DMatrix or None
+    """
+    if content_type.lower() == CSV:
+        dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
+    elif content_type.lower() == LIBSVM:
+        dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == PARQUET:
+        dmatrix = get_parquet_dmatrix(files_path, is_pipe)
+    elif content_type.lower() == RECORDIO_PROTOBUF:
+        dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
+
+    if dmatrix and dmatrix.get_label().size == 0:
+        raise exc.UserError(
+            "Got input data without labels. Please check the input data set. "
+            "If training job is running on multiple instances, please switch "
+            "to using single instance if number of records in the data set "
+            "is less than number of workers (16 * number of instance) in the cluster.")
+    return dmatrix
+
+
+def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
+    """Generate files_path needed to create Data Matrix
 
     Assumes that sanity validation for content type has been done.
 
@@ -546,23 +570,7 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
                         logging.info('creating symlink between Path {} and destination {}'.format(file, base_name))
                         os.symlink(file, base_name)
 
-    if content_type.lower() == CSV:
-        dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
-    elif content_type.lower() == LIBSVM:
-        dmatrix = get_libsvm_dmatrix(files_path, is_pipe)
-    elif content_type.lower() == PARQUET:
-        dmatrix = get_parquet_dmatrix(files_path, is_pipe)
-    elif content_type.lower() == RECORDIO_PROTOBUF:
-        dmatrix = get_recordio_protobuf_dmatrix(files_path, is_pipe)
-
-    if dmatrix and dmatrix.get_label().size == 0:
-        raise exc.UserError(
-            "Got input data without labels. Please check the input data set. "
-            "If training job is running on multiple instances, please switch "
-            "to using single instance if number of records in the data set "
-            "is less than number of workers (16 * number of instance) in the cluster.")
-
-    return dmatrix
+    return create_dmatrix_from_input(content_type, files_path, csv_weights, is_pipe)
 
 
 def get_size(data_path, is_pipe=False):
