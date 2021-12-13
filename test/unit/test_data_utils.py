@@ -111,7 +111,7 @@ class TestTrainUtils(unittest.TestCase):
         try:
             time.sleep(1)
             pipes_path = [os.path.join(pipe_dir, 'train'), os.path.join(pipe_dir, 'validation')]
-            self._check_dmatrix(reader, pipes_path, num_col, 2*num_row, *args)
+            self._check_dmatrix(reader, pipes_path, num_col, 2 * num_row, *args)
         finally:
             os.kill(proc.pid, signal.SIGTERM)
             os.kill(proc2.pid, signal.SIGTERM)
@@ -124,8 +124,8 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual([data_path], data_utils._get_pipe_mode_files_path(data_path))
         list_data_path = [os.path.join(resource_path, 'train', 'abalone.train')]
         self.assertEqual(list_data_path, data_utils._get_pipe_mode_files_path(list_data_path))
-        invalid_data_path = [os.path.join(resource_path, 'test')]
-        self.assertIsNone( data_utils._get_pipe_mode_files_path(invalid_data_path))
+        invalid_data_path = os.path.join(self.data_path, 'pq_files')
+        self.assertIsNone(data_utils._get_pipe_mode_files_path(invalid_data_path))
 
     def test_get_file_mode_files_path(self):
         current_path = Path(os.path.abspath(__file__))
