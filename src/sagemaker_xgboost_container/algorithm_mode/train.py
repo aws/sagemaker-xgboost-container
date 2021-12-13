@@ -17,7 +17,6 @@ import signal
 import numpy as np
 import xgboost as xgb
 
-from scipy import stats
 from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import Channel
@@ -31,6 +30,7 @@ from sagemaker_xgboost_container.algorithm_mode import train_utils
 from sagemaker_xgboost_container.callback import add_debugging
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS, XGB_MAXIMIZE_METRICS
 from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
+from sagemaker_xgboost_container.prediction_utils import ValidationPredictionRecorder
 
 MODEL_NAME = "xgboost-model"
 
@@ -234,7 +234,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
         else:
             num_cv_round = train_cfg.pop("_num_cv_round", 1)
-            additional_output_path = os.environ[SM_OUTPUT_DATA_DIR]
 
             logging.info("Run {}-round of {}-fold cross validation with {} rows".format(num_cv_round,
                                                                                         kfold,
@@ -253,19 +252,14 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
             rkf = RepeatedStratifiedKFold(n_splits=kfold, n_repeats=num_cv_round) if y is not None \
                 else RepeatedKFold(n_splits=kfold, n_repeats=num_cv_round)
 
-            # For regression, ground truth and predicted values are stored. For classification, additionally
-            # estimated probability for predicted class is stored. Predictions are aggregated across
-            # different cross validation repeats - averaged for regression, mode is calculated for classification.
-            data_to_store = np.zeros((num_rows_in_dataset, num_cv_round, 3 if classification_problem else 2))
-            truth_idx = 0
-            prob_idx = 1
-            pred_idx = -1
-
-            # This vector is needed to average over repeates of k-fold cross validaiton.
-            cv_repeat_idx = np.zeros((num_rows_in_dataset,)).astype(int)
-
-            for train_index, val_idx in rkf.split(X=X, y=y):
-                cv_train_dmatrix = train_val_dmatrix.slice(train_index)
+            val_pred = ValidationPredictionRecorder(
+                y_true=train_val_dmatrix.get_label(),
+                num_cv_round=num_cv_round,
+                classification=classification_problem,
+                output_data_dir=os.environ[SM_OUTPUT_DATA_DIR]
+            )
+            for train_idx, val_idx in rkf.split(X=X, y=y):
+                cv_train_dmatrix = train_val_dmatrix.slice(train_idx)
                 cv_val_dmatrix = train_val_dmatrix.slice(val_idx)
 
                 xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
@@ -282,43 +276,14 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                                     evals=watchlist, feval=configured_feval, evals_result=evals_result,
                                     callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
                 bst.append(booster)
-
-                # store predictions on validation fold
-                data_to_store[val_idx, cv_repeat_idx[val_idx], truth_idx] = cv_val_dmatrix.get_label()
-                if classification_problem:
-                    probabilities = booster.predict(cv_val_dmatrix)
-                    if probabilities.ndim == 2:
-                        # multi - class classification setting
-                        pred_labels = probabilities.argmax(axis=-1)
-                        probabilities = probabilities[np.arange(len(probabilities)), pred_labels]
-                    else:
-                        pred_labels = 1*(probabilities > 0.5)
-                    data_to_store[val_idx, cv_repeat_idx[val_idx], prob_idx] = probabilities
-                    data_to_store[val_idx, cv_repeat_idx[val_idx], pred_idx] = pred_labels
-                else:
-                    data_to_store[val_idx, cv_repeat_idx[val_idx], pred_idx] = booster.predict(cv_val_dmatrix)
-
-                cv_repeat_idx[val_idx] += 1
                 evals_results.append(evals_result)
+                val_pred.record(val_idx, booster.predict(cv_val_dmatrix))
 
                 if len(bst) % kfold == 0:
                     logging.info("The metrics of round {} cross validation".format(int(len(bst) / kfold)))
                     print_cv_metric(num_round, evals_results[-kfold:])
 
-            if classification_problem:
-                proba_avg = data_to_store[:, :, prob_idx].mean(axis=1)
-                # mode always return same dimension of output
-                aggregated_data_to_store = stats.mode(data_to_store, axis=1).mode[:, 0, :]
-                aggregated_data_to_store[:, prob_idx] = proba_avg
-            else:
-                aggregated_data_to_store = data_to_store.mean(axis=1)
-
-            if not os.path.exists(additional_output_path):
-                os.makedirs(additional_output_path)
-
-            pred_path = os.path.join(additional_output_path, 'predictions.csv')
-            logging.info(f"Storing predictions on cv folds averaged over all cv rounds in {pred_path} ")
-            np.savetxt(pred_path, aggregated_data_to_store, delimiter=',', fmt='%f')
+            val_pred.save()
 
             if num_cv_round > 1:
                 logging.info("The overall metrics of {}-round cross validation".format(num_cv_round))
