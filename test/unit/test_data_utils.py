@@ -124,7 +124,7 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual([data_path], data_utils._get_pipe_mode_files_path(data_path))
         list_data_path = [os.path.join(resource_path, 'train', 'abalone.train')]
         self.assertEqual(list_data_path, data_utils._get_pipe_mode_files_path(list_data_path))
-        invalid_data_path = [os.path.join(resource_path, 'validation')]
+        invalid_data_path = [os.path.join(resource_path, 'test')]
         self.assertIsNone( data_utils._get_pipe_mode_files_path(invalid_data_path))
 
     def test_get_file_mode_files_path(self):
