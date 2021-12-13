@@ -118,8 +118,14 @@ class TestTrainUtils(unittest.TestCase):
             shutil.rmtree(pipe_dir)
 
     def test_get_pipe_mode_files_path(self):
-        data_path = os.path.join(self.data_path,'pq_files')
+        current_path = Path(os.path.abspath(__file__))
+        resource_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
+        data_path = os.path.join(resource_path, 'train', 'abalone.train')
         self.assertEqual([data_path], data_utils._get_pipe_mode_files_path(data_path))
+        list_data_path = [os.path.join(resource_path, 'train', 'abalone.train')]
+        self.assertEqual(list_data_path, data_utils._get_pipe_mode_files_path(list_data_path))
+        invalid_data_path = [os.path.join(resource_path, 'validation')]
+        self.assertIsNone( data_utils._get_pipe_mode_files_path(invalid_data_path))
 
     def test_get_file_mode_files_path(self):
         current_path = Path(os.path.abspath(__file__))
@@ -128,7 +134,8 @@ class TestTrainUtils(unittest.TestCase):
         self.assertTrue(os.path.exists('/tmp/sagemaker_xgboost_input_data/abalone.train_0_0'))
         self.assertTrue(os.path.exists('/tmp/sagemaker_xgboost_input_data/abalone.train_1_0'))
         self.assertTrue(os.path.exists('/tmp/sagemaker_xgboost_input_data/abalone.validation_1'))
-        self.assertEqual(data_path, data_utils._get_file_mode_files_path(data_path))
+        self.assertEqual('/tmp/sagemaker_xgboost_input_data', data_utils._get_file_mode_files_path(data_path))
+
     def test_get_dmatrix(self):
         current_path = Path(os.path.abspath(__file__))
         data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
@@ -138,15 +145,6 @@ class TestTrainUtils(unittest.TestCase):
 
         self.assertEqual(9, dmatrix.num_col())
         self.assertEqual(3548, dmatrix.num_row())
-
-    def test_create_dmatrix_from_input(self):
-        current_path = Path(os.path.abspath(__file__))
-        csv_data_path = os.path.join(str(current_path.parent.parent), 'resources', 'data', 'csv')
-        csv_files_path = [os.path.join(csv_data_path, 'csv_files')]
-        dmatrix = data_utils.create_dmatrix_from_input(csv_files_path, 'csv', 0, False)
-
-        self.assertEqual(6, dmatrix.num_col())
-        self.assertEqual(5, dmatrix.num_row())
 
     def test_parse_csv_dmatrix(self):
         csv_file_paths_and_weight = [('train.csv', 0), ('train.csv.weights', 1), ('csv_files', 0)]
