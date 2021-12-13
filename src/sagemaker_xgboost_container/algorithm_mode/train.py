@@ -90,7 +90,7 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     train_val_dmatrix = train_dmatrix
     if combine_train_val and train_dmatrix is not None and val_dmatrix is not None:
         logging.info("Read both train and validation data into one DMatrix")
-        if train_path == validate_path:
+        if train_path == validate_path or os.path.basename(train_path) == os.path.basename(validate_path):
             logger.warning('Found same path for training and validation. This is not recommended and results may not '
                            'be correct.')
         train_val_dmatrix = get_dmatrix([train_path, validate_path], content_type,

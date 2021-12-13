@@ -30,6 +30,7 @@ import xgboost as xgb
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants import xgb_content_types
 
+
 BATCH_SIZE = 4000
 
 CSV = 'csv'
@@ -45,6 +46,7 @@ VALID_CONTENT_TYPES = [CSV, LIBSVM, PARQUET, RECORDIO_PROTOBUF,
 VALID_PIPED_CONTENT_TYPES = [CSV, PARQUET, RECORDIO_PROTOBUF,
                              _content_types.CSV, xgb_content_types.X_PARQUET,
                              xgb_content_types.X_RECORDIO_PROTOBUF]
+
 
 INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType: " + \
                              ", ".join(['%s' % c for c in VALID_CONTENT_TYPES]) + "."
@@ -87,8 +89,8 @@ def get_content_type(content_type_cfg_val):
             # CSV content type allows a label_size parameter
             # that should be 1 for XGBoost
             if (params and 'label_size' in params and params['label_size'] != '1'):
-                msg = "{} is not an accepted csv ContentType. " \
-                      "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
+                msg = "{} is not an accepted csv ContentType. "\
+                        "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
                 raise exc.UserError(msg)
             return CSV
         elif content_type in [LIBSVM, xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]:
@@ -512,19 +514,13 @@ def _get_file_mode_files_path(data_path):
         shutil.rmtree(files_path, ignore_errors=True)
         os.mkdir(files_path)
         for index, path in enumerate(data_path):
-            # logging for debugging remove before final merge
-
             if not os.path.exists(path):
                 return None
             if os.path.isfile(path):
-                base_name = os.path.join(files_path, os.path.basename(path) + '_' + str(index))
-                logging.info('creating symlink between Path {} and destination {}'.format(path, base_name))
-                os.symlink(path, base_name)
+                _make_symlink(files_path, os.path.basename(path), index)
             else:
                 for file in os.scandir(path):
-                    base_name = os.path.join(files_path, file.name + '_' + str(index))
-                    logging.info('creating symlink between Path {} and destination {}'.format(file, base_name))
-                    os.symlink(file, base_name)
+                    _make_symlink(files_path, file.name, index)
 
     else:
         if not os.path.exists(data_path):
@@ -620,3 +616,8 @@ def get_files_path_from_string(data_path):
                 break
 
     return files_path
+
+def _make_symlink(source_path, name,index):
+    base_name = os.path.join(source_path, name + '_' + str(index))
+    logging.info('creating symlink between Path {} and destination {}'.format(source_path, base_name))
+    os.symlink(source_path, base_name)
