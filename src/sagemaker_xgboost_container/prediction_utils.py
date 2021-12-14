@@ -77,7 +77,7 @@ class ValidationPredictionRecorder:
     def _aggregate_predictions(self) -> np.ndarray:
         if not np.all(self.cv_repeat_counter == self.num_cv_round):
             raise exc.AlgorithmError(
-                f"For some rows, less than {self.num_cv_round} repeated validation set predictions were provided."
+                f"For some rows number of repeated validation set predictions provided is not {self.num_cv_round}."
             )
 
         columns = [self.y_true]
