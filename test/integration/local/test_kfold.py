@@ -46,7 +46,7 @@ def get_abalone_default_hyperparameters(num_round=50):
         ),
     ]
 )
-def test_xgboost_abalone_regression_kfold(dataset, extra_hps, model_file_count, docker_image, opt_ml):
+def test_xgboost_abalone_kfold(dataset, extra_hps, model_file_count, docker_image, opt_ml):
     hyperparameters = get_abalone_default_hyperparameters()
     data_path = os.path.join(path, "..", "..", "resources", dataset, "data")
 

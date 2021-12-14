@@ -15,13 +15,16 @@ import logging
 import numpy as np
 from scipy import stats
 
+from sagemaker_algorithm_toolkit import exceptions as exc
+
 PREDICTIONS_OUTPUT_FILE = 'predictions.csv'
 
 
 class ValidationPredictionRecorder:
     """Helper class to record and store predictions obtained on different train / validation
-    folds. Predictions are stored in additional artifact folder, and as a result are stored
-    in output path of training job as output.tar.gz.
+    folds. Predictions are stored in folder specified by SM_OUTPUT_DATA_DIR env variable set by
+    training platform, and sometimes modified by container code. Additional artefacts at the
+    end of the training job are stored in output s3 path as output.tar.gz.
 
     Attributes:
         y_true           (1d numpy array): Ground truth labels.
@@ -31,22 +34,33 @@ class ValidationPredictionRecorder:
     def __init__(self, y_true: np.ndarray, num_cv_round: int, classification: bool, output_data_dir: str) -> None:
         self.y_true = y_true.copy()
         num_rows = len(y_true)
+        self.num_cv_round = num_cv_round
         self.y_pred = np.zeros((num_rows, num_cv_round))
         self.y_prob = self.y_pred.copy() if classification else None
         self.cv_repeat_counter = np.zeros((num_rows,)).astype(int)
         self.classification = classification
         self.output_data_dir = output_data_dir
+        self.pred_ndim_ = None
 
     def record(self, indices: np.ndarray, predictions: np.ndarray) -> None:
         """Record predictions on a single validation fold in-memory.
 
-        If current host is master host, initialize and start the Rabit Tracker in the background. All hosts then connect
-        to the master host to set up Rabit rank.
-
         :param indices: indicates for which rows the predictions were made.
         :param predictions: predictions for rows specified in `indices` variable.
         """
+        if self.pred_ndim_ is None:
+            self.pred_ndim_ = predictions.ndim
+        if self.pred_ndim_ != predictions.ndim:
+            raise exc.AlgorithmError(
+                f"Expected predictions with ndim={self.pred_ndim_}, got ndim={predictions.ndim}."
+            )
+
         cv_repeat_idx = self.cv_repeat_counter[indices]
+        if np.any(cv_repeat_idx == self.num_cv_round):
+            raise exc.AlgorithmError(
+                f"More than {self.num_cv_round} repeated predictions for same row were provided."
+            )
+
         if self.classification:
             if predictions.ndim > 1:
                 labels = np.argmax(predictions, axis=-1)
@@ -60,8 +74,12 @@ class ValidationPredictionRecorder:
             self.y_pred[indices, cv_repeat_idx] = predictions
         self.cv_repeat_counter[indices] += 1
 
-    def save(self) -> None:
-        """Serialize predictions to this instance's output data directory."""
+    def _aggregate_predictions(self) -> np.ndarray:
+        if not np.all(self.cv_repeat_counter == self.num_cv_round):
+            raise exc.AlgorithmError(
+                f"For some rows, less than {self.num_cv_round} repeated validation set predictions were provided."
+            )
+
         columns = [self.y_true]
         if self.classification:
             columns.append(self.y_prob.mean(axis=-1))
@@ -70,9 +88,20 @@ class ValidationPredictionRecorder:
         else:
             columns.append(self.y_pred.mean(axis=-1))
 
+        return np.hstack(columns)
+
+    def _check_output_path(self) -> None:
         if not os.path.exists(self.output_data_dir):
+            logging.warn(f"Output directory {self.output_data_dir} not found; Creating the output directory.")
             os.makedirs(self.output_data_dir)
 
-        pred_path = os.path.join(self.output_data_dir, PREDICTIONS_OUTPUT_FILE)
-        logging.info(f"Storing validation set(s) predictions in {pred_path}")
-        np.savetxt(pred_path, np.hstack(columns), delimiter=',', fmt='%f')
+    def _get_save_path(self) -> str:
+        return os.path.join(self.output_data_dir, PREDICTIONS_OUTPUT_FILE)
+
+    def save(self) -> None:
+        """Serialize predictions as .csv file in output data directory."""
+        self._check_output_path()
+        save_path = self._get_save_path()
+
+        logging.info(f"Storing predictions on validation set(s) in {save_path}")
+        np.savetxt(save_path, self._aggregate_predictions(), delimiter=',', fmt='%f')
