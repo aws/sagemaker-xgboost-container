@@ -37,7 +37,7 @@ class ValidationPredictionRecorder:
         self.classification = classification
         self.output_data_dir = output_data_dir
 
-    def record(self, indices: np.ndarray, predictions: np.ndarray):
+    def record(self, indices: np.ndarray, predictions: np.ndarray) -> None:
         """Record predictions on a single validation fold in-memory.
 
         If current host is master host, initialize and start the Rabit Tracker in the background. All hosts then connect
