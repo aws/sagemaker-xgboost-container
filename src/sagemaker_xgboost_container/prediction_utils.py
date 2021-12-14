@@ -60,7 +60,7 @@ class ValidationPredictionRecorder:
             self.y_pred[indices, cv_repeat_idx] = predictions
         self.cv_repeat_counter[indices] += 1
 
-    def save(self):
+    def save(self) -> None:
         """Serialize predictions to this instance's output data directory."""
         columns = [self.y_true]
         if self.classification:
