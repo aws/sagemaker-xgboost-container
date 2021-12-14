@@ -28,7 +28,7 @@ class ValidationPredictionRecorder:
         num_cv_round     (int): number times cross validation procedure will be repeated.
         classification   (bool): indicates type of learning problem.
     """
-    def __init__(self, y_true: np.ndarray, num_cv_round: int, classification: bool, output_data_dir: str):
+    def __init__(self, y_true: np.ndarray, num_cv_round: int, classification: bool, output_data_dir: str) -> None:
         self.y_true = y_true.copy()
         num_rows = len(y_true)
         self.y_pred = np.zeros((num_rows, num_cv_round))
