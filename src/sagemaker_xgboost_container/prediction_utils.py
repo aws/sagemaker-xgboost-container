@@ -61,7 +61,7 @@ class ValidationPredictionRecorder:
         self.cv_repeat_counter[indices] += 1
 
     def save(self):
-        """Persists to file system predictions in user specified path."""
+        """Serialize predictions to this instance's output data directory."""
         columns = [self.y_true]
         if self.classification:
             columns.append(self.y_prob.mean(axis=-1))
