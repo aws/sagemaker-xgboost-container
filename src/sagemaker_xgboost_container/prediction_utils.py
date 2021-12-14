@@ -20,7 +20,7 @@ PREDICTIONS_OUTPUT_FILE = 'predictions.csv'
 
 class ValidationPredictionRecorder:
     """Helper class to record and store predictions obtained on different train / validation
-    folds. Predictions are stored in additional artefact folder, and as a result are stored
+    folds. Predictions are stored in additional artifact folder, and as a result are stored
     in output path of training job as output.tar.gz.
 
     Attributes:
