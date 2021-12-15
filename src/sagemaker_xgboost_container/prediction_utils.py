@@ -18,6 +18,7 @@ from scipy import stats
 from sagemaker_algorithm_toolkit import exceptions as exc
 
 PREDICTIONS_OUTPUT_FILE = 'predictions.csv'
+EXAMPLE_ROWS_EXCEPTION_COUNT = 100
 
 
 class ValidationPredictionRecorder:
@@ -57,8 +58,11 @@ class ValidationPredictionRecorder:
 
         cv_repeat_idx = self.cv_repeat_counter[indices]
         if np.any(cv_repeat_idx == self.num_cv_round):
+            sample_rows = cv_repeat_idx[cv_repeat_idx == self.num_cv_round]
+            sample_rows = sample_rows[:EXAMPLE_ROWS_EXCEPTION_COUNT]
             raise exc.AlgorithmError(
-                f"More than {self.num_cv_round} repeated predictions for same row were provided."
+                f"More than {self.num_cv_round} repeated predictions for same row were provided. "
+                f"Example row indices where this is the case: {sample_rows}."
             )
 
         if self.classification:
@@ -76,8 +80,11 @@ class ValidationPredictionRecorder:
 
     def _aggregate_predictions(self) -> np.ndarray:
         if not np.all(self.cv_repeat_counter == self.num_cv_round):
+            sample_rows = self.cv_repeat_counter[self.cv_repeat_counter != self.num_cv_round]
+            sample_rows = sample_rows[:EXAMPLE_ROWS_EXCEPTION_COUNT]
             raise exc.AlgorithmError(
-                f"For some rows number of repeated validation set predictions provided is not {self.num_cv_round}."
+                f"For some rows number of repeated validation set predictions provided is not {self.num_cv_round}. "
+                f"Example row indices where this is the case: {sample_rows}"
             )
 
         columns = [self.y_true]
@@ -88,7 +95,7 @@ class ValidationPredictionRecorder:
         else:
             columns.append(self.y_pred.mean(axis=-1))
 
-        return np.hstack(columns)
+        return np.vstack(columns).T
 
     def _check_output_path(self) -> None:
         if not os.path.exists(self.output_data_dir):
