@@ -29,6 +29,8 @@ from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 from sagemaker_xgboost_container.callback import add_debugging
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS, XGB_MAXIMIZE_METRICS
+from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
+from sagemaker_xgboost_container.prediction_utils import ValidationPredictionRecorder
 
 MODEL_NAME = "xgboost-model"
 
@@ -232,6 +234,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
         else:
             num_cv_round = train_cfg.pop("_num_cv_round", 1)
+
             logging.info("Run {}-round of {}-fold cross validation with {} rows".format(num_cv_round,
                                                                                         kfold,
                                                                                         train_val_dmatrix.num_row()))
@@ -242,14 +245,22 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
             num_class = train_cfg.get("num_class", None)
             objective = train_cfg.get("objective", None)
             # RepeatedStratifiedKFold expects X as array-like of shape (n_samples, n_features)
-            X = range(train_val_dmatrix.num_row())
-            y = train_val_dmatrix.get_label() if num_class or objective.startswith("binary:") else None
+            classification_problem = num_class or objective.startswith("binary:")
+            num_rows_in_dataset = train_val_dmatrix.num_row()
+            X = range(num_rows_in_dataset)
+            y = train_val_dmatrix.get_label() if classification_problem else None
             rkf = RepeatedStratifiedKFold(n_splits=kfold, n_repeats=num_cv_round) if y is not None \
                 else RepeatedKFold(n_splits=kfold, n_repeats=num_cv_round)
 
-            for train_index, val_index in rkf.split(X=X, y=y):
-                cv_train_dmatrix = train_val_dmatrix.slice(train_index)
-                cv_val_dmatrix = train_val_dmatrix.slice(val_index)
+            val_pred = ValidationPredictionRecorder(
+                y_true=train_val_dmatrix.get_label(),
+                num_cv_round=num_cv_round,
+                classification=classification_problem,
+                output_data_dir=os.environ[SM_OUTPUT_DATA_DIR]
+            )
+            for train_idx, val_idx in rkf.split(X=X, y=y):
+                cv_train_dmatrix = train_val_dmatrix.slice(train_idx)
+                cv_val_dmatrix = train_val_dmatrix.slice(val_idx)
 
                 xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
                     train_dmatrix=cv_train_dmatrix, val_dmatrix=cv_val_dmatrix, model_dir=model_dir,
@@ -266,14 +277,18 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                                     callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
                 bst.append(booster)
                 evals_results.append(evals_result)
+                val_pred.record(val_idx, booster.predict(cv_val_dmatrix))
 
                 if len(bst) % kfold == 0:
                     logging.info("The metrics of round {} cross validation".format(int(len(bst) / kfold)))
                     print_cv_metric(num_round, evals_results[-kfold:])
 
+            val_pred.save()
+
             if num_cv_round > 1:
                 logging.info("The overall metrics of {}-round cross validation".format(num_cv_round))
                 print_cv_metric(num_round, evals_results)
+
     except Exception as e:
         for customer_error_message in CUSTOMER_ERRORS:
             if customer_error_message in str(e):
