@@ -111,7 +111,7 @@ class TestTrainUtils(unittest.TestCase):
         try:
             time.sleep(1)
             pipes_path = [os.path.join(pipe_dir, 'train'), os.path.join(pipe_dir, 'validation')]
-            self._check_dmatrix(reader, pipes_path, num_col, 2 * num_row, *args)
+            self._check_dmatrix(reader, pipes_path, num_col, 2*num_row, *args)
         finally:
             os.kill(proc.pid, signal.SIGTERM)
             os.kill(proc2.pid, signal.SIGTERM)

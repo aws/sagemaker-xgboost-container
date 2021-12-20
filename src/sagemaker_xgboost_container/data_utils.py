@@ -517,10 +517,10 @@ def _get_file_mode_files_path(data_path):
             if not os.path.exists(path):
                 return None
             if os.path.isfile(path):
-                _make_symlink(files_path, os.path.basename(path), index)
+                _make_symlink(path, files_path, os.path.basename(path), index)
             else:
                 for file in os.scandir(path):
-                    _make_symlink(files_path, file.name, index)
+                    _make_symlink(file, files_path, file.name, index)
 
     else:
         if not os.path.exists(data_path):
@@ -617,7 +617,7 @@ def get_files_path_from_string(data_path):
 
     return files_path
 
-def _make_symlink(source_path, name,index):
+def _make_symlink(path, source_path, name,index):
     base_name = os.path.join(source_path, name + '_' + str(index))
     logging.info('creating symlink between Path {} and destination {}'.format(source_path, base_name))
-    os.symlink(source_path, base_name)
+    os.symlink(path, base_name)
