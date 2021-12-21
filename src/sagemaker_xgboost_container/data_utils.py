@@ -617,6 +617,7 @@ def get_files_path_from_string(data_path):
 
     return files_path
 
+
 def _make_symlink(path, source_path, name, index):
     base_name = os.path.join(source_path, name + '_' + str(index))
     logging.info('creating symlink between Path {} and destination {}'.format(source_path, base_name))
