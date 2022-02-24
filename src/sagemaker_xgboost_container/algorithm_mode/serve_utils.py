@@ -156,8 +156,8 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
     bst, bst_format = (model[0], model_format[0]) if type(model) is list else (model, model_format)
 
     if bst_format == PKL_FORMAT:
-        x = len(bst.feature_names)
-        y = len(dtest.feature_names)
+        x = len(bst.feature_names) if bst.feature_names is not None else bst.num_col()
+        y = len(dtest.feature_names) if bst.feature_names is not None else bst.num_col()
 
         try:
             content_type = get_content_type(input_content_type)
