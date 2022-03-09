@@ -123,7 +123,8 @@ def precision_macro(preds, dtrain):
     :return: Metric name, precision score
     """
     return 'precision_macro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                             precision_score(x, y, average='macro'), preds, dtrain)
+                                                                    precision_score(x, y, average='macro'),
+                                                                    preds, dtrain)
 
 
 def precision_micro(preds, dtrain):
@@ -134,7 +135,8 @@ def precision_micro(preds, dtrain):
     :return: Metric name, precision score
     """
     return 'precision_micro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                             precision_score(x, y, average='micro'), preds, dtrain)
+                                                                    precision_score(x, y, average='micro'),
+                                                                    preds, dtrain)
 
 
 def recall(preds, dtrain):
@@ -155,7 +157,7 @@ def recall_macro(preds, dtrain):
     :return: Metric name, recall score
     """
     return 'recall_macro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                             recall_score(x, y, average='macro'), preds, dtrain)
+                                                                 recall_score(x, y, average='macro'), preds, dtrain)
 
 
 def recall_micro(preds, dtrain):
@@ -166,7 +168,7 @@ def recall_micro(preds, dtrain):
     :return: Metric name, recall score
     """
     return 'recall_micro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                             recall_score(x, y, average='micro'), preds, dtrain)
+                                                                 recall_score(x, y, average='micro'), preds, dtrain)
 
 
 def r2(preds, dtrain):
