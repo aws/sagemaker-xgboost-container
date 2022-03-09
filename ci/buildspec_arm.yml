@@ -1,0 +1,50 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.7
+      docker: 19
+  pre_build:
+    commands:
+    - echo Pre-build started on `date`
+    - echo Installing dependencies...
+    - curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-aarch64.sh
+    - bash Miniconda3-latest-Linux-aarch64.sh -bfp /miniconda3
+    - export PATH=/miniconda3/bin:${PATH}
+    - conda install python=3.7
+    - conda update -y conda
+    - # conda install -y 'requests<2.21'  # sagemaker-python-sdk requires requests<2.21
+    - python3 -m pip install pip==20.1  # The new pip denpendency resolver in 20.2+ can't resolve 1.0-1 and 0.90 dependencies
+    - python3 -m pip install .[test]
+  build:
+    commands:
+    - echo Build started on `date`
+    - echo Docker login...
+    - docker login -u $dockerhub_username -p $dockerhub_password
+    - echo Building the Docker image...
+    - CPU_TAG_SUFFIX=${FRAMEWORK_VERSION}-cpu-py3-arm64
+    - docker build -t xgboost-container-base:${CPU_TAG_SUFFIX} -f docker/$FRAMEWORK_VERSION/base/Dockerfile_arm64.cpu .
+    - python3 setup.py bdist_wheel --universal
+    - PREPROD_TAG=preprod-xgboost-container:${CPU_TAG_SUFFIX}
+    - docker build -t ${PREPROD_TAG} -f docker/$FRAMEWORK_VERSION/final/Dockerfile_arm64.cpu .
+    - echo Running tox...
+    - printf "FROM ${PREPROD_TAG}\nADD . /app\nWORKDIR /app\nRUN python3 -m pip install .[test]" > Dockerfile.test
+    - docker build -t test-xgboost-container -f Dockerfile.test .
+    - docker run --rm -t test-xgboost-container sh -c 'pytest --cov=sagemaker_xgboost_container --cov-fail-under=60 test/unit'
+    - docker run --rm -t test-xgboost-container sh -c 'flake8 setup.py src test'
+    - echo Running container tests...
+    - pytest test/integration/local --docker-base-name preprod-xgboost-container --tag ${CPU_TAG_SUFFIX} --py-version 3 --framework-version $FRAMEWORK_VERSION
+    - ECR_PREFIX=${SM_ALPHA}.dkr.ecr.us-west-2.amazonaws.com/sagemaker-xgboost:${FRAMEWORK_VERSION}
+    - ECR_CPU_TAG=${ECR_PREFIX}-cpu-py3-arm64
+    - ECR_TAG=${ECR_PREFIX}-arm64
+    - docker tag ${PREPROD_TAG} ${ECR_CPU_TAG}
+    - docker tag ${PREPROD_TAG} ${ECR_TAG}
+  post_build:
+    commands:
+    - echo Build completed on `date`
+    - echo Logging in to Amazon ECR...
+    - $(aws ecr get-login --no-include-email --region us-west-2)
+    - echo Pushing the Docker image...
+    - docker push ${ECR_CPU_TAG} | grep -v -E "[0-9]{12}.dkr.ecr.\S+.amazonaws.com"
+    - docker push ${ECR_TAG} | grep -v -E "[0-9]{12}.dkr.ecr.\S+.amazonaws.com"
