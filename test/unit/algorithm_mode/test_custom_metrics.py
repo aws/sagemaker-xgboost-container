@@ -13,7 +13,8 @@
 import numpy as np
 import xgboost as xgb
 from math import log
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro
+from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro, \
+    precision_macro, precision_micro, recall_macro, recall_micro
 
 
 binary_train_data = np.random.rand(10, 2)
@@ -104,6 +105,30 @@ def test_multiclass_f1_macro():
     f1_score_name, f1_score_result = f1_macro(multiclass_preds, multiclass_dtrain)
     assert f1_score_name == 'f1_macro'
     assert f1_score_result == 2/9
+
+
+def test_multiclass_precision_macro():
+    precision_macro_name, precision_macro_result = precision_macro(multiclass_preds, multiclass_dtrain)
+    assert precision_macro_name == 'precision_macro'
+    assert precision_macro_result == 1/6
+
+
+def test_multiclass_precision_micro():
+    precision_micro_name, precision_micro_result = precision_micro(multiclass_preds, multiclass_dtrain)
+    assert precision_micro_name == 'precision_micro'
+    assert precision_micro_result == 1/2
+
+
+def test_multiclass_recall_macro():
+    recall_macro_name, recall_macro_result = recall_macro(multiclass_preds, multiclass_dtrain)
+    assert recall_macro_name == 'recall_macro'
+    assert recall_macro_result == 1/3
+
+
+def test_multiclass_recall_micro():
+    recall_micro_name, recall_micro_result = recall_micro(multiclass_preds, multiclass_dtrain)
+    assert recall_micro_name == 'recall_micro'
+    assert recall_micro_result == 1/2
 
 
 def test_multiclass_f1_macro_softprob():
