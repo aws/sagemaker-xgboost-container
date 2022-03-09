@@ -115,6 +115,32 @@ def precision(preds, dtrain):
     return 'precision', compute_multiclass_and_binary_metrics(precision_score, preds, dtrain)
 
 
+def precision_macro(preds, dtrain):
+    """Compute f1 macro score. This can be used for multiclassification training.
+
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, f1 score
+    """
+    return 'precision_macro', compute_multiclass_and_binary_metrics(lambda x, y:
+                                                             precision_score(x, y, average='macro'), preds, dtrain)
+
+
+def precision_micro(preds, dtrain):
+    """Compute f1 macro score. This can be used for multiclassification training.
+
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, f1 score
+    """
+    return 'precision_micro', compute_multiclass_and_binary_metrics(lambda x, y:
+                                                             precision_score(x, y, average='micro'), preds, dtrain)
+
+
 def recall(preds, dtrain):
     """Compute recall.
 
@@ -123,6 +149,32 @@ def recall(preds, dtrain):
     :return: Metric name, recall value.
     """
     return 'recall', compute_multiclass_and_binary_metrics(recall_score, preds, dtrain)
+
+
+def recall_macro(preds, dtrain):
+    """Compute f1 macro score. This can be used for multiclassification training.
+
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, f1 score
+    """
+    return 'recall_macro', compute_multiclass_and_binary_metrics(lambda x, y:
+                                                             recall_score(x, y, average='macro'), preds, dtrain)
+
+
+def recall_micro(preds, dtrain):
+    """Compute f1 macro score. This can be used for multiclassification training.
+
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, f1 score
+    """
+    return 'recall_micro', compute_multiclass_and_binary_metrics(lambda x, y:
+                                                             recall_score(x, y, average='micro'), preds, dtrain)
 
 
 def r2(preds, dtrain):
@@ -158,8 +210,12 @@ CUSTOM_METRICS = {
     "f1_macro": f1_macro,
     "mse": mse,
     "precision": precision,
+    "precision_macro": precision_macro,
+    "precision_micro": precision_micro,
     "r2": r2,
     "recall": recall,
+    "recall_macro": recall_macro,
+    "recall_micro": recall_micro,
 }
 
 
