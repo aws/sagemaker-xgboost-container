@@ -77,7 +77,7 @@ def test_predict_valid_content_type(correct_content_type):
 
     mock_booster = MagicMock()
     mock_booster.predict = MagicMock()
-    mock_booster.feature_names = mock_feature_names
+    mock_booster.num_features = MagicMock(return_value=len(mock_feature_names))
     mock_dmatrix = MagicMock()
     mock_dmatrix.feature_names = mock_feature_names
 

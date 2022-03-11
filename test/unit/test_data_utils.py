@@ -82,10 +82,6 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual(num_col, single_node_dmatrix.num_col())
         self.assertEqual(num_row, single_node_dmatrix.num_row())
 
-        no_weight_test_features = ["f{}".format(idx) for idx in range(single_node_dmatrix.num_col())]
-
-        self.assertEqual(no_weight_test_features, single_node_dmatrix.feature_names)
-
     def _check_piped_dmatrix(self, file_path, pipe_dir, reader, num_col, num_row, *args):
         python_exe = sys.executable
         pipe_cmd = '{}/sagemaker_pipe.py train {} {}'.format(self.utils_path, file_path, pipe_dir)
