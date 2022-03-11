@@ -23,7 +23,11 @@ XGB_MAXIMIZE_METRICS = [
     'ndcg',
     'precision',
     'r2',
-    'recall'
+    'recall',
+    'precision_macro',
+    'precision_micro',
+    'recall_macro',
+    'recall_micro'
 ]
 
 XGB_MINIMIZE_METRICS = [
