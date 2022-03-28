@@ -11,7 +11,7 @@ PyYAML==5.4.1
 boto3==1.17.52
 botocore==1.20.52
 conda==4.10.1
-cryptography==3.4.7
+cryptography==35.0.0
 gunicorn==19.10.0
 matplotlib==3.4.1
 multi-model-server==1.1.2
@@ -29,6 +29,9 @@ scipy==1.6.2
 smdebug==1.0.10
 urllib3==1.26.5
 wheel==0.36.2
+jinja2==2.10.2
+MarkupSafe==1.1.1
+Werkzeug==0.15.6
 """.strip()
 
 
