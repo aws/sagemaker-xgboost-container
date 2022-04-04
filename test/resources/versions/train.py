@@ -6,10 +6,10 @@ PYTHON_MAJOR_VERSION = 3
 PYTHON_MINOR_VERSION = 7
 REQUIREMENTS = """\
 Flask==1.1.1
-Pillow==8.3.0
+Pillow==9.0.0
 PyYAML==5.4
-boto3==1.14.62
-botocore==1.17.62
+boto3==1.17.52
+botocore==1.20.52
 conda==4.9.0
 cryptography==3.4.6
 gunicorn==19.10.0
@@ -27,7 +27,7 @@ sagemaker-inference==1.2.0
 scikit-learn==0.23.2
 scipy==1.5.3
 smdebug==1.0.10
-urllib3==1.25.9
+urllib3==1.26.5
 wheel==0.35.1
 """.strip()
 
