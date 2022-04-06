@@ -25,7 +25,6 @@ import gunicorn.app.base
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
-from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
 
 
 SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
@@ -133,7 +132,7 @@ class ScoringService(object):
 
 
 def load_model():
-    ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE, "true") == "true"
+    ensemble = serve_utils.is_ensemble_enabled()
     return ScoringService.load_model(ensemble=ensemble)
 
 

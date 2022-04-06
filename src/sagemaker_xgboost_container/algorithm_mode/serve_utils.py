@@ -25,6 +25,7 @@ import xgboost as xgb
 from sagemaker_xgboost_container import encoder
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
 from sagemaker_xgboost_container.constants.xgb_constants import (BINARY_HINGE, BINARY_LOG, BINARY_LOGRAW,
                                                                  MULTI_SOFTMAX, MULTI_SOFTPROB, REG_GAMMA,
@@ -457,3 +458,7 @@ def encode_selected_predictions(predictions, selected_content_keys, accept):
             return csv_response + '\n'
         return csv_response
     raise RuntimeError("Cannot encode selected predictions into accept type '{}'.".format(accept))
+
+
+def is_ensemble_enabled():
+    return os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE, "true") == "true"
