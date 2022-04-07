@@ -143,8 +143,7 @@ class ScoringService(object):
 
 
 def load_model():
-    ensemble = os.environ.get(SAGEMAKER_INFERENCE_ENSEMBLE) != "false"
-    return ScoringService.load_model(ensemble=ensemble)
+    return ScoringService.load_model(ensemble=serve_utils.is_ensemble_enabled())
 
 
 @ScoringService.app.route("/ping", methods=["GET"])
