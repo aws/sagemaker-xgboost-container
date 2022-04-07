@@ -24,6 +24,7 @@ from sagemaker_containers._recordio import _read_recordio
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
 
@@ -259,3 +260,17 @@ def test_encode_selected_predictions_csv():
 def test_encode_selected_content_error():
     with pytest.raises(RuntimeError):
         serve_utils.encode_selected_predictions(TEST_PREDICTIONS, TEST_KEYS, "text/libsvm")
+
+
+def test_is_ensemble_enabled_var_not_set():
+    assert serve_utils.is_ensemble_enabled()
+
+
+def test_is_ensemble_enabled_var_set_to_false(monkeypatch):
+    monkeypatch.setenv(SAGEMAKER_INFERENCE_ENSEMBLE, 'false')
+    assert not serve_utils.is_ensemble_enabled()
+
+
+def test_is_ensemble_enabled_var_set_to_true(monkeypatch):
+    monkeypatch.setenv(SAGEMAKER_INFERENCE_ENSEMBLE, 'true')
+    assert serve_utils.is_ensemble_enabled()
