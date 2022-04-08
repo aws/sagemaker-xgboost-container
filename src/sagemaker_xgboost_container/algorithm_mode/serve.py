@@ -240,7 +240,7 @@ def invocations():
     else:
         return_data = encoders.encode(preds.tolist(), accept)
 
-    return flask.Response(response=return_data, status=http.client.OK, mimetype="text/csv")
+    return flask.Response(response=return_data, status=http.client.OK, mimetype=accept)
 
 
 if __name__ == '__main__':
