@@ -22,6 +22,7 @@ from gunicorn.six import iteritems
 import flask
 import gunicorn.app.base
 
+from sagemaker_containers.beta.framework import encoders
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
 from sagemaker_xgboost_container.constants import sm_env_constants
@@ -225,21 +226,21 @@ def invocations():
         logging.exception(e)
         return flask.Response(response="Unable to evaluate payload provided: %s" % e, status=http.client.BAD_REQUEST)
 
-    if serve_utils.is_selectable_inference_output():
-        try:
-            accept = _parse_accept(flask.request)
-        except Exception as e:
-            logging.exception(e)
-            return flask.Response(response=str(e), status=http.client.NOT_ACCEPTABLE)
+    try:
+        accept = _parse_accept(flask.request)
+    except Exception as e:
+        logging.exception(e)
+        return flask.Response(response=str(e), status=http.client.NOT_ACCEPTABLE)
 
+    if serve_utils.is_selectable_inference_output():
         return _handle_selectable_inference_response(preds, accept)
 
     if SAGEMAKER_BATCH:
         return_data = "\n".join(map(str, preds.tolist())) + '\n'
     else:
-        return_data = ",".join(map(str, preds.tolist()))
+        return_data = encoders.encode(preds.tolist(), accept)
 
-    return flask.Response(response=return_data, status=http.client.OK, mimetype="text/csv")
+    return flask.Response(response=return_data, status=http.client.OK, mimetype=accept)
 
 
 if __name__ == '__main__':
