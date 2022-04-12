@@ -231,6 +231,7 @@ def initialize(metrics):
                                      required=False),
         hpv.CategoricalHyperparameter(name="single_precision_histogram", range=["true", "false"], required=False),
         hpv.CategoricalHyperparameter(name="deterministic_histogram", range=["true", "false"], required=False),
+        hpv.CategoricalHyperparameter(name="sampling_method", range=["uniform", "gradient_based"], required=False),
         )
 
     hyperparameters.declare_alias("eta", "learning_rate")
