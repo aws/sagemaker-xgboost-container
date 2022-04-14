@@ -16,6 +16,8 @@ import logging
 import os
 import shutil
 
+from typing import List, Union
+
 import mlio
 from mlio.integ.arrow import as_arrow_file
 from mlio.integ.numpy import as_numpy
@@ -485,22 +487,22 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
         raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
 
 
-def _get_pipe_mode_files_path(data_path):
+def _get_pipe_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
     """
-     :param data_path: Either directory or file
+    :param data_path: Either directory or file
     """
     # For pipe mode, we leverages mlio directly by creating a list of SageMakerPipe.
     if isinstance(data_path, list):
         files_path = data_path
     else:
         files_path = [data_path]
-        if not os.path.exists(data_path + '_0'):
+        if not os.path.exists(f"${data_path}_0"):
             logging.info('Pipe path {} does not exist!'.format(data_path))
             return None
     return files_path
 
 
-def _get_file_mode_files_path(data_path):
+def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
     """
      :param data_path: Either directory or file
     """
@@ -606,7 +608,7 @@ def get_size(data_path, is_pipe=False):
             return total_size
 
 
-def get_files_path_from_string(data_path):
+def get_files_path_from_string(data_path: Union[List[str], str]) -> List[str]:
     if os.path.isfile(data_path):
         files_path = data_path
     else:
@@ -619,17 +621,16 @@ def get_files_path_from_string(data_path):
 
 
 def _make_symlink(path, source_path, name, index):
-    base_name = os.path.join(source_path, name + '_' + str(index))
+    base_name = os.path.join(source_path, f"{name}_{str(index)}")
     logging.info('creating symlink between Path {} and destination {}'.format(source_path, base_name))
     os.symlink(path, base_name)
 
 
 def check_data_redundancy(train_path, validate_path):
-    """Give a hint about whether same files exist in the train/validation folder.
+    """Log a warning if suspected duplicate files are found in the training and validation folders.
 
-    The validation score of models would make less sense if there are same data in both training/validation folder.
-    This function is used to give warnings when there are files sharing the same name and file size in training and
-    validation folders
+    The validation score of models would be invalid if the same data is used for both training and validation.
+    Files are suspected of being duplicates when the file names are the same and their sizes are the same.
 
     param train_path : path to training data
     param validate_path : path to validation data
