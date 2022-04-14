@@ -225,3 +225,12 @@ class TestTrainUtils(unittest.TestCase):
                 pb_path = os.path.join(self.data_path, 'recordio_protobuf', file_path)
                 reader = data_utils.get_recordio_protobuf_dmatrix
                 self._check_dmatrix(reader, pb_path, 1, 1)
+
+    def test_check_data_redundancy(self):
+        current_path = Path(os.path.abspath(__file__))
+        data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
+        file_path = os.path.join(data_path, "train")
+        self.assertEqual(True, data_utils.check_data_redundancy(file_path, file_path))
+
+        file_path = [os.path.join(data_path, path) for path in ['train', 'validation']]
+        self.assertEqual(False, data_utils.check_data_redundancy(file_path[0], file_path[1]))
