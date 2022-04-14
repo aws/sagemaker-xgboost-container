@@ -95,6 +95,7 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
             logger.warning('Found same path for training and validation. This is not recommended and results may not '
                            'be correct.')
         else:
+            # Check if there is potential data redundancy between training and validation sets
             check_data_redundancy(train_path, validate_path)
         train_val_dmatrix = get_dmatrix([train_path, validate_path], content_type,
                                         csv_weights=csv_weights, is_pipe=is_pipe)
