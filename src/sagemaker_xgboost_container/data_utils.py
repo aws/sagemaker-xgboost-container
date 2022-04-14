@@ -622,3 +622,42 @@ def _make_symlink(path, source_path, name, index):
     base_name = os.path.join(source_path, name + '_' + str(index))
     logging.info('creating symlink between Path {} and destination {}'.format(source_path, base_name))
     os.symlink(path, base_name)
+
+
+def check_data_redundancy(train_path, validate_path):
+    """Give a hint about whether same files exist in the train/validation folder.
+
+    The validation score of models would make less sense if there are same data in both training/validation folder.
+    This function is used to give warnings when there are files sharing the same name and file size in training and
+    validation folders
+
+    param train_path : path to training data
+    param validate_path : path to validation data
+
+    return True if files suspected to be identical are found.
+           False otherwise.
+
+    """
+    if not os.path.exists(train_path):
+        exc.UserError("training data's path is not existed")
+    if not os.path.exists(validate_path):
+        exc.UserError("validation data's path is not existed")
+
+    isRedundant = False
+    training_files_set = set(f for f in os.listdir(train_path) if os.path.isfile(os.path.join(train_path, f)))
+    validation_files_set = set(f for f in os.listdir(validate_path) if os.path.isfile(os.path.join(validate_path, f)))
+    same_name_files = training_files_set.intersection(validation_files_set)
+    if same_name_files:
+        for f in same_name_files:
+            f_train_path = os.path.join(train_path, f)
+            f_validate_path = os.path.join(validate_path, f)
+            f_train_size = os.path.getsize(f_train_path)
+            f_validate_size = os.path.getsize(f_validate_path)
+            if f_train_size == f_validate_size:
+                isRedundant = True
+                logging.warning("Suspected identical files found. ({} and {} with same size {} bytes)."
+                                " Note: Duplicate data in the training set and validation set is usually"
+                                " not intentional and can impair the validity of the model evaluation by"
+                                " the validation score."
+                                .format(f_train_path, f_validate_path, f_validate_size))
+    return isRedundant
