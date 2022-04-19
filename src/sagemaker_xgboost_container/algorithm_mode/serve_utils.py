@@ -52,6 +52,10 @@ RAW_SCORES = "raw_scores"
 # regression selectable inference keys
 PREDICTED_SCORE = "predicted_score"
 
+# output keys for JSON response
+TOP_LEVEL_OUT_KEY = "predictions"
+SCORE_OUT_KEY = "score"
+
 # all supported selecable content keys
 ALL_VALID_SELECT_KEYS = [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES, PREDICTED_SCORE]
 
@@ -458,6 +462,21 @@ def encode_selected_predictions(predictions, selected_content_keys, accept):
             return csv_response + '\n'
         return csv_response
     raise RuntimeError("Cannot encode selected predictions into accept type '{}'.".format(accept))
+
+
+def encode_predictions_as_json(predictions):
+    """Encode the selected predictions based on the JSON output format expected.
+        See https://docs.aws.amazon.com/sagemaker/latest/dg/cdf-inference.html
+
+    :param predictions: list of predictions.
+    :return: encoded content in JSON
+        example: b'{"predictions": [{"score": 0.43861907720565796},
+        {"score": 0.4533972144126892}, {"score": 0.06351257115602493}]}'
+    """
+    preds_list_of_dict = []
+    for pred in predictions:
+        preds_list_of_dict.append({SCORE_OUT_KEY: pred})
+    return json.dumps({TOP_LEVEL_OUT_KEY: preds_list_of_dict})
 
 
 def is_ensemble_enabled():
