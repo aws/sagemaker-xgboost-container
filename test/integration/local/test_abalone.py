@@ -114,7 +114,23 @@ def test_xgboost_abalone_inference(docker_image, opt_ml):
     assert len(response_body.split(",")) == 1
 
 
-def test_xgboost_abalone_algorithm_mode_inference(docker_image, opt_ml):
+def test_xgboost_abalone_algorithm_mode_inference_csv_out(docker_image, opt_ml):
+    request_body = get_libsvm_request_body()
+
+    with local_mode.serve(
+        None, libsvm_model_dir, docker_image, opt_ml, source_dir=abalone_path
+    ):
+        response_status_code, response_body = local_mode.request(
+            request_body, content_type="text/libsvm", accept_type="text/csv"
+        )
+
+    assert response_status_code == 200
+    assert not local_mode.file_exists(opt_ml, "output/failure"), "Failure happened"
+    assert len(response_body.split(",")) == 1
+    assert '[' in response_body
+
+
+def test_xgboost_abalone_algorithm_mode_inference_json_out(docker_image, opt_ml):
     request_body = get_libsvm_request_body()
 
     with local_mode.serve(
@@ -126,8 +142,10 @@ def test_xgboost_abalone_algorithm_mode_inference(docker_image, opt_ml):
 
     assert response_status_code == 200
     assert not local_mode.file_exists(opt_ml, "output/failure"), "Failure happened"
-    assert len(response_body.split(",")) == 1
-    assert '[' in response_body
+
+    json_response = json.loads(response_body)
+    assert "predictions" in json_response
+    assert "score" in json_response.get("predictions")[0]
 
 
 def test_xgboost_abalone_custom_inference_with_transform_fn(docker_image, opt_ml):
