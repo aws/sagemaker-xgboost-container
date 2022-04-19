@@ -21,6 +21,7 @@ import sys
 from gunicorn.six import iteritems
 import flask
 import gunicorn.app.base
+from sagemaker_containers import _content_types
 
 from sagemaker_containers.beta.framework import encoders
 from sagemaker_xgboost_container.algorithm_mode import integration
@@ -235,10 +236,14 @@ def invocations():
     if serve_utils.is_selectable_inference_output():
         return _handle_selectable_inference_response(preds, accept)
 
+    preds_list = preds.tolist()
     if SAGEMAKER_BATCH:
-        return_data = "\n".join(map(str, preds.tolist())) + '\n'
+        return_data = "\n".join(map(str, preds_list)) + '\n'
     else:
-        return_data = encoders.encode(preds.tolist(), accept)
+        if accept == _content_types.JSON:
+            return_data = serve_utils.encode_predictions_as_json(preds_list)
+        else:
+            return_data = encoders.encode(preds_list, accept)
 
     return flask.Response(response=return_data, status=http.client.OK, mimetype=accept)
 
