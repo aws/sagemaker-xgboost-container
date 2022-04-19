@@ -16,7 +16,6 @@ ARG XGBOOST_VERSION=1.5.2
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
-ENV OMP_NUM_THREADS=1
 
 # Python won’t try to write .pyc or .pyo files on the import of source modules
 # Force stdin, stdout and stderr to be totally unbuffered. Good for logging

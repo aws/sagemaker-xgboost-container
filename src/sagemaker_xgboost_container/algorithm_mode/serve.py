@@ -17,6 +17,7 @@ import multiprocessing
 import os
 import signal
 import sys
+import subprocess
 
 from gunicorn.six import iteritems
 import flask
@@ -75,6 +76,7 @@ class ScoringService(object):
 
     @classmethod
     def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
+        logging.info(subprocess.call(['bash','-c','echo $OMP_NUM_THREADS']))
         return serve_utils.predict(cls.booster, model_format, data, content_type, cls.objective)
 
     @classmethod
@@ -120,6 +122,7 @@ class ScoringService(object):
             "keepalive": 60,
             "post_worker_init": ScoringService.post_worker_init,
         }
+        os.environ['OMP_NUM_THREADS'] = "1"
         GunicornApplication(ScoringService.app, options).run()
 
     @staticmethod
