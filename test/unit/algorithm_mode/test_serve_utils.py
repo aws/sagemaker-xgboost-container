@@ -274,3 +274,13 @@ def test_is_ensemble_enabled_var_set_to_false(monkeypatch):
 def test_is_ensemble_enabled_var_set_to_true(monkeypatch):
     monkeypatch.setenv(SAGEMAKER_INFERENCE_ENSEMBLE, 'true')
     assert serve_utils.is_ensemble_enabled()
+
+
+def test_encode_predictions_as_json_empty_list():
+    expected_response = json.dumps({"predictions": []})
+    assert expected_response == serve_utils.encode_predictions_as_json([])
+
+
+def test_encode_predictions_as_json_non_empty_list():
+    expected_response = json.dumps({"predictions": [{"score": 0.43861907720565796}, {"score": 0.4533972144126892}]})
+    assert expected_response == serve_utils.encode_predictions_as_json([0.43861907720565796, 0.4533972144126892])
