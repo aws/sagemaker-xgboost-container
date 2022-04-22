@@ -43,6 +43,13 @@ def is_multi_model():
     return os.environ.get("SAGEMAKER_MULTI_MODEL")
 
 
+def set_default_env():
+    env_default_dict = {"OMP_NUM_THREADS": "1"}
+    for key, value in env_default_dict.items():
+        if os.getenv(key) is None:
+            os.environ[key] = value
+
+
 def default_model_fn(model_dir):
     """Load a model. For XGBoost Framework, a default function to load a model is not provided.
     Users should provide customized model_fn() in script.
@@ -148,6 +155,8 @@ def serving_entrypoint():
     NOTE: If the inference server is multi-model, MxNet Model Server will be used as the base server. Otherwise,
         GUnicorn is used as the base server.
     """
+    set_default_env()
+
     if is_multi_model():
         start_mxnet_model_server()
     else:
