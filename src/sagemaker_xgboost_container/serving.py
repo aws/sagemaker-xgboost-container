@@ -27,6 +27,7 @@ from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import encoder as xgb_encoders
 from sagemaker_xgboost_container.algorithm_mode import serve
 from sagemaker_xgboost_container.serving_mms import start_mxnet_model_server
+from sagemaker_xgboost_container.constants import sm_env_constants
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s - %(name)s - %(message)s", level=logging.INFO
@@ -44,9 +45,10 @@ def is_multi_model():
 
 
 def set_default_env():
-    env_default_dict = {"OMP_NUM_THREADS": "1"}
+    env_default_dict = {"OMP_NUM_THREADS": sm_env_constants.ONE_THREAD_PER_PROCESS}
     for key, value in env_default_dict.items():
-        if os.getenv(key) is None:
+        user_specified_value = os.getenv(key)
+        if user_specified_value is None:
             os.environ[key] = value
 
 
