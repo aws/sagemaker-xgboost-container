@@ -20,6 +20,7 @@ import xgboost as xgb
 from sagemaker_algorithm_toolkit.exceptions import UserError
 from sagemaker_containers.beta.framework import (content_types, encoders, errors)
 from sagemaker_xgboost_container import serving
+from sagemaker_xgboost_container.constants import sm_env_constants
 
 TEST_CONFIG_FILE = "test_dir"
 
@@ -100,6 +101,12 @@ def test_serving_entrypoint_start_gunicorn(mock_server):
     mock_server.start = MagicMock()
     serving.serving_entrypoint()
     mock_server.start.assert_called_once()
+
+
+@patch('sagemaker_xgboost_container.serving.server')
+def test_serving_entrypoint_set_default_env(mock_server):
+    serving.serving_entrypoint()
+    assert os.getenv('OMP_NUM_THREADS') == sm_env_constants.ONE_THREAD_PER_PROCESS
 
 
 @patch.dict(os.environ, {'SAGEMAKER_MULTI_MODEL': 'True', })
