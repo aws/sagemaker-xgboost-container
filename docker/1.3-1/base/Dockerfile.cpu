@@ -47,9 +47,10 @@ RUN apt-get update && \
         && \
     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
         gpg --dearmor - | \
-        tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-    apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' && \
+        tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
+    echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
     apt-get update && \
+    rm /usr/share/keyrings/kitware-archive-keyring.gpg && \
     apt-get install -y --no-install-recommends \
         autoconf \
         automake \
@@ -57,6 +58,7 @@ RUN apt-get update && \
         cmake=3.18.4-0kitware1 \
         cmake-data=3.18.4-0kitware1 \
         doxygen \
+        kitware-archive-keyring \
         libcurl4-openssl-dev \
         libssl-dev \
         libtool \

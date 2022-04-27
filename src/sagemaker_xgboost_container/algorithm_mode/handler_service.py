@@ -45,7 +45,7 @@ class HandlerService(DefaultHandlerService):
                 XGBoost model format type.
             """
             try:
-                booster, format = serve_utils.get_loaded_booster(model_dir)
+                booster, format = serve_utils.get_loaded_booster(model_dir, serve_utils.is_ensemble_enabled())
             except Exception as e:
                 raise ModelLoadInferenceError("Unable to load model: {}".format(str(e)))
             return booster, format

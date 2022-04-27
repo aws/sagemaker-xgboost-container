@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 from sagemaker_containers.record_pb2 import Record
 from sagemaker_containers._recordio import _read_recordio
+from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils
@@ -259,3 +260,27 @@ def test_encode_selected_predictions_csv():
 def test_encode_selected_content_error():
     with pytest.raises(RuntimeError):
         serve_utils.encode_selected_predictions(TEST_PREDICTIONS, TEST_KEYS, "text/libsvm")
+
+
+def test_is_ensemble_enabled_var_not_set():
+    assert serve_utils.is_ensemble_enabled()
+
+
+def test_is_ensemble_enabled_var_set_to_false(monkeypatch):
+    monkeypatch.setenv(SAGEMAKER_INFERENCE_ENSEMBLE, 'false')
+    assert not serve_utils.is_ensemble_enabled()
+
+
+def test_is_ensemble_enabled_var_set_to_true(monkeypatch):
+    monkeypatch.setenv(SAGEMAKER_INFERENCE_ENSEMBLE, 'true')
+    assert serve_utils.is_ensemble_enabled()
+
+
+def test_encode_predictions_as_json_empty_list():
+    expected_response = json.dumps({"predictions": []})
+    assert expected_response == serve_utils.encode_predictions_as_json([])
+
+
+def test_encode_predictions_as_json_non_empty_list():
+    expected_response = json.dumps({"predictions": [{"score": 0.43861907720565796}, {"score": 0.4533972144126892}]})
+    assert expected_response == serve_utils.encode_predictions_as_json([0.43861907720565796, 0.4533972144126892])
