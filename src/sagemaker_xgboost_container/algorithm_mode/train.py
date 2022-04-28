@@ -20,8 +20,7 @@ import xgboost as xgb
 from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import Channel
-from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, \
-    validate_data_file_path, check_data_redundancy
+from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path
 from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
@@ -93,12 +92,6 @@ def get_validated_dmatrices(train_path, validate_path, content_type, csv_weights
     train_val_dmatrix = train_dmatrix
     if combine_train_val and train_dmatrix is not None and val_dmatrix is not None:
         logging.info("Read both train and validation data into one DMatrix")
-        if train_path == validate_path or os.path.basename(train_path) == os.path.basename(validate_path):
-            logger.warning('Found same path for training and validation. This is not recommended and results may not '
-                           'be correct.')
-        else:
-            # Check if there is potential data redundancy between training and validation sets
-            check_data_redundancy(train_path, validate_path)
         train_val_dmatrix = get_dmatrix([train_path, validate_path], content_type,
                                         csv_weights=csv_weights, is_pipe=is_pipe)
 

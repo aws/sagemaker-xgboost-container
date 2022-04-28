@@ -19,6 +19,7 @@ import signal
 import subprocess
 import sys
 import time
+from mock import patch
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils
@@ -226,11 +227,15 @@ class TestTrainUtils(unittest.TestCase):
                 reader = data_utils.get_recordio_protobuf_dmatrix
                 self._check_dmatrix(reader, pb_path, 1, 1)
 
-    def test_check_data_redundancy(self):
+    @patch("logging.warning")
+    def test_check_data_redundancy(self, mock_log_warning):
         current_path = Path(os.path.abspath(__file__))
         data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
         file_path = os.path.join(data_path, "train")
-        self.assertEqual(True, data_utils.check_data_redundancy(file_path, file_path))
+        data_utils.check_data_redundancy(file_path, file_path)
+        mock_log_warning.assert_called()
 
+        mock_log_warning.reset_mock()
         file_path = [os.path.join(data_path, path) for path in ['train', 'validation']]
-        self.assertEqual(False, data_utils.check_data_redundancy(file_path[0], file_path[1]))
+        data_utils.check_data_redundancy(file_path[0], file_path[1])
+        mock_log_warning.assert_not_called()
