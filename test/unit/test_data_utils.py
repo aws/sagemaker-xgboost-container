@@ -228,14 +228,17 @@ class TestTrainUtils(unittest.TestCase):
                 self._check_dmatrix(reader, pb_path, 1, 1)
 
     @patch("logging.warning")
-    def test_check_data_redundancy(self, mock_log_warning):
+    def test_check_data_redundancy_positive(self, mock_log_warning):
         current_path = Path(os.path.abspath(__file__))
         data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
         file_path = os.path.join(data_path, "train")
         data_utils.check_data_redundancy(file_path, file_path)
         mock_log_warning.assert_called()
 
-        mock_log_warning.reset_mock()
+    @patch("logging.warning")
+    def test_check_data_redundancy_negative(self, mock_log_warning):
+        current_path = Path(os.path.abspath(__file__))
+        data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
         file_path = [os.path.join(data_path, path) for path in ['train', 'validation']]
         data_utils.check_data_redundancy(file_path[0], file_path[1])
         mock_log_warning.assert_not_called()

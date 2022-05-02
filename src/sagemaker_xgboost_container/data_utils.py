@@ -504,7 +504,7 @@ def _get_pipe_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
 
 def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
     """
-     :param data_path: Either directory or file
+    :param data_path: Either directory or file
     """
     # In file mode, we create a temp directory with symlink to all input files or
     # directories to meet XGB's assumption that all files are in the same directory.
@@ -622,7 +622,7 @@ def get_files_path_from_string(data_path: Union[List[str], str]) -> List[str]:
 
 def _make_symlink(path, source_path, name, index):
     base_name = os.path.join(source_path, f"{name}_{str(index)}")
-    logging.info('creating symlink between Path {} and destination {}'.format(source_path, base_name))
+    logging.info(f'creating symlink between Path {source_path} and destination {base_name}')
     os.symlink(path, base_name)
 
 
@@ -643,15 +643,14 @@ def check_data_redundancy(train_path, validate_path):
     training_files_set = set(f for f in os.listdir(train_path) if os.path.isfile(os.path.join(train_path, f)))
     validation_files_set = set(f for f in os.listdir(validate_path) if os.path.isfile(os.path.join(validate_path, f)))
     same_name_files = training_files_set.intersection(validation_files_set)
-    if same_name_files:
-        for f in same_name_files:
-            f_train_path = os.path.join(train_path, f)
-            f_validate_path = os.path.join(validate_path, f)
-            f_train_size = os.path.getsize(f_train_path)
-            f_validate_size = os.path.getsize(f_validate_path)
-            if f_train_size == f_validate_size:
-                logging.warning("Suspected identical files found. ({} and {} with same size {} bytes)."
-                                " Note: Duplicate data in the training set and validation set is usually"
-                                " not intentional and can impair the validity of the model evaluation by"
-                                " the validation score."
-                                .format(f_train_path, f_validate_path, f_validate_size))
+    for f in same_name_files:
+        f_train_path = os.path.join(train_path, f)
+        f_validate_path = os.path.join(validate_path, f)
+        f_train_size = os.path.getsize(f_train_path)
+        f_validate_size = os.path.getsize(f_validate_path)
+        if f_train_size == f_validate_size:
+            logging.warning(f"Suspected identical files found. ({f_train_path} and {f_validate_path}"
+                            f"with same size {f_validate_size} bytes)."
+                            f" Note: Duplicate data in the training set and validation set is usually"
+                            f" not intentional and can impair the validity of the model evaluation by"
+                            f" the validation score.")
