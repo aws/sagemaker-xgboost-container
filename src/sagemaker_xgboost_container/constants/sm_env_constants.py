@@ -34,5 +34,4 @@ SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT = 'SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT'
 SAGEMAKER_BATCH = 'SAGEMAKER_BATCH'
 
 # Multiprocessing related constants
-# Turn off OpenMP multi-threading, Let Python processes remain single-threaded
 ONE_THREAD_PER_PROCESS = '1'

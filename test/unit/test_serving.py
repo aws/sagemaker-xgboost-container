@@ -104,16 +104,25 @@ def test_serving_entrypoint_start_gunicorn(mock_server):
 
 
 @patch('sagemaker_xgboost_container.serving.server')
-def test_serving_entrypoint_set_default_env(mock_server):
+@patch('sagemaker_xgboost_container.serving.set_default_serving_env_if_unspecified')
+def test_serving_entrypoint_set_default_env(mock_set_default_serving_env_if_unspecified, mock_server):
     serving.serving_entrypoint()
+    mock_set_default_serving_env_if_unspecified.assert_called_once()
     assert os.getenv('OMP_NUM_THREADS') == sm_env_constants.ONE_THREAD_PER_PROCESS
+    with patch.dict(os.environ, {"OMP_NUM_THREADS": "USER_SPECIFIED_VALUE"}, clear=True):
+        mock_set_default_serving_env_if_unspecified.reset_mock()
+        serving.serving_entrypoint()
+        mock_set_default_serving_env_if_unspecified.assert_called_once()
+        assert os.getenv('OMP_NUM_THREADS') == "USER_SPECIFIED_VALUE"
 
 
 @patch.dict(os.environ, {'SAGEMAKER_MULTI_MODEL': 'True', })
 @patch('sagemaker_xgboost_container.serving.start_mxnet_model_server')
-def test_serving_entrypoint_start_mms(mock_start_mxnet_model_server):
+@patch('sagemaker_xgboost_container.serving.set_default_serving_env_if_unspecified')
+def test_serving_entrypoint_start_mms(mock_set_default_serving_env_if_unspecified, mock_start_mxnet_model_server):
     serving.serving_entrypoint()
     mock_start_mxnet_model_server.assert_called_once()
+    mock_set_default_serving_env_if_unspecified.assert_called_once()
 
 
 @patch('sagemaker_xgboost_container.serving.transformer')

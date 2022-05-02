@@ -44,12 +44,21 @@ def is_multi_model():
     return os.environ.get("SAGEMAKER_MULTI_MODEL")
 
 
-def set_default_env():
+def set_default_serving_env_if_unspecified():
+    """Set default values for environment variables if they aren't already specified.
+
+    set "OMP_NUM_THREADS" = sm_env_constants.ONE_THREAD_PER_PROCESS
+    Single-thread processes by default. Multithreading can introduce significant
+    performance overhead due to task switching.
+    """
     env_default_dict = {"OMP_NUM_THREADS": sm_env_constants.ONE_THREAD_PER_PROCESS}
-    for key, value in env_default_dict.items():
-        user_specified_value = os.getenv(key)
-        if user_specified_value is None:
-            os.environ[key] = value
+    for always_specified_key, default_value in env_default_dict.items():
+        try:
+            # If this does not throw, the user has specified a non-default value.
+            os.environ[always_specified_key]
+        except KeyError:
+            #  Key that is always specified is not set in the environment. Set default value.
+            os.environ[always_specified_key] = default_value
 
 
 def default_model_fn(model_dir):
@@ -157,7 +166,7 @@ def serving_entrypoint():
     NOTE: If the inference server is multi-model, MxNet Model Server will be used as the base server. Otherwise,
         GUnicorn is used as the base server.
     """
-    set_default_env()
+    set_default_serving_env_if_unspecified()
 
     if is_multi_model():
         start_mxnet_model_server()
