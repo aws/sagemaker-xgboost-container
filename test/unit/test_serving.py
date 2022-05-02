@@ -118,11 +118,9 @@ def test_serving_entrypoint_set_default_env(mock_set_default_serving_env_if_unsp
 
 @patch.dict(os.environ, {'SAGEMAKER_MULTI_MODEL': 'True', })
 @patch('sagemaker_xgboost_container.serving.start_mxnet_model_server')
-@patch('sagemaker_xgboost_container.serving.set_default_serving_env_if_unspecified')
-def test_serving_entrypoint_start_mms(mock_set_default_serving_env_if_unspecified, mock_start_mxnet_model_server):
+def test_serving_entrypoint_start_mms(mock_start_mxnet_model_server):
     serving.serving_entrypoint()
     mock_start_mxnet_model_server.assert_called_once()
-    mock_set_default_serving_env_if_unspecified.assert_called_once()
 
 
 @patch('sagemaker_xgboost_container.serving.transformer')

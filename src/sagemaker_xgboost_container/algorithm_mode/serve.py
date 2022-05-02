@@ -83,7 +83,6 @@ class ScoringService(object):
 
         :return: xgboost booster's internal configuration (dict)
         """
-
         if cls.config_json is None:
             booster = cls.booster[0] if isinstance(cls.booster, list) else cls.booster
             cls.config_json = json.loads(booster.save_config())
