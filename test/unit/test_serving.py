@@ -105,12 +105,16 @@ def test_serving_entrypoint_start_gunicorn(mock_server):
 
 @patch('sagemaker_xgboost_container.serving.server')
 @patch('sagemaker_xgboost_container.serving.set_default_serving_env_if_unspecified')
-def test_serving_entrypoint_set_default_env(mock_set_default_serving_env_if_unspecified, mock_server):
+def test_serving_entrypoint_set_default_env_positive(mock_set_default_serving_env_if_unspecified, mock_server):
     serving.serving_entrypoint()
     mock_set_default_serving_env_if_unspecified.assert_called_once()
     assert os.getenv('OMP_NUM_THREADS') == sm_env_constants.ONE_THREAD_PER_PROCESS
+
+
+@patch('sagemaker_xgboost_container.serving.server')
+@patch('sagemaker_xgboost_container.serving.set_default_serving_env_if_unspecified')
+def test_serving_entrypoint_set_default_env_negative(mock_set_default_serving_env_if_unspecified, mock_server):
     with patch.dict(os.environ, {"OMP_NUM_THREADS": "USER_SPECIFIED_VALUE"}, clear=True):
-        mock_set_default_serving_env_if_unspecified.reset_mock()
         serving.serving_entrypoint()
         mock_set_default_serving_env_if_unspecified.assert_called_once()
         assert os.getenv('OMP_NUM_THREADS') == "USER_SPECIFIED_VALUE"
