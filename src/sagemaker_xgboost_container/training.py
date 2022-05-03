@@ -57,6 +57,9 @@ def run_algorithm_mode():
     train_path = os.environ[sm_env_constants.SM_CHANNEL_TRAIN]
     val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION)
 
+    logging.info("os.envrion")
+    logging.info(os.environ)
+    print(os.environ)
     if train_path == val_path or os.path.basename(train_path) == os.path.basename(val_path):
         logger.warning('Found same path for training and validation. This is not recommended and results may not '
                        'be correct.')
