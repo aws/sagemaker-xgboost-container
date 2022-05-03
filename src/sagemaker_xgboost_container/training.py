@@ -55,14 +55,16 @@ def run_algorithm_mode():
         checkpoint_config = {}
 
     train_path = os.environ[sm_env_constants.SM_CHANNEL_TRAIN]
-    val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION, "val_path_not_set")
+    val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION,
+                              sm_env_constants.SM_CHANNEL_VALIDATION_NOT_SET)
 
-    if train_path == val_path or os.path.basename(train_path) == os.path.basename(val_path):
-        logger.warning('Found same path for training and validation. This is not recommended and results may not '
-                       'be correct.')
-    else:
-        # Check if there is potential data redundancy between training and validation sets
-        check_data_redundancy(train_path, val_path)
+    if val_path != sm_env_constants.SM_CHANNEL_VALIDATION_NOT_SET:
+        if train_path == val_path or os.path.basename(train_path) == os.path.basename(val_path):
+            logger.warning('Found same path for training and validation. This is not recommended and results may not '
+                           'be correct.')
+        else:
+            # Check if there is potential data redundancy between training and validation sets
+            check_data_redundancy(train_path, val_path)
 
     sm_hosts = json.loads(os.environ[sm_env_constants.SM_HOSTS])
     sm_current_host = os.environ[sm_env_constants.SM_CURRENT_HOST]
