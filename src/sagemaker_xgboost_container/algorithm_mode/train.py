@@ -197,8 +197,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     # Evaluation metrics to use with train() API
     tuning_objective_metric_param = train_cfg.pop("_tuning_objective_metric", None)
     eval_metric = train_cfg.get("eval_metric")
-    cleaned_eval_metric, configured_feval = train_utils.get_eval_metrics_and_feval(
+
+    cleaned_eval_metric, configured_feval, maximize_feval_metric = train_utils.get_eval_metrics_and_feval(
         tuning_objective_metric_param, eval_metric)
+
     if cleaned_eval_metric:
         train_cfg['eval_metric'] = cleaned_eval_metric
     else:
@@ -219,7 +221,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
             bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round-iteration, evals=watchlist,
                             feval=configured_feval, early_stopping_rounds=early_stopping_rounds,
-                            callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
+                            maximize=maximize_feval_metric, callbacks=callbacks, xgb_model=xgb_model,
+                            verbose_eval=False)
 
         else:
             num_cv_round = train_cfg.pop("_num_cv_round", 1)
@@ -266,7 +269,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
                 booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,
                                     evals=watchlist, feval=configured_feval, evals_result=evals_result,
-                                    early_stopping_rounds=early_stopping_rounds,
+                                    early_stopping_rounds=early_stopping_rounds, maximize=maximize_feval_metric,
                                     callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
                 bst.append(booster)
 

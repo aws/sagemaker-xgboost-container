@@ -133,9 +133,9 @@ CUSTOM_METRICS = {
 }
 
 
-def get_custom_metrics(eval_metrics):
+def get_custom_metrics(union_metrics):
     """Get container defined metrics from metrics list."""
-    return set(eval_metrics).intersection(CUSTOM_METRICS.keys())
+    return [metric for metric in union_metrics if metric in CUSTOM_METRICS.keys()]
 
 
 def configure_feval(custom_metric_list):
