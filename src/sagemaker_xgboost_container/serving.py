@@ -27,6 +27,7 @@ from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import encoder as xgb_encoders
 from sagemaker_xgboost_container.algorithm_mode import serve
 from sagemaker_xgboost_container.serving_mms import start_mxnet_model_server
+from sagemaker_xgboost_container.constants import sm_env_constants
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s - %(name)s - %(message)s", level=logging.INFO
@@ -41,6 +42,23 @@ logger.setLevel(logging.DEBUG)
 
 def is_multi_model():
     return os.environ.get("SAGEMAKER_MULTI_MODEL")
+
+
+def set_default_serving_env_if_unspecified():
+    """Set default values for environment variables if they aren't already specified.
+
+    set "OMP_NUM_THREADS" = sm_env_constants.ONE_THREAD_PER_PROCESS
+    Single-thread processes by default. Multithreading can introduce significant
+    performance overhead due to task switching.
+    """
+    env_default_dict = {"OMP_NUM_THREADS": sm_env_constants.ONE_THREAD_PER_PROCESS}
+    for always_specified_key, default_value in env_default_dict.items():
+        try:
+            # If this does not throw, the user has specified a non-default value.
+            os.environ[always_specified_key]
+        except KeyError:
+            #  Key that is always specified is not set in the environment. Set default value.
+            os.environ[always_specified_key] = default_value
 
 
 def default_model_fn(model_dir):
@@ -148,6 +166,8 @@ def serving_entrypoint():
     NOTE: If the inference server is multi-model, MxNet Model Server will be used as the base server. Otherwise,
         GUnicorn is used as the base server.
     """
+    set_default_serving_env_if_unspecified()
+
     if is_multi_model():
         start_mxnet_model_server()
     else:
