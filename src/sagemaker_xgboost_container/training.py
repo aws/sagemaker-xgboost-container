@@ -55,10 +55,9 @@ def run_algorithm_mode():
         checkpoint_config = {}
 
     train_path = os.environ[sm_env_constants.SM_CHANNEL_TRAIN]
-    val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION,
-                              sm_env_constants.SM_CHANNEL_VALIDATION_NOT_SET)
+    val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION)
 
-    if val_path != sm_env_constants.SM_CHANNEL_VALIDATION_NOT_SET:
+    if val_path is not None:
         if train_path == val_path or os.path.basename(train_path) == os.path.basename(val_path):
             logger.warning('Found same path for training and validation. This is not recommended and results may not '
                            'be correct.')

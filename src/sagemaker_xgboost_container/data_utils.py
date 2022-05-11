@@ -30,7 +30,7 @@ from scipy.sparse import vstack as scipy_vstack
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.constants import xgb_content_types
+from sagemaker_xgboost_container.constants import xgb_content_types, sm_env_constants
 
 
 BATCH_SIZE = 4000
@@ -497,7 +497,7 @@ def _get_pipe_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
     else:
         files_path = [data_path]
         if not os.path.exists(f"${data_path}_0"):
-            logging.info('Pipe path {} does not exist!'.format(data_path))
+            logging.info(f"Pipe path {data_path} does not exist!")
             return None
     return files_path
 
@@ -510,7 +510,6 @@ def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
     # directories to meet XGB's assumption that all files are in the same directory.
 
     if isinstance(data_path, list):
-        logging.info('File path {} of input files'.format(data_path))
         # Create a directory with symlinks to input files.
         files_path = "/tmp/sagemaker_xgboost_input_data"
         shutil.rmtree(files_path, ignore_errors=True)
@@ -526,7 +525,7 @@ def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
 
     else:
         if not os.path.exists(data_path):
-            logging.info('File path {} does not exist!'.format(data_path))
+            logging.info(f"File path {data_path} does not exist!")
             return None
         files_path = get_files_path_from_string(data_path)
 
@@ -622,7 +621,7 @@ def get_files_path_from_string(data_path: Union[List[str], str]) -> List[str]:
 
 def _make_symlink(path, source_path, name, index):
     base_name = os.path.join(source_path, f"{name}_{str(index)}")
-    logging.info(f'creating symlink between Path {source_path} and destination {base_name}')
+    logging.info(f'creating symlink between path {source_path} and destination {base_name}')
     os.symlink(path, base_name)
 
 
@@ -636,9 +635,11 @@ def check_data_redundancy(train_path, validate_path):
     param validate_path : path to validation data
     """
     if not os.path.exists(train_path):
-        exc.UserError("training data's path is not existed")
+        exc.UserError(f"Training data path '{train_path}' does not exist. Please ensure the environment "
+                      f"variable '{sm_env_constants.SM_CHANNEL_TRAIN}' is set appropriately.")
     if not os.path.exists(validate_path):
-        exc.UserError("validation data's path is not existed")
+        exc.UserError(f"Validation data path '{validate_path}' does not exist. Please ensure the environment "
+                      f"variable '{sm_env_constants.SM_CHANNEL_VALIDATION}' is set appropriately.")
 
     training_files_set = set(f for f in os.listdir(train_path) if os.path.isfile(os.path.join(train_path, f)))
     validation_files_set = set(f for f in os.listdir(validate_path) if os.path.isfile(os.path.join(validate_path, f)))
