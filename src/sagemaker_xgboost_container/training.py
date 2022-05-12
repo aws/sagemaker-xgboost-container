@@ -20,6 +20,7 @@ import sys
 from sagemaker_containers import _env
 import sagemaker_containers.beta.framework as framework
 from sagemaker_xgboost_container.algorithm_mode.train import sagemaker_train
+from sagemaker_xgboost_container.data_utils import check_data_redundancy
 from sagemaker_xgboost_container.constants import sm_env_constants
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,14 @@ def run_algorithm_mode():
 
     train_path = os.environ[sm_env_constants.SM_CHANNEL_TRAIN]
     val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION)
+
+    if val_path is not None:
+        if train_path == val_path or os.path.basename(train_path) == os.path.basename(val_path):
+            logger.warning('Found same path for training and validation. This is not recommended and results may not '
+                           'be correct.')
+        else:
+            # Check if there is potential data redundancy between training and validation sets
+            check_data_redundancy(train_path, val_path)
 
     sm_hosts = json.loads(os.environ[sm_env_constants.SM_HOSTS])
     sm_current_host = os.environ[sm_env_constants.SM_CURRENT_HOST]
