@@ -16,6 +16,8 @@ import logging
 import os
 import shutil
 
+from typing import List, Union
+
 import mlio
 from mlio.integ.arrow import as_arrow_file
 from mlio.integ.numpy import as_numpy
@@ -28,7 +30,7 @@ from scipy.sparse import vstack as scipy_vstack
 import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.constants import xgb_content_types
+from sagemaker_xgboost_container.constants import xgb_content_types, sm_env_constants
 
 
 BATCH_SIZE = 4000
@@ -485,6 +487,51 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
         raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
 
 
+def _get_pipe_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
+    """
+    :param data_path: Either directory or file
+    """
+    # For pipe mode, we leverages mlio directly by creating a list of SageMakerPipe.
+    if isinstance(data_path, list):
+        files_path = data_path
+    else:
+        files_path = [data_path]
+        if not os.path.exists(f"${data_path}_0"):
+            logging.info(f"Pipe path {data_path} does not exist!")
+            return None
+    return files_path
+
+
+def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
+    """
+    :param data_path: Either directory or file
+    """
+    # In file mode, we create a temp directory with symlink to all input files or
+    # directories to meet XGB's assumption that all files are in the same directory.
+
+    if isinstance(data_path, list):
+        # Create a directory with symlinks to input files.
+        files_path = "/tmp/sagemaker_xgboost_input_data"
+        shutil.rmtree(files_path, ignore_errors=True)
+        os.mkdir(files_path)
+        for index, path in enumerate(data_path):
+            if not os.path.exists(path):
+                return None
+            if os.path.isfile(path):
+                _make_symlink(path, files_path, os.path.basename(path), index)
+            else:
+                for file in os.scandir(path):
+                    _make_symlink(file, files_path, file.name, index)
+
+    else:
+        if not os.path.exists(data_path):
+            logging.info(f"File path {data_path} does not exist!")
+            return None
+        files_path = get_files_path_from_string(data_path)
+
+    return files_path
+
+
 def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     """Create Data Matrix from CSV or LIBSVM file.
 
@@ -507,37 +554,12 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
     # So the only way to combine the data is to read them in one shot.
     # Fortunately, milo can read multiple pipes together. So we extends
     # the parameter data_path to support list. If data_path is string as usual,
-    # get_dmatrix will work as before. When it is a list, we work as follows.
-    # For pipe mode, it leverages mlio directly by creating a list of SageMakerPipe.
-    # In file mode, we create a temp directory with symlink to all input files or
-    # directories to meet XGB's assumption that all files are in the same directory.
+    # get_dmatrix will work as before. When it is a list, it works as explained in respective functions.
+
     if is_pipe:
-        if isinstance(data_path, list):
-            files_path = data_path
-        else:
-            files_path = [data_path]
-            if not os.path.exists(data_path + '_0'):
-                logging.info('Pipe path {} does not exist!'.format(data_path))
-                return None
+        files_path = _get_pipe_mode_files_path(data_path)
     else:
-        if not isinstance(data_path, list):
-            if not os.path.exists(data_path):
-                logging.info('File path {} does not exist!'.format(data_path))
-                return None
-            files_path = get_files_path(data_path)
-        else:
-            # Create a directory with symlinks to input files.
-            files_path = "/tmp/sagemaker_xgboost_input_data"
-            shutil.rmtree(files_path, ignore_errors=True)
-            os.mkdir(files_path)
-            for path in data_path:
-                if not os.path.exists(path):
-                    return None
-                if os.path.isfile(path):
-                    os.symlink(path, os.path.join(files_path, os.path.basename(path)))
-                else:
-                    for file in os.scandir(path):
-                        os.symlink(file, os.path.join(files_path, file.name))
+        files_path = _get_file_mode_files_path(data_path)
 
     if content_type.lower() == CSV:
         dmatrix = get_csv_dmatrix(files_path, csv_weights, is_pipe)
@@ -585,7 +607,7 @@ def get_size(data_path, is_pipe=False):
             return total_size
 
 
-def get_files_path(data_path):
+def get_files_path_from_string(data_path: Union[List[str], str]) -> List[str]:
     if os.path.isfile(data_path):
         files_path = data_path
     else:
@@ -595,3 +617,41 @@ def get_files_path(data_path):
                 break
 
     return files_path
+
+
+def _make_symlink(path, source_path, name, index):
+    base_name = os.path.join(source_path, f"{name}_{str(index)}")
+    logging.info(f'creating symlink between path {source_path} and destination {base_name}')
+    os.symlink(path, base_name)
+
+
+def check_data_redundancy(train_path, validate_path):
+    """Log a warning if suspected duplicate files are found in the training and validation folders.
+
+    The validation score of models would be invalid if the same data is used for both training and validation.
+    Files are suspected of being duplicates when the file names are the same and their sizes are the same.
+
+    param train_path : path to training data
+    param validate_path : path to validation data
+    """
+    if not os.path.exists(train_path):
+        exc.UserError(f"Training data path '{train_path}' does not exist. Please ensure the environment "
+                      f"variable '{sm_env_constants.SM_CHANNEL_TRAIN}' is set appropriately.")
+    if not os.path.exists(validate_path):
+        exc.UserError(f"Validation data path '{validate_path}' does not exist. Please ensure the environment "
+                      f"variable '{sm_env_constants.SM_CHANNEL_VALIDATION}' is set appropriately.")
+
+    training_files_set = set(f for f in os.listdir(train_path) if os.path.isfile(os.path.join(train_path, f)))
+    validation_files_set = set(f for f in os.listdir(validate_path) if os.path.isfile(os.path.join(validate_path, f)))
+    same_name_files = training_files_set.intersection(validation_files_set)
+    for f in same_name_files:
+        f_train_path = os.path.join(train_path, f)
+        f_validate_path = os.path.join(validate_path, f)
+        f_train_size = os.path.getsize(f_train_path)
+        f_validate_size = os.path.getsize(f_validate_path)
+        if f_train_size == f_validate_size:
+            logging.warning(f"Suspected identical files found. ({f_train_path} and {f_validate_path}"
+                            f"with same size {f_validate_size} bytes)."
+                            f" Note: Duplicate data in the training set and validation set is usually"
+                            f" not intentional and can impair the validity of the model evaluation by"
+                            f" the validation score.")
