@@ -12,9 +12,10 @@
 # language governing permissions and limitations under the License.
 import numpy as np
 import xgboost as xgb
-from math import log
+from math import log, sqrt
 from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro, \
-    precision_macro, precision_micro, recall_macro, recall_micro
+    precision_macro, precision_micro, recall_macro, recall_micro, mae, rmse, balanced_accuracy, \
+    precision, recall
 
 
 binary_train_data = np.random.rand(10, 2)
@@ -29,6 +30,11 @@ def test_binary_accuracy():
     accuracy_name, accuracy_result = accuracy(binary_preds, binary_dtrain)
     assert accuracy_name == 'accuracy'
     assert accuracy_result == .5
+
+def test_binary_balanced_accuracy():
+    bal_accuracy_name, bal_accuracy_result = balanced_accuracy(binary_preds, binary_dtrain)
+    assert bal_accuracy_name == 'balanced_accuracy'
+    assert bal_accuracy_result == .5
 
 
 def test_binary_accuracy_logistic():
@@ -60,6 +66,16 @@ def test_binary_f1_binary_logistic():
     assert f1_score_name == 'f1_binary'
     assert f1_score_result == 2/3
 
+def test_binary_precision():
+    precision_score_name, precision_score_result = precision(binary_preds, binary_dtrain)
+    assert precision_score_name == 'precision'
+    assert precision_score_result == .5
+
+def test_binary_recall():
+    recall_score_name, recall_score_result = recall(binary_preds, binary_dtrain)
+    assert recall_score_name == 'recall'
+    assert recall_score_result == 1
+
 
 multiclass_train_data = np.random.rand(10, 2)
 multiclass_train_label = np.array([0, 0, 1, 1, 1, 1, 1, 2, 2, 2])
@@ -82,6 +98,10 @@ def test_multiclass_accuracy():
     assert accuracy_name == 'accuracy'
     assert accuracy_result == .5
 
+def test_multiclass_balanced_accuracy():
+    bal_accuracy_name, bal_accuracy_result = balanced_accuracy(multiclass_preds, multiclass_dtrain)
+    assert bal_accuracy_name == 'balanced_accuracy'
+    assert balanced_accuracy_result == .5
 
 def test_multiclass_accuracy_softprob():
     accuracy_name, accuracy_result = accuracy(multiclass_preds_softprob, multiclass_dtrain)
@@ -153,3 +173,13 @@ def test_r2():
     r2_score_name, r2_score_result = r2(regression_preds, regression_dtrain)
     assert r2_score_name == 'r2'
     assert r2_score_result == -1
+
+def test_rmse():
+    rmse_score_name, rmse_score_result = rmse(regression_preds, regression_dtrain)
+    assert rmse_score_name == 'rmse'
+    assert rmse_score_result = sqrt(0.5)
+
+def test_mae():
+    mae_score_name, mae_score_result = mae(regression_preds, regression_dtrain)
+    assert mae_score_name = 'mae'
+    assert mae_score_result = .5
