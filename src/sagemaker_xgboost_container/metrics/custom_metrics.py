@@ -203,6 +203,8 @@ CUSTOM_METRICS = {
     "f1_binary": f1_binary,
     "f1_macro": f1_macro,
     "mse": mse,
+    "rmse": rmse,
+    "mae": mae,
     "precision": precision,
     "precision_macro": precision_macro,
     "precision_micro": precision_micro,
