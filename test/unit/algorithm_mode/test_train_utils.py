@@ -55,6 +55,7 @@ def test_get_eval_metrics_and_feval():
     assert ('accuracy', .5) == custom_metric_results[0]
     assert ('rmse', math.sqrt(0.5)) == custom_metric_results[1]
 
+
 def test_cleanup_dir():
     def setup(file_names):
         test_dir = tempfile.mkdtemp()

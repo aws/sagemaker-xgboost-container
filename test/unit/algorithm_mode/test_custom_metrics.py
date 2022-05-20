@@ -31,6 +31,7 @@ def test_binary_accuracy():
     assert accuracy_name == 'accuracy'
     assert accuracy_result == .5
 
+
 def test_binary_balanced_accuracy():
     bal_accuracy_name, bal_accuracy_result = balanced_accuracy(binary_preds, binary_dtrain)
     assert bal_accuracy_name == 'balanced_accuracy'
@@ -66,10 +67,12 @@ def test_binary_f1_binary_logistic():
     assert f1_score_name == 'f1_binary'
     assert f1_score_result == 2/3
 
+
 def test_binary_precision():
     precision_score_name, precision_score_result = precision(binary_preds, binary_dtrain)
     assert precision_score_name == 'precision'
     assert precision_score_result == .5
+
 
 def test_binary_recall():
     recall_score_name, recall_score_result = recall(binary_preds, binary_dtrain)
@@ -98,10 +101,12 @@ def test_multiclass_accuracy():
     assert accuracy_name == 'accuracy'
     assert accuracy_result == .5
 
+
 def test_multiclass_balanced_accuracy():
     bal_accuracy_name, bal_accuracy_result = balanced_accuracy(multiclass_preds, multiclass_dtrain)
     assert bal_accuracy_name == 'balanced_accuracy'
     assert bal_accuracy_result == 1/3
+
 
 def test_multiclass_accuracy_softprob():
     accuracy_name, accuracy_result = accuracy(multiclass_preds_softprob, multiclass_dtrain)
@@ -174,10 +179,12 @@ def test_r2():
     assert r2_score_name == 'r2'
     assert r2_score_result == -1
 
+
 def test_rmse():
     rmse_score_name, rmse_score_result = rmse(regression_preds, regression_dtrain)
     assert rmse_score_name == 'rmse'
     assert rmse_score_result == sqrt(0.5)
+
 
 def test_mae():
     mae_score_name, mae_score_result = mae(regression_preds, regression_dtrain)
