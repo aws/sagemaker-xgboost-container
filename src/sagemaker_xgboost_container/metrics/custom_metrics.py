@@ -92,6 +92,8 @@ def f1_macro(preds, dtrain):
     """
     return 'f1_macro', compute_multiclass_and_binary_metrics(lambda x, y:
                                                              f1_score(x, y, average='macro'), preds, dtrain)
+
+
 def mae(preds, dtrain):
     """Compute mean absolute error.
     For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html
@@ -101,6 +103,7 @@ def mae(preds, dtrain):
     """
     labels = dtrain.get_label()
     return 'mae', mean_absolute_error(labels, preds)
+
 
 def mse(preds, dtrain):
     """Compute mean squared error.
@@ -113,6 +116,7 @@ def mse(preds, dtrain):
     labels = dtrain.get_label()
     return 'mse', mean_squared_error(labels, preds)
 
+
 def rmse(preds, dtrain):
     """Compute mean squared error.
     For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
@@ -122,6 +126,7 @@ def rmse(preds, dtrain):
     """
     labels = dtrain.get_label()
     return 'rmse', mean_squared_error(labels, preds, squared=False)
+
 
 def precision(preds, dtrain):
     """Compute precision.
