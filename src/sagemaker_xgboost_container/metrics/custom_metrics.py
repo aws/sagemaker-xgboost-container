@@ -12,7 +12,7 @@
 # language governing permissions and limitations under the License.
 import numpy as np
 from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, \
-    precision_score, r2_score,  \ 
+    precision_score, r2_score, \
     recall_score, balanced_accuracy_score, mean_absolute_error
 
 

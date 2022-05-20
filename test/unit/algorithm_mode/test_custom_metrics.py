@@ -177,9 +177,9 @@ def test_r2():
 def test_rmse():
     rmse_score_name, rmse_score_result = rmse(regression_preds, regression_dtrain)
     assert rmse_score_name == 'rmse'
-    assert rmse_score_result = sqrt(0.5)
+    assert rmse_score_result == sqrt(0.5)
 
 def test_mae():
     mae_score_name, mae_score_result = mae(regression_preds, regression_dtrain)
-    assert mae_score_name = 'mae'
-    assert mae_score_result = .5
+    assert mae_score_name == 'mae'
+    assert mae_score_result == .5
