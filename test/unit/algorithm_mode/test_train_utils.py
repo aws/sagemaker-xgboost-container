@@ -48,9 +48,12 @@ def test_get_eval_metrics_and_feval():
     binary_dtrain = xgb.DMatrix(binary_train_data, label=binary_train_label)
     binary_preds = np.ones(10)
 
-    assert 2 == len(test_configured_eval(binary_preds, binary_dtrain))
-    assert ('accuracy', .5) == test_configured_eval(binary_preds, binary_dtrain)[1]
-    assert ('rmse', math.sqrt(0.5)) == test_configured_eval(binary_preds, binary_dtrain)[0]
+    custom_metric_results = test_configured_eval(binary_preds, binary_dtrain)
+    custom_metric_results.sort()
+
+    assert 2 == len(custom_metric_results)
+    assert ('accuracy', .5) == custom_metrics_results[0]
+    assert ('rmse', math.sqrt(0.5)) == custom_metrics_results[1]
 
 def test_cleanup_dir():
     def setup(file_names):
