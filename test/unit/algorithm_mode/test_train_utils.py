@@ -52,8 +52,8 @@ def test_get_eval_metrics_and_feval():
     custom_metric_results.sort()
 
     assert 2 == len(custom_metric_results)
-    assert ('accuracy', .5) == custom_metrics_results[0]
-    assert ('rmse', math.sqrt(0.5)) == custom_metrics_results[1]
+    assert ('accuracy', .5) == custom_metric_results[0]
+    assert ('rmse', math.sqrt(0.5)) == custom_metric_results[1]
 
 def test_cleanup_dir():
     def setup(file_names):
