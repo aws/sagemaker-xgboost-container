@@ -101,7 +101,7 @@ def test_multiclass_accuracy():
 def test_multiclass_balanced_accuracy():
     bal_accuracy_name, bal_accuracy_result = balanced_accuracy(multiclass_preds, multiclass_dtrain)
     assert bal_accuracy_name == 'balanced_accuracy'
-    assert balanced_accuracy_result == .5
+    assert bal_accuracy_result == .5
 
 def test_multiclass_accuracy_softprob():
     accuracy_name, accuracy_result = accuracy(multiclass_preds_softprob, multiclass_dtrain)
