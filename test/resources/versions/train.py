@@ -3,7 +3,7 @@ import sys
 
 
 PYTHON_MAJOR_VERSION = 3
-PYTHON_MINOR_VERSION = 8
+PYTHON_MINOR_VERSION = 10
 REQUIREMENTS = """\
 Flask==1.1.1
 Pillow==9.1.0
@@ -15,7 +15,7 @@ cryptography==35.0.0
 gunicorn==19.10.0
 matplotlib==3.4.1
 multi-model-server==1.1.2
-numpy==1.21.0
+numpy==1.22.4
 pandas==1.2.4
 psutil==5.6.7
 pyarrow==1.0.1
