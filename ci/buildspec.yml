@@ -4,7 +4,7 @@ phases:
   install:
     runtime-versions:
       python: 3.7
-      docker: 17
+      docker: 19
   pre_build:
     commands:
     - echo Pre-build started on `date`
