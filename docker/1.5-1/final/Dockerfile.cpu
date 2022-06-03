@@ -15,7 +15,6 @@ RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
 # Copy wheel to container #
 ###########################
 COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
-
 RUN rm -rf /miniconda3/lib/python3.8/site-packages/numpy-1.21.2.dist-info && \
     python3 -m pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
     python3 -m pip uninstall -y typing && \
