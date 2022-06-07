@@ -20,7 +20,8 @@ import xgboost as xgb
 from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import Channel
-from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path, check_data_redundancy
+from sagemaker_xgboost_container.data_utils import get_content_type, get_dmatrix, get_size, validate_data_file_path,\
+ check_data_redundancy
 from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
