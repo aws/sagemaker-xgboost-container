@@ -242,3 +242,17 @@ class TestTrainUtils(unittest.TestCase):
         file_path = [os.path.join(data_path, path) for path in ['train', 'validation']]
         data_utils.check_data_redundancy(file_path[0], file_path[1])
         mock_log_warning.assert_not_called()
+        
+    def test_check_data_redundancy_does_not_throw_exception_file(self):
+        current_path = Path(os.path.abspath(__file__))
+        data_path = os.path.join(str(current_path.parent.parent), 'resources', 'abalone', 'data')
+        file_path = os.path.join(data_path, "train")
+        try:
+            data_utils.check_data_redundancy(file_path, file_path)
+        except Exception as e:
+            assert False, f"check_data_redundancy raised an exception {e} for file mode"
+        
+    def test_check_data_redundancy_throws_exception_pipe(self):
+        pb_file_paths = ['pb_files']
+        with self.assertRaises(Exception):
+            data_utils.check_data_redundancy(pb_file_paths[0], pb_file_paths[1])
