@@ -491,7 +491,6 @@ def _get_pipe_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
     """
     :param data_path: Either directory or file
     """
-    # For pipe mode, we leverages mlio directly by creating a list of SageMakerPipe.
     if isinstance(data_path, list):
         files_path = data_path
     else:
