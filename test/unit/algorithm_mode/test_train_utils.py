@@ -17,7 +17,7 @@ import xgboost as xgb
 import os
 import tempfile
 import shutil
-
+import math
 
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 
@@ -39,16 +39,21 @@ def test_get_eval_metrics_and_feval():
     test_eval_metrics, test_configured_eval, tuning_metric = train_utils.get_eval_metrics_and_feval(test_objective,
                                                                                                     test_evals)
 
-    assert len(test_eval_metrics) == 2
+    assert len(test_eval_metrics) == 1
     for metric in test_eval_metrics:
-        assert metric in ['logloss', 'rmse']
+        assert metric in ['logloss']
 
     binary_train_data = np.random.rand(10, 2)
     binary_train_label = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
     binary_dtrain = xgb.DMatrix(binary_train_data, label=binary_train_label)
     binary_preds = np.ones(10)
 
-    assert ('accuracy', .5) == test_configured_eval(binary_preds, binary_dtrain)[0]
+    custom_metric_results = test_configured_eval(binary_preds, binary_dtrain)
+    custom_metric_results.sort()
+
+    assert 2 == len(custom_metric_results)
+    assert ('accuracy', .5) == custom_metric_results[0]
+    assert ('rmse', math.sqrt(0.5)) == custom_metric_results[1]
 
 
 def test_cleanup_dir():
