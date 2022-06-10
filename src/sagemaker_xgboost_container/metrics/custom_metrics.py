@@ -12,7 +12,8 @@
 # language governing permissions and limitations under the License.
 import numpy as np
 from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, \
-    precision_score, r2_score, recall_score, balanced_accuracy_score
+    precision_score, r2_score, \
+    recall_score, balanced_accuracy_score, mean_absolute_error
 
 
 # From 1.2, custom evaluation metric receives raw prediction.
@@ -93,6 +94,17 @@ def f1_macro(preds, dtrain):
                                                              f1_score(x, y, average='macro'), preds, dtrain)
 
 
+def mae(preds, dtrain):
+    """Compute mean absolute error.
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, mean absolute error
+    """
+    labels = dtrain.get_label()
+    return 'mae', mean_absolute_error(labels, preds)
+
+
 def mse(preds, dtrain):
     """Compute mean squared error.
 
@@ -103,6 +115,17 @@ def mse(preds, dtrain):
     """
     labels = dtrain.get_label()
     return 'mse', mean_squared_error(labels, preds)
+
+
+def rmse(preds, dtrain):
+    """Compute mean squared error.
+    For more information see: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
+    :param preds: Prediction values
+    :param dtrain: Training data with labels
+    :return: Metric name, root mean squared error
+    """
+    labels = dtrain.get_label()
+    return 'rmse', mean_squared_error(labels, preds, squared=False)
 
 
 def precision(preds, dtrain):
@@ -203,6 +226,8 @@ CUSTOM_METRICS = {
     "f1_binary": f1_binary,
     "f1_macro": f1_macro,
     "mse": mse,
+    "rmse": rmse,
+    "mae": mae,
     "precision": precision,
     "precision_macro": precision_macro,
     "precision_micro": precision_micro,
