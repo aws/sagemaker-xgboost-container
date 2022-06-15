@@ -55,7 +55,6 @@ def run_algorithm_mode():
 
     train_path = os.environ[sm_env_constants.SM_CHANNEL_TRAIN]
     val_path = os.environ.get(sm_env_constants.SM_CHANNEL_VALIDATION)
-
     sm_hosts = json.loads(os.environ[sm_env_constants.SM_HOSTS])
     sm_current_host = os.environ[sm_env_constants.SM_CURRENT_HOST]
 
