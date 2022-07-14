@@ -14,6 +14,7 @@ from __future__ import absolute_import
 import unittest
 import os
 from pathlib import Path
+import pandas as pd
 import shutil
 import signal
 import subprocess
@@ -252,3 +253,7 @@ class TestTrainUtils(unittest.TestCase):
         pb_file_paths = ['pb_files']
         with self.assertRaises(Exception):
             data_utils.check_data_redundancy(pb_file_paths[0], pb_file_paths[1])
+
+    def test_pyarrow_to_parquet_conversion_does_not_throw_exception(self):
+        df = pd.DataFrame({'x': [1, 2]})
+        df.to_parquet('test.parquet', engine='pyarrow')
