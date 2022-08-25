@@ -32,6 +32,7 @@ from sagemaker_xgboost_container.callback import add_debugging
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS, XGB_MAXIMIZE_METRICS
 from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
 from sagemaker_xgboost_container.prediction_utils import ValidationPredictionRecorder
+from sagemaker_xgboost_container.constants.xgb_constants import XGB_VERSION
 
 MODEL_NAME = "xgboost-model"
 
@@ -232,9 +233,13 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 checkpoint_dir=checkpoint_dir, early_stopping_data_name=early_stopping_data_name,
                 early_stopping_metric=early_stopping_metric, early_stopping_rounds=early_stopping_rounds,
                 save_model_on_termination=save_model_on_termination, is_master=is_master)
-            add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
-                          val_dmatrix=val_dmatrix)
-
+            if XGB_VERSION < "1.3.0":
+                # when xgboost >= 1.3.0, it doesn't allow callback which are not instances 
+                # of callback.TrainingCallback
+                # ref : https://github.com/dmlc/xgboost/blob/v1.5.2/python-package/xgboost/training.py#L62
+                #       https://xgboost.readthedocs.io/en/latest/python/callbacks.html
+                add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
+                            val_dmatrix=val_dmatrix)
             bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round-iteration, evals=watchlist,
                             feval=configured_feval, callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
 
@@ -273,9 +278,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                     checkpoint_dir=checkpoint_dir, early_stopping_data_name=early_stopping_data_name,
                     early_stopping_metric=early_stopping_metric, early_stopping_rounds=early_stopping_rounds,
                     save_model_on_termination=save_model_on_termination, is_master=is_master, fold=len(bst))
-                add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
-                              val_dmatrix=cv_val_dmatrix)
-
+                if XGB_VERSION < "1.3.0":
+                    add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
+                                val_dmatrix=cv_val_dmatrix)
                 evals_result = {}
                 logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
                 booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,
