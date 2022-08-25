@@ -273,7 +273,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                     early_stopping_metric=early_stopping_metric, early_stopping_rounds=early_stopping_rounds,
                     save_model_on_termination=save_model_on_termination, is_master=is_master, fold=len(bst))
                 callbacks.append(SmeDebugHook(hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
-                                          val_dmatrix=val_dmatrix))
+                                              val_dmatrix=val_dmatrix))
                 evals_result = {}
                 logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
                 booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,

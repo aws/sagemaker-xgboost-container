@@ -5,8 +5,14 @@ import xgboost as xgb
 
 logger = logging.getLogger(__name__)
 
+
 class SmeDebugHook(xgb.callback.TrainingCallback, Hook):
-    """wrap sagemaker debug hook to TrainingCallback style
+    """Mix-in callback class. smedebug.xgboost.Hook uses legacy callback style
+    and since XGB-3.0.0 mixing legacy callback instances with new TrainingCallback
+    instances is not allowed.
+
+    See: https://github.com/dmlc/xgboost/blob/v1.3.0/python-package/xgboost/training.py#L92-L93
+
     :param hyperparameters: Dict of hyperparamters.
                             Same as `params` in xgb.train(params, dtrain).
     :param train_dmatrix: Training data set.
@@ -24,4 +30,3 @@ class SmeDebugHook(xgb.callback.TrainingCallback, Hook):
         except Exception as e:
             logging.debug("Failed to create debug hook", e)
             return
-        
