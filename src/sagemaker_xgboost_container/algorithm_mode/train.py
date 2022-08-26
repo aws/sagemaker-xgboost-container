@@ -28,6 +28,7 @@ from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
+from sagemaker_xgboost_container.callback import add_debugging
 from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS, XGB_MAXIMIZE_METRICS
 from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
 from sagemaker_xgboost_container.prediction_utils import ValidationPredictionRecorder
@@ -231,6 +232,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 checkpoint_dir=checkpoint_dir, early_stopping_data_name=early_stopping_data_name,
                 early_stopping_metric=early_stopping_metric, early_stopping_rounds=early_stopping_rounds,
                 save_model_on_termination=save_model_on_termination, is_master=is_master)
+            add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix,
+                          val_dmatrix=val_dmatrix)
 
             bst = xgb.train(train_cfg, train_dmatrix, num_boost_round=num_round-iteration, evals=watchlist,
                             feval=configured_feval, callbacks=callbacks, xgb_model=xgb_model, verbose_eval=False)
@@ -270,6 +273,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                     checkpoint_dir=checkpoint_dir, early_stopping_data_name=early_stopping_data_name,
                     early_stopping_metric=early_stopping_metric, early_stopping_rounds=early_stopping_rounds,
                     save_model_on_termination=save_model_on_termination, is_master=is_master, fold=len(bst))
+                add_debugging(callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=cv_train_dmatrix,
+                              val_dmatrix=cv_val_dmatrix)
+
                 evals_result = {}
                 logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
                 booster = xgb.train(train_cfg, cv_train_dmatrix, num_boost_round=num_round-iteration,
