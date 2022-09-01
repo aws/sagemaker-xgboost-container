@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import tempfile
-from typing import Iterable
+from typing import Iterable, Union
 
 import mlio
 from mlio.integ.numpy import as_numpy
