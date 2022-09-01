@@ -24,7 +24,7 @@ import xgboost as xgb
 from sagemaker_xgboost_container import encoder
 
 
-@pytest.mark.parametrize('target', ('42,6,9', '42.0,6.0,9.0', '42\n6\n9\n'))
+@pytest.mark.parametrize('target', ('42,6,9', '42.0,6.0,9.0', '42\n6\n9\n', b'42,6,9', b'42.0,6.0,9.0', b'42\n6\n9\n'))
 def test_csv_to_dmatrix(target):
     actual = encoder.csv_to_dmatrix(target)
     assert type(actual) is xgb.DMatrix
@@ -95,6 +95,12 @@ def test_decode(content_type):
         encoder.decode(42, content_type)
 
     decoder.assert_called_once_with(42)
+
+
+@pytest.mark.parametrize('content_type', ['text/csv; charset=UTF-8'])
+def test_decode_with_complex_csv_content_type(content_type):
+    dmatrix_result = encoder.decode("42.0,6.0,9.0\n42.0,6.0,9.0", content_type)
+    assert type(dmatrix_result) is xgb.DMatrix
 
 
 def test_encoder_jsonlines_from_json():
