@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import tempfile
-from typing import Iterable
+from typing import Iterable, Union
 
 import mlio
 from mlio.integ.numpy import as_numpy
@@ -35,21 +35,23 @@ def _clean_csv_string(csv_string, delimiter):
     return ['nan' if x == '' else x for x in csv_string.split(delimiter)]
 
 
-def csv_to_dmatrix(string_like, dtype=None):  # type: (str) -> xgb.DMatrix
+def csv_to_dmatrix(input: Union[str, bytes], dtype=None) -> xgb.DMatrix:
     """Convert a CSV object to a DMatrix object.
     Args:
-        string_like (str): CSV string. Assumes the string has been stripped of leading or trailing newline chars.
+        input (str/binary): CSV string or binary object(encoded by UTF-8).
+                                Assumes the string has been stripped of leading or trailing newline chars.
         dtype (dtype, optional):  Data type of the resulting array. If None, the dtypes will be determined by the
                                         contents of each column, individually. This argument can only be used to
                                         'upcast' the array.  For downcasting, use the .astype(t) method.
     Returns:
         (xgb.DMatrix): XGBoost DataMatrix
     """
-    sniff_delimiter = csv.Sniffer().sniff(string_like.split('\n')[0][:512]).delimiter
+    csv_string = input.decode() if isinstance(input, bytes) else input
+    sniff_delimiter = csv.Sniffer().sniff(csv_string.split('\n')[0][:512]).delimiter
     delimiter = ',' if sniff_delimiter.isalnum() else sniff_delimiter
     logging.info("Determined delimiter of CSV input is \'{}\'".format(delimiter))
 
-    np_payload = np.array(list(map(lambda x: _clean_csv_string(x, delimiter), string_like.split('\n')))).astype(dtype)
+    np_payload = np.array(list(map(lambda x: _clean_csv_string(x, delimiter), csv_string.split('\n')))).astype(dtype)
     return xgb.DMatrix(np_payload)
 
 
@@ -83,21 +85,18 @@ def recordio_protobuf_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
     """
     buf = bytes(string_like)
     dataset = [mlio.InMemoryStore(buf)]
-    reader = mlio.RecordIOProtobufReader(dataset=dataset, batch_size=100)
+    reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=100)
+    reader = mlio.RecordIOProtobufReader(reader_params)
 
-    if type(reader.peek_example()['values']) is mlio.core.DenseTensor:
-        to_matrix = as_numpy
-        vstack = np.vstack
-    else:
-        to_matrix = to_coo_matrix
-        vstack = scipy_vstack
+    is_dense_tensor = type(reader.peek_example()['values']) is mlio.DenseTensor
 
     examples = []
     for example in reader:
-        tmp = to_matrix(example['values'])  # Ignore labels if present
-        examples.append(tmp)
+        # Ignore labels if present
+        values = as_numpy(example['values']) if is_dense_tensor else to_coo_matrix(example['values'])
+        examples.append(values)
 
-    data = vstack(examples)
+    data = np.vstack(examples) if is_dense_tensor else scipy_vstack(examples).tocsr()
     dmatrix = xgb.DMatrix(data)
     return dmatrix
 
