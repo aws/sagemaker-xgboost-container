@@ -13,9 +13,10 @@
 import numpy as np
 import xgboost as xgb
 from math import log, sqrt
+import unittest
 from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro, \
     precision_macro, precision_micro, recall_macro, recall_micro, mae, rmse, balanced_accuracy, \
-    precision, recall
+    precision, recall, get_custom_metrics
 
 
 binary_train_data = np.random.rand(10, 2)
@@ -190,3 +191,10 @@ def test_mae():
     mae_score_name, mae_score_result = mae(regression_preds, regression_dtrain)
     assert mae_score_name == 'mae'
     assert mae_score_result == .5
+
+
+class TestCustomMetric(unittest.TestCase):
+    def test_get_custom_metrics(self):
+        eval_metrics = ["mse", "rmse", "mae", "r2", "wrong_metric"]
+        res = get_custom_metrics(eval_metrics)
+        self.assertListEqual(res, ["mse", "rmse", "mae", "r2"])
