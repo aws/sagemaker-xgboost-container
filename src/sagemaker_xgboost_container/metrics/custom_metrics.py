@@ -240,7 +240,7 @@ CUSTOM_METRICS = {
 
 def get_custom_metrics(eval_metrics):
     """Get container defined metrics from metrics list."""
-    return set(eval_metrics).intersection(CUSTOM_METRICS.keys())
+    return [eval_m for eval_m in eval_metrics if eval_m in CUSTOM_METRICS.keys()]
 
 
 def configure_feval(custom_metric_list):
