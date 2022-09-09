@@ -110,6 +110,6 @@ def test_r2():
 
 class TestCustomMetric(unittest.TestCase):
     def test_get_custom_metrics(self):
-        eval_metrics = ["mse", "rmse", "mae", "r2", "wrong_metric"]
+        eval_metrics = ["mse", "f1", "r2", "wrong_metric"]
         res = get_custom_metrics(eval_metrics)
-        self.assertListEqual(res, ["mse", "rmse", "mae", "r2"])
+        self.assertListEqual(res, ["mse", "f1", "r2"])
