@@ -124,22 +124,38 @@ def parse_content_data(input_data, input_content_type):
     return dtest, content_type
 
 
+def _get_model_files(model_dir):
+    for data_file in os.listdir(model_dir):
+        full_model_path = os.path.join(model_dir, data_file)
+        if os.path.isfile(full_model_path):
+            if data_file.startswith("."):
+                logging.warning(
+                    f"Ignoring dotfile '{full_model_path}' found in model directory"
+                    " - please exclude dotfiles from model archives"
+                )
+            else:
+                yield full_model_path
+
+
 def get_loaded_booster(model_dir):
-    model_files = (data_file for data_file in os.listdir(model_dir)
-                   if os.path.isfile(os.path.join(model_dir, data_file)))
-    model_file = next(model_files)
+    full_model_paths = _get_model_files(model_dir)
+    full_model_path = next(full_model_paths)
     try:
-        booster = pkl.load(open(os.path.join(model_dir, model_file), 'rb'))
-        format = PKL_FORMAT
+        booster = pkl.load(open(full_model_path, 'rb'))
+        model_format = PKL_FORMAT
     except Exception as exp_pkl:
         try:
             booster = xgb.Booster()
-            booster.load_model(os.path.join(model_dir, model_file))
-            format = XGB_FORMAT
+            booster.load_model(full_model_path)
+            model_format = XGB_FORMAT
         except Exception as exp_xgb:
-            raise RuntimeError("Model at {} cannot be loaded:\n{}\n{}".format(model_dir, str(exp_pkl), str(exp_xgb)))
-    booster.set_param('nthread', 1)
-    return booster, format
+            raise RuntimeError(
+                f"Model {full_model_path} cannot be loaded:"
+                f"\nPickle load error={str(exp_pkl)}"
+                f"\nXGB load model error={str(exp_xgb)}"
+            )
+    booster.set_param("nthread", 1)
+    return booster, model_format
 
 
 def predict(booster, model_format, dtest, input_content_type):

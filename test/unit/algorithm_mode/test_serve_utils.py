@@ -16,7 +16,7 @@ import io
 import json
 import os
 
-from mock import MagicMock
+from mock import MagicMock, patch
 import numpy as np
 import pytest
 from sagemaker_containers.record_pb2 import Record
@@ -259,3 +259,14 @@ def test_encode_selected_predictions_csv():
 def test_encode_selected_content_error():
     with pytest.raises(RuntimeError):
         serve_utils.encode_selected_predictions(TEST_PREDICTIONS, TEST_KEYS, "text/libsvm")
+
+
+@patch.object(os, 'listdir')
+@patch.object(os.path, 'isfile')
+def test_get_model_files(test_isfile, test_listdir):
+    test_isfile.return_value = True
+    mock_directory_contents = ["xgboost-model", ".DS_STORE", ".xgboost-model", "model2"]
+    test_listdir.return_value = mock_directory_contents
+    model_dir = "path/to/models"
+    model_paths = serve_utils._get_model_files(model_dir)
+    assert [f"{model_dir}/xgboost-model", f"{model_dir}/model2"] == list(model_paths)
