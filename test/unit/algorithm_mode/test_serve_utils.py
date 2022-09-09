@@ -16,7 +16,7 @@ import io
 import json
 import os
 
-from mock import MagicMock
+from mock import MagicMock, patch
 import numpy as np
 import pytest
 from sagemaker_containers.record_pb2 import Record
@@ -284,3 +284,14 @@ def test_encode_predictions_as_json_empty_list():
 def test_encode_predictions_as_json_non_empty_list():
     expected_response = json.dumps({"predictions": [{"score": 0.43861907720565796}, {"score": 0.4533972144126892}]})
     assert expected_response == serve_utils.encode_predictions_as_json([0.43861907720565796, 0.4533972144126892])
+
+
+@patch.object(os, 'listdir')
+@patch.object(os.path, 'isfile')
+def test_get_full_model_paths(test_isfile, test_listdir):
+    test_isfile.return_value = True
+    mock_directory_contents = ["xgboost-model", ".DS_STORE", ".xgboost-model", "model2"]
+    test_listdir.return_value = mock_directory_contents
+    model_dir = "path/to/models"
+    model_paths = serve_utils._get_full_model_paths(model_dir)
+    assert [f"{model_dir}/xgboost-model", f"{model_dir}/model2"] == list(model_paths)
