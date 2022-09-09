@@ -134,8 +134,12 @@ CUSTOM_METRICS = {
 
 
 def get_custom_metrics(eval_metrics):
-    """Get container defined metrics from metrics list."""
-    return set(eval_metrics).intersection(CUSTOM_METRICS.keys())
+    """Get container defined metrics from metrics list.
+
+    The order of the returning custom metrics need to be consistent with the input for distributed training.
+    Otherwise, metrics reported from each host will be miscalculated in the master host. (P70679777)
+    """
+    return [eval_m for eval_m in eval_metrics if eval_m in CUSTOM_METRICS.keys()]
 
 
 def configure_feval(custom_metric_list):
