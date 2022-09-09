@@ -22,6 +22,7 @@ from sagemaker_containers._recordio import _write_recordio
 import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
+from sagemaker_xgboost_container.algorithm_mode import inference_errors
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.constants import sm_env_constants
 from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
@@ -138,8 +139,14 @@ def _get_model_files(model_dir):
 
 
 def get_loaded_booster(model_dir):
-    full_model_paths = _get_model_files(model_dir)
-    full_model_path = next(full_model_paths)
+    full_model_paths = list(_get_model_files(model_dir))
+    if not full_model_paths:
+        raise inference_errors.ModelLoadInferenceError(f"No valid model files found in '{model_dir}'")
+    full_model_path = full_model_paths[0]
+    num_model_paths = len(full_model_paths)
+    if num_model_paths > 1:
+        logging.warning(f"Found {num_model_paths} model files - only '{full_model_path}' will be loaded")
+    logging.info(f"Loading model file '{full_model_path}'")
     try:
         booster = pkl.load(open(full_model_path, 'rb'))
         model_format = PKL_FORMAT
