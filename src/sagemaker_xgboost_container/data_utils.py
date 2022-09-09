@@ -299,10 +299,11 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
     :return: xgb.DMatrix or None
     """
     try:
-        dataset = [mlio.SageMakerPipe(pipe_path)]
-        reader = mlio.CsvReader(dataset=dataset,
-                                batch_size=BATCH_SIZE,
-                                header_row_index=None)
+        pipes_path = pipe_path if isinstance(pipe_path, list) else [pipe_path]
+        dataset = [mlio.SageMakerPipe(path) for path in pipes_path]
+        reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=BATCH_SIZE)
+        csv_params = mlio.CsvParams(header_row_index=None)
+        reader = mlio.CsvReader(reader_params, csv_params)
 
         # Check if data is present in reader
         if reader.peek_example() is not None:
@@ -449,17 +450,15 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
     """
     try:
         if is_pipe:
-            dataset = [mlio.SageMakerPipe(path)]
-            reader = mlio.RecordIOProtobufReader(dataset=dataset,
-                                                 batch_size=BATCH_SIZE)
+            pipes_path = path if isinstance(path, list) else [path]
+            dataset = [mlio.SageMakerPipe(pipe_path) for pipe_path in pipes_path]
         else:
             dataset = mlio.list_files(path)
-            reader = mlio.RecordIOProtobufReader(dataset=dataset,
-                                                 batch_size=BATCH_SIZE)
-
+        reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=BATCH_SIZE)
+        reader = mlio.RecordIOProtobufReader(reader_params)
         if reader.peek_example() is not None:
             # recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
-            if type(reader.peek_example()['values']) is mlio.core.DenseTensor:
+            if type(reader.peek_example()['values']) is mlio.DenseTensor:
                 to_matrix = as_numpy
                 vstack = np.vstack
             else:
