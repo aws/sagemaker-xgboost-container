@@ -23,7 +23,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING='utf-8'
 
-RUN apt-get update && \
+RUN rm /etc/apt/sources.list.d/cuda.list && \
+        rm /etc/apt/sources.list.d/nvidia-ml.list && \
+        apt-key del 7fa2af80 && \
+        apt-get update && apt-get install -y --no-install-recommends wget && \
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb && \
+        dpkg -i cuda-keyring_1.0-1_all.deb && \
+        apt-get update && \ 
     apt-get -y upgrade && \
     apt-get -y install --no-install-recommends \
         build-essential \
@@ -47,8 +53,8 @@ RUN apt-get update && \
         && \
     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
         gpg --dearmor - | \
-        tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-    apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main' && \
+        tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
+    echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         autoconf \
