@@ -12,6 +12,7 @@
 # language governing permissions and limitations under the License.
 import numpy as np
 import xgboost as xgb
+from math import log
 import unittest
 from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, get_custom_metrics
 
