@@ -13,8 +13,7 @@
 import numpy as np
 import xgboost as xgb
 import unittest
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro, \
-    get_custom_metrics
+from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, get_custom_metrics
 
 
 binary_train_data = np.random.rand(10, 2)
