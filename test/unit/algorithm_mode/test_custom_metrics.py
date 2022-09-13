@@ -13,7 +13,9 @@
 import numpy as np
 import xgboost as xgb
 from math import log
-from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro
+import unittest
+from sagemaker_xgboost_container.metrics.custom_metrics import accuracy, f1, mse, r2, f1_binary, f1_macro, \
+    get_custom_metrics
 
 
 binary_train_data = np.random.rand(10, 2)
@@ -128,3 +130,10 @@ def test_r2():
     r2_score_name, r2_score_result = r2(regression_preds, regression_dtrain)
     assert r2_score_name == 'r2'
     assert r2_score_result == -1
+
+
+class TestCustomMetric(unittest.TestCase):
+    def test_get_custom_metrics(self):
+        eval_metrics = ["mse", "f1", "r2", "wrong_metric"]
+        res = get_custom_metrics(eval_metrics)
+        self.assertListEqual(res, ["mse", "f1", "r2"])
