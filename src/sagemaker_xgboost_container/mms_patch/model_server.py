@@ -11,6 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
+
 import os
 import signal
 import subprocess
@@ -18,22 +19,21 @@ import sys
 
 import pkg_resources
 import psutil
-from retrying import retry
-
 import sagemaker_inference
+from retrying import retry
 from sagemaker_inference import default_handler_service, environment, logging, utils
 from sagemaker_inference.environment import code_dir
 
 logger = logging.get_logger()
 
 DEFAULT_HANDLER_SERVICE = default_handler_service.__name__
-MMS_CONFIG_FILE = os.path.join('/etc', 'sagemaker-mms.properties')
-DEFAULT_MMS_CONFIG_FILE = pkg_resources.resource_filename(sagemaker_inference.__name__, '/etc/default-mms.properties')
-DEFAULT_MMS_LOG_FILE = pkg_resources.resource_filename(sagemaker_inference.__name__, '/etc/log4j.properties')
-DEFAULT_MMS_MODEL_DIRECTORY = os.path.join(os.getcwd(), '.sagemaker/mms/models')
-DEFAULT_MMS_MODEL_NAME = 'model'
+MMS_CONFIG_FILE = os.path.join("/etc", "sagemaker-mms.properties")
+DEFAULT_MMS_CONFIG_FILE = pkg_resources.resource_filename(sagemaker_inference.__name__, "/etc/default-mms.properties")
+DEFAULT_MMS_LOG_FILE = pkg_resources.resource_filename(sagemaker_inference.__name__, "/etc/log4j.properties")
+DEFAULT_MMS_MODEL_DIRECTORY = os.path.join(os.getcwd(), ".sagemaker/mms/models")
+DEFAULT_MMS_MODEL_NAME = "model"
 
-PYTHON_PATH_ENV = 'PYTHONPATH'
+PYTHON_PATH_ENV = "PYTHONPATH"
 REQUIREMENTS_PATH = os.path.join(code_dir, "requirements.txt")
 MMS_NAMESPACE = "com.amazonaws.ml.mms.ModelServer"
 
@@ -57,15 +57,18 @@ def start_model_server(is_multi_model=False, handler_service=DEFAULT_HANDLER_SER
 
     _set_python_path()
 
-    mxnet_model_server_cmd = ['mxnet-model-server',
-                              '--start',
-                              '--mms-config', config_file,
-                              '--log-config', DEFAULT_MMS_LOG_FILE,
-                              ]
+    mxnet_model_server_cmd = [
+        "mxnet-model-server",
+        "--start",
+        "--mms-config",
+        config_file,
+        "--log-config",
+        DEFAULT_MMS_LOG_FILE,
+    ]
 
     if not is_multi_model:
         _adapt_to_mms_format(handler_service)
-        mxnet_model_server_cmd += ['--model-store', DEFAULT_MMS_MODEL_DIRECTORY]
+        mxnet_model_server_cmd += ["--model-store", DEFAULT_MMS_MODEL_DIRECTORY]
 
     logger.info(mxnet_model_server_cmd)
     subprocess.Popen(mxnet_model_server_cmd)
@@ -84,13 +87,19 @@ def _adapt_to_mms_format(handler_service):
     if not os.path.exists(DEFAULT_MMS_MODEL_DIRECTORY):
         os.makedirs(DEFAULT_MMS_MODEL_DIRECTORY)
 
-    model_archiver_cmd = ['model-archiver',
-                          '--model-name', DEFAULT_MMS_MODEL_NAME,
-                          '--handler', handler_service,
-                          '--model-path', environment.model_dir,
-                          '--export-path', DEFAULT_MMS_MODEL_DIRECTORY,
-                          '--archive-format', 'no-archive',
-                          ]
+    model_archiver_cmd = [
+        "model-archiver",
+        "--model-name",
+        DEFAULT_MMS_MODEL_NAME,
+        "--handler",
+        handler_service,
+        "--model-path",
+        environment.model_dir,
+        "--export-path",
+        DEFAULT_MMS_MODEL_DIRECTORY,
+        "--archive-format",
+        "no-archive",
+    ]
 
     logger.info(model_archiver_cmd)
     subprocess.check_call(model_archiver_cmd)
@@ -101,7 +110,7 @@ def _set_python_path():
     # to the model archiver, to the PYTHONPATH env var.
     # The code_dir has to be added to the PYTHONPATH otherwise the
     # user provided module can not be imported properly.
-    code_dir_path = '{}:'.format(environment.code_dir)
+    code_dir_path = "{}:".format(environment.code_dir)
 
     if PYTHON_PATH_ENV in os.environ:
         os.environ[PYTHON_PATH_ENV] = code_dir_path + os.environ[PYTHON_PATH_ENV]
@@ -119,9 +128,9 @@ def _generate_mms_config_properties():
     env = environment.Environment()
 
     user_defined_configuration = {
-        'default_response_timeout': env.model_server_timeout,
-        'default_workers_per_model': env.model_server_workers,
-        'inference_address': 'http://0.0.0.0:{}'.format(env.http_port)
+        "default_response_timeout": env.model_server_timeout,
+        "default_workers_per_model": env.model_server_workers,
+        "inference_address": "http://0.0.0.0:{}".format(env.http_port),
     }
 
     custom_configuration = str()
@@ -129,7 +138,7 @@ def _generate_mms_config_properties():
     for key in user_defined_configuration:
         value = user_defined_configuration.get(key)
         if value:
-            custom_configuration += '{}={}\n'.format(key, value)
+            custom_configuration += "{}={}\n".format(key, value)
 
     mms_default_configuration = utils.read_file(DEFAULT_MMS_CONFIG_FILE)
 
@@ -147,14 +156,14 @@ def _add_sigterm_handler(mms_process):
 
 
 def _install_requirements():
-    logger.info('installing packages from requirements.txt...')
-    pip_install_cmd = [sys.executable, '-m', 'pip', 'install', '-r', REQUIREMENTS_PATH]
+    logger.info("installing packages from requirements.txt...")
+    pip_install_cmd = [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_PATH]
 
     try:
         subprocess.check_call(pip_install_cmd)
     except subprocess.CalledProcessError:
-        logger.error('failed to install required packages, exiting')
-        raise ValueError('failed to install required packages')
+        logger.error("failed to install required packages, exiting")
+        raise ValueError("failed to install required packages")
 
 
 # retry for 10 seconds

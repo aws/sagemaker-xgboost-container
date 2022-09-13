@@ -16,24 +16,22 @@ This is heavily inspired by the Dask version of XGBoost.
 Some of this code should be made simpler once the XGBoost library is improved.
 """
 import logging
-from retrying import retry
 import socket
 import sys
 import time
 
+from retrying import retry
 from xgboost import rabit
 
 # This should point to xgb when the tracker is updated upstream
 from sagemaker_xgboost_container.dmlc_patch import tracker
 
-LOCAL_HOSTNAME = '127.0.0.1'
+LOCAL_HOSTNAME = "127.0.0.1"
 
 
-@retry(stop_max_delay=1000 * 60 * 15,
-       wait_exponential_multiplier=100,
-       wait_exponential_max=30000)
+@retry(stop_max_delay=1000 * 60 * 15, wait_exponential_multiplier=100, wait_exponential_max=30000)
 def _dns_lookup(host):
-    """Retrying dns lookup on host """
+    """Retrying dns lookup on host"""
     return socket.gethostbyname(host)
 
 
@@ -46,9 +44,18 @@ def wait_hostname_resolution(sm_hosts):
         _dns_lookup(host)
 
 
-def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
-              first_port=None, second_port=None, max_connect_attempts=None,
-              connect_retry_timeout=3, update_rabit_args=False):
+def rabit_run(
+    exec_fun,
+    args,
+    include_in_training,
+    hosts,
+    current_host,
+    first_port=None,
+    second_port=None,
+    max_connect_attempts=None,
+    connect_retry_timeout=3,
+    update_rabit_args=False,
+):
     """Run execution function after initializing dmlc/rabit.
 
     This method initializes rabit twice:
@@ -71,13 +78,14 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
                                 is_master
     """
     with Rabit(
-            hosts=hosts,
-            current_host=current_host,
-            port=first_port,
-            max_connect_attempts=max_connect_attempts,
-            connect_retry_timeout=connect_retry_timeout) as rabit:
-        hosts_with_data = rabit.synchronize({'host': rabit.current_host, 'include_in_training': include_in_training})
-        hosts_with_data = [record['host'] for record in hosts_with_data if record['include_in_training']]
+        hosts=hosts,
+        current_host=current_host,
+        port=first_port,
+        max_connect_attempts=max_connect_attempts,
+        connect_retry_timeout=connect_retry_timeout,
+    ) as rabit:
+        hosts_with_data = rabit.synchronize({"host": rabit.current_host, "include_in_training": include_in_training})
+        hosts_with_data = [record["host"] for record in hosts_with_data if record["include_in_training"]]
 
         # Keep track of port used, so that hosts trying to shutdown know when server is not available
         previous_port = rabit.master_port
@@ -92,20 +100,22 @@ def rabit_run(exec_fun, args, include_in_training, hosts, current_host,
         # Set up rabit with nodes that have data and an unused port so that previous slaves don't confuse it
         # with the previous rabit configuration
         with Rabit(
-                hosts=hosts_with_data,
-                current_host=current_host,
-                port=second_rabit_port,
-                max_connect_attempts=max_connect_attempts,
-                connect_retry_timeout=connect_retry_timeout) as cluster:
+            hosts=hosts_with_data,
+            current_host=current_host,
+            port=second_rabit_port,
+            max_connect_attempts=max_connect_attempts,
+            connect_retry_timeout=connect_retry_timeout,
+        ) as cluster:
             if update_rabit_args:
-                args.update({'is_master': cluster.is_master})
+                args.update({"is_master": cluster.is_master})
             exec_fun(**args)
 
     elif len(hosts_with_data) == 1:
-        logging.debug("Only 1 host with training data, "
-                      "starting single node training job from: {}".format(current_host))
+        logging.debug(
+            "Only 1 host with training data, " "starting single node training job from: {}".format(current_host)
+        )
         if update_rabit_args:
-            args.update({'is_master': True})
+            args.update({"is_master": True})
         exec_fun(**args)
 
     else:
@@ -148,19 +158,14 @@ class RabitHelper(object):
 
 
 class Rabit(object):
-
     @staticmethod
     def _get_logger(current_host):
-        logging.basicConfig(format='%(name) [{}]: %(message)s'.format(current_host))
-        return logging.getLogger('RabitContextManager')
+        logging.basicConfig(format="%(name) [{}]: %(message)s".format(current_host))
+        return logging.getLogger("RabitContextManager")
 
-    def __init__(self,
-                 hosts,
-                 current_host=None,
-                 master_host=None,
-                 port=None,
-                 max_connect_attempts=None,
-                 connect_retry_timeout=3):
+    def __init__(
+        self, hosts, current_host=None, master_host=None, port=None, max_connect_attempts=None, connect_retry_timeout=3
+    ):
         """Context manager for rabit initialization.
 
         :param hosts: List of hostnames
@@ -230,10 +235,9 @@ class Rabit(object):
             #
             # It runs on a master node that each of the individual Rabit instances
             # talk to.
-            self.rabit_context = tracker.RabitTracker(hostIP=self.current_host,
-                                                      nslave=self.n_workers,
-                                                      port=self.port,
-                                                      port_end=self.port + 1)
+            self.rabit_context = tracker.RabitTracker(
+                hostIP=self.current_host, nslave=self.n_workers, port=self.port, port_end=self.port + 1
+            )
 
             # Useful logging to ensure that the tracker has started.
             # These are the key-value config pairs that each of the rabit slaves
@@ -265,8 +269,7 @@ class Rabit(object):
         # if self.max_connect_attempts is None, this will loop indefinitely.
         attempt = 0
         successful_connection = False
-        while (not successful_connection and
-               (self.max_connect_attempts is None or attempt < self.max_connect_attempts)):
+        while not successful_connection and (self.max_connect_attempts is None or attempt < self.max_connect_attempts):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
                     self.logger.debug("Checking if RabitTracker is available.")
@@ -285,9 +288,13 @@ class Rabit(object):
         else:
             self.logger.info("Connected to RabitTracker.")
 
-        rabit.init(['DMLC_NUM_WORKER={}'.format(self.n_workers).encode(),
-                    'DMLC_TRACKER_URI={}'.format(self.master_host).encode(),
-                    'DMLC_TRACKER_PORT={}'.format(self.port).encode()])
+        rabit.init(
+            [
+                "DMLC_NUM_WORKER={}".format(self.n_workers).encode(),
+                "DMLC_TRACKER_URI={}".format(self.master_host).encode(),
+                "DMLC_TRACKER_PORT={}".format(self.port).encode(),
+            ]
+        )
 
         # We can check that the rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).

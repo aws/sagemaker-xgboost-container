@@ -12,31 +12,45 @@
 # language governing permissions and limitations under the License.
 import io
 import json
-import numpy as np
 import os
 import pickle as pkl
 
+import numpy as np
+import xgboost as xgb
+from sagemaker_containers._recordio import _write_recordio
+from sagemaker_containers.record_pb2 import Record
 from scipy import stats
 from scipy.sparse import csr_matrix
-from sagemaker_containers.record_pb2 import Record
-from sagemaker_containers._recordio import _write_recordio
-import xgboost as xgb
 
 from sagemaker_xgboost_container import encoder
 from sagemaker_xgboost_container.algorithm_mode import integration
 from sagemaker_xgboost_container.constants import sm_env_constants
-from sagemaker_xgboost_container.constants.sm_env_constants import SAGEMAKER_INFERENCE_ENSEMBLE
-from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, RECORDIO_PROTOBUF, get_content_type
-from sagemaker_xgboost_container.constants.xgb_constants import (BINARY_HINGE, BINARY_LOG, BINARY_LOGRAW,
-                                                                 MULTI_SOFTMAX, MULTI_SOFTPROB, REG_GAMMA,
-                                                                 REG_LOG, REG_SQUAREDERR, REG_TWEEDIE)
+from sagemaker_xgboost_container.constants.sm_env_constants import (
+    SAGEMAKER_INFERENCE_ENSEMBLE,
+)
+from sagemaker_xgboost_container.constants.xgb_constants import (
+    BINARY_HINGE,
+    BINARY_LOG,
+    BINARY_LOGRAW,
+    MULTI_SOFTMAX,
+    MULTI_SOFTPROB,
+    REG_GAMMA,
+    REG_LOG,
+    REG_SQUAREDERR,
+    REG_TWEEDIE,
+)
+from sagemaker_xgboost_container.data_utils import (
+    CSV,
+    LIBSVM,
+    RECORDIO_PROTOBUF,
+    get_content_type,
+)
 from sagemaker_xgboost_container.encoder import json_to_jsonlines
-
 
 logging = integration.setup_main_logger(__name__)
 
-PKL_FORMAT = 'pkl_format'
-XGB_FORMAT = 'xgb_format'
+PKL_FORMAT = "pkl_format"
+XGB_FORMAT = "xgb_format"
 
 SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
 SAGEMAKER_INFERENCE_OUTPUT = os.getenv(sm_env_constants.SAGEMAKER_INFERENCE_OUTPUT)
@@ -69,15 +83,15 @@ VALID_OBJECTIVES = {
     BINARY_LOGRAW: [PREDICTED_LABEL, LABELS, RAW_SCORE, RAW_SCORES],
     BINARY_HINGE: [PREDICTED_LABEL, LABELS, RAW_SCORE, RAW_SCORES],
     MULTI_SOFTMAX: [PREDICTED_LABEL, LABELS, RAW_SCORE, RAW_SCORES],
-    MULTI_SOFTPROB: [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES]
+    MULTI_SOFTPROB: [PREDICTED_LABEL, LABELS, PROBABILITY, PROBABILITIES, RAW_SCORE, RAW_SCORES],
 }
 
 
 # FIXME: https://github.com/aws/sagemaker-xgboost-container/issues/12
 # This was failing a previous container test; need to make decision as to change test or behavior.
 def _get_sparse_matrix_from_libsvm(payload):
-    pylist = map(lambda x: x.split(' '), payload.split('\n'))
-    colon = ':'
+    pylist = map(lambda x: x.split(" "), payload.split("\n"))
+    colon = ":"
     row = []
     col = []
     data = []
@@ -108,22 +122,28 @@ def parse_content_data(input_data, input_content_type):
             decoded_payload = payload.strip().decode("utf-8")
             dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
         except Exception as e:
-            raise RuntimeError("Loading csv data failed with Exception, "
-                               "please ensure data is in csv format:\n {}\n {}".format(type(e), e))
+            raise RuntimeError(
+                "Loading csv data failed with Exception, "
+                "please ensure data is in csv format:\n {}\n {}".format(type(e), e)
+            )
     elif content_type == LIBSVM:
         try:
             decoded_payload = payload.strip().decode("utf-8")
             dtest = xgb.DMatrix(_get_sparse_matrix_from_libsvm(decoded_payload))
         except Exception as e:
-            raise RuntimeError("Loading libsvm data failed with Exception, "
-                               "please ensure data is in libsvm format:\n {}\n {}".format(type(e), e))
+            raise RuntimeError(
+                "Loading libsvm data failed with Exception, "
+                "please ensure data is in libsvm format:\n {}\n {}".format(type(e), e)
+            )
     elif content_type == RECORDIO_PROTOBUF:
         try:
             dtest = encoder.recordio_protobuf_to_dmatrix(payload)
         except Exception as e:
-            raise RuntimeError("Loading recordio-protobuf data failed with "
-                               "Exception, please ensure data is in "
-                               "recordio-protobuf format: {} {}".format(type(e), e))
+            raise RuntimeError(
+                "Loading recordio-protobuf data failed with "
+                "Exception, please ensure data is in "
+                "recordio-protobuf format: {} {}".format(type(e), e)
+            )
     else:
         raise RuntimeError("Content-type {} is not supported.".format(input_content_type))
 
@@ -182,24 +202,28 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
         try:
             content_type = get_content_type(input_content_type)
         except Exception:
-            raise ValueError('Content type {} is not supported'.format(input_content_type))
+            raise ValueError("Content type {} is not supported".format(input_content_type))
 
         if content_type == LIBSVM:
             if y > x + 1:
-                raise ValueError('Feature size of libsvm inference data {} is larger than '
-                                 'feature size of trained model {}.'.format(y, x))
+                raise ValueError(
+                    "Feature size of libsvm inference data {} is larger than "
+                    "feature size of trained model {}.".format(y, x)
+                )
         elif content_type in [CSV, RECORDIO_PROTOBUF]:
             if not ((x == y) or (x == y + 1)):
-                raise ValueError('Feature size of {} inference data {} is not consistent '
-                                 'with feature size of trained model {}.'.
-                                 format(content_type, y, x))
+                raise ValueError(
+                    "Feature size of {} inference data {} is not consistent "
+                    "with feature size of trained model {}.".format(content_type, y, x)
+                )
         else:
-            raise ValueError('Content type {} is not supported'.format(content_type))
+            raise ValueError("Content type {} is not supported".format(content_type))
 
     if isinstance(model, list):
-        ensemble = [booster.predict(dtest,
-                                    ntree_limit=getattr(booster, "best_ntree_limit", 0),
-                                    validate_features=False) for booster in model]
+        ensemble = [
+            booster.predict(dtest, ntree_limit=getattr(booster, "best_ntree_limit", 0), validate_features=False)
+            for booster in model
+        ]
 
         if objective in [MULTI_SOFTMAX, BINARY_HINGE]:
             logging.info(f"Vote ensemble prediction of {objective} with {len(model)} models")
@@ -208,9 +232,7 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
             logging.info(f"Average ensemble prediction of {objective} with {len(model)} models")
             return np.mean(ensemble, axis=0)
     else:
-        return model.predict(dtest,
-                             ntree_limit=getattr(model, "best_ntree_limit", 0),
-                             validate_features=False)
+        return model.predict(dtest, ntree_limit=getattr(model, "best_ntree_limit", 0), validate_features=False)
 
 
 def is_selectable_inference_output():
@@ -223,9 +245,11 @@ def get_selected_output_keys():
     :return: selected output content keys (list of str)
     """
     if is_selectable_inference_output():
-        return SAGEMAKER_INFERENCE_OUTPUT.replace(' ', '').lower().split(',')
-    raise RuntimeError("'SAGEMAKER_INFERENCE_OUTPUT' environment variable is not present. "
-                       "Selectable inference content is not enabled.")
+        return SAGEMAKER_INFERENCE_OUTPUT.replace(" ", "").lower().split(",")
+    raise RuntimeError(
+        "'SAGEMAKER_INFERENCE_OUTPUT' environment variable is not present. "
+        "Selectable inference content is not enabled."
+    )
 
 
 def _get_labels(objective, num_class=""):
@@ -363,15 +387,17 @@ def get_selected_predictions(raw_predictions, selected_keys, objective, num_clas
     :return: selected prediction (list of dict)
     """
     if objective not in VALID_OBJECTIVES:
-        raise ValueError("Objective `{}` unsupported for selectable inference predictions."
-                         .format(objective))
+        raise ValueError("Objective `{}` unsupported for selectable inference predictions.".format(objective))
 
     valid_selected_keys = set(selected_keys).intersection(VALID_OBJECTIVES[objective])
     invalid_selected_keys = set(selected_keys).difference(VALID_OBJECTIVES[objective])
     if invalid_selected_keys:
-        logging.warning("Selected key(s) {} incompatible for objective '{}'. "
-                        "Please use list of compatible selectable inference predictions: {}"
-                        .format(invalid_selected_keys, objective, VALID_OBJECTIVES[objective]))
+        logging.warning(
+            "Selected key(s) {} incompatible for objective '{}'. "
+            "Please use list of compatible selectable inference predictions: {}".format(
+                invalid_selected_keys, objective, VALID_OBJECTIVES[objective]
+            )
+        )
 
     predictions = []
     for raw_prediction in raw_predictions:
@@ -406,6 +432,7 @@ def _encode_selected_predictions_csv(predictions, ordered_keys_list):
     :param ordered_keys_list: list of selected content keys (list of str)
     :return: predictions in csv response format (str)
     """
+
     def _generate_single_csv_line_selected_prediction(predictions, ordered_keys_list):
         """Generate a single csv line response for selectable inference predictions
 
@@ -421,9 +448,9 @@ def _encode_selected_predictions_csv(predictions, ordered_keys_list):
                 else:
                     value = str(single_prediction[key])
                 values.append(value)
-            yield ','.join(values)
+            yield ",".join(values)
 
-    return '\n'.join(_generate_single_csv_line_selected_prediction(predictions, ordered_keys_list))
+    return "\n".join(_generate_single_csv_line_selected_prediction(predictions, ordered_keys_list))
 
 
 def _write_record(record, key, value):
@@ -474,7 +501,7 @@ def encode_selected_predictions(predictions, selected_content_keys, accept):
     if accept == "text/csv":
         csv_response = _encode_selected_predictions_csv(predictions, selected_content_keys)
         if SAGEMAKER_BATCH:
-            return csv_response + '\n'
+            return csv_response + "\n"
         return csv_response
     raise RuntimeError("Cannot encode selected predictions into accept type '{}'.".format(accept))
 

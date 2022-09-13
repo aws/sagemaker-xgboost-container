@@ -10,9 +10,9 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-from sagemaker_algorithm_toolkit import exceptions as exc
-
 import logging
+
+from sagemaker_algorithm_toolkit import exceptions as exc
 
 
 class Metric(object):
@@ -32,12 +32,10 @@ class Metric(object):
         logging.info(self.format_string.format(value))
 
     def format_tunable(self):
-        return {"MetricName": self.name,
-                "Type": self.direction}
+        return {"MetricName": self.name, "Type": self.direction}
 
     def format_definition(self):
-        return {"Name": self.name,
-                "Regex": self.regex}
+        return {"Name": self.name, "Regex": self.regex}
 
 
 class Metrics(object):

@@ -16,14 +16,13 @@ import argparse
 import json
 import logging
 import os
-
 import pickle as pkl
 
-from sagemaker_containers import entry_point
-from sagemaker_xgboost_container.data_utils import get_dmatrix
-from sagemaker_xgboost_container import distributed
-
 import xgboost as xgb
+from sagemaker_containers import entry_point
+
+from sagemaker_xgboost_container import distributed
+from sagemaker_xgboost_container.data_utils import get_dmatrix
 
 
 def _xgb_train(params, dtrain, evals, num_boost_round, model_dir, is_master):
@@ -36,9 +35,7 @@ def _xgb_train(params, dtrain, evals, num_boost_round, model_dir, is_master):
                         or is running single node training job.
                         Note that rabit_run will include this argument.
     """
-    booster = xgb.train(
-        params=params, dtrain=dtrain, evals=evals, num_boost_round=num_boost_round
-    )
+    booster = xgb.train(params=params, dtrain=dtrain, evals=evals, num_boost_round=num_boost_round)
 
     if is_master:
         model_location = model_dir + "/xgboost-model"
@@ -59,18 +56,12 @@ if __name__ == "__main__":
     parser.add_argument("--num_round", type=int)
 
     # Sagemaker specific arguments. Defaults are set in the environment variables.
-    parser.add_argument(
-        "--output_data_dir", type=str, default=os.environ.get("SM_OUTPUT_DATA_DIR")
-    )
+    parser.add_argument("--output_data_dir", type=str, default=os.environ.get("SM_OUTPUT_DATA_DIR"))
     parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR"))
     parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAIN"))
-    parser.add_argument(
-        "--validation", type=str, default=os.environ.get("SM_CHANNEL_VALIDATION")
-    )
+    parser.add_argument("--validation", type=str, default=os.environ.get("SM_CHANNEL_VALIDATION"))
     parser.add_argument("--sm_hosts", type=str, default=os.environ.get("SM_HOSTS"))
-    parser.add_argument(
-        "--sm_current_host", type=str, default=os.environ.get("SM_CURRENT_HOST")
-    )
+    parser.add_argument("--sm_current_host", type=str, default=os.environ.get("SM_CURRENT_HOST"))
 
     args, _ = parser.parse_known_args()
 
@@ -80,11 +71,7 @@ if __name__ == "__main__":
 
     dtrain = get_dmatrix(args.train, "libsvm")
     dval = get_dmatrix(args.validation, "libsvm")
-    watchlist = (
-        [(dtrain, "train"), (dval, "validation")]
-        if dval is not None
-        else [(dtrain, "train")]
-    )
+    watchlist = [(dtrain, "train"), (dval, "validation")] if dval is not None else [(dtrain, "train")]
 
     train_hp = {
         "max_depth": args.max_depth,

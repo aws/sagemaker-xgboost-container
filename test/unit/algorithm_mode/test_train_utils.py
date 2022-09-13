@@ -12,36 +12,38 @@
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
 
+import math
+import os
+import shutil
+import tempfile
+
 import numpy as np
 import xgboost as xgb
-import os
-import tempfile
-import shutil
-import math
 
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 
 
 def test_get_union_metrics():
-    a = ['metric_1', 'metric_2']
-    b = ['metric_1', 'metric_3']
+    a = ["metric_1", "metric_2"]
+    b = ["metric_1", "metric_3"]
 
     union = train_utils.get_union_metrics(a, b)
     assert len(union) == 3
     for metric in union:
-        assert metric in ['metric_1', 'metric_2', 'metric_3']
+        assert metric in ["metric_1", "metric_2", "metric_3"]
 
 
 def test_get_eval_metrics_and_feval():
-    test_objective = 'validation:logloss'
-    test_evals = ['accuracy', 'rmse']
+    test_objective = "validation:logloss"
+    test_evals = ["accuracy", "rmse"]
 
-    test_eval_metrics, test_configured_eval, tuning_metric = train_utils.get_eval_metrics_and_feval(test_objective,
-                                                                                                    test_evals)
+    test_eval_metrics, test_configured_eval, tuning_metric = train_utils.get_eval_metrics_and_feval(
+        test_objective, test_evals
+    )
 
     assert len(test_eval_metrics) == 1
     for metric in test_eval_metrics:
-        assert metric in ['logloss']
+        assert metric in ["logloss"]
 
     binary_train_data = np.random.rand(10, 2)
     binary_train_label = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
@@ -52,8 +54,8 @@ def test_get_eval_metrics_and_feval():
     custom_metric_results.sort()
 
     assert 2 == len(custom_metric_results)
-    assert ('accuracy', .5) == custom_metric_results[0]
-    assert ('rmse', math.sqrt(0.5)) == custom_metric_results[1]
+    assert ("accuracy", 0.5) == custom_metric_results[0]
+    assert ("rmse", math.sqrt(0.5)) == custom_metric_results[1]
 
 
 def test_cleanup_dir():
@@ -61,7 +63,7 @@ def test_cleanup_dir():
         test_dir = tempfile.mkdtemp()
         for file_name in file_names:
             test_path = os.path.join(test_dir, file_name)
-            with open(test_path, 'w'):
+            with open(test_path, "w"):
                 pass
 
         return test_dir
@@ -71,7 +73,7 @@ def test_cleanup_dir():
 
     # Test 1: Check if 'xgboost-model' is present after cleanup
     model_name = "xgboost-model"
-    file_names = ['tmp1', 'tmp2', 'xgboost-model']
+    file_names = ["tmp1", "tmp2", "xgboost-model"]
     test_dir = setup(file_names)
 
     train_utils.cleanup_dir(test_dir, model_name)
@@ -83,7 +85,7 @@ def test_cleanup_dir():
     tearDown(test_dir)
 
     # Test 2: Check if directory is empty after cleanup
-    file_names = ['tmp1', 'tmp2']
+    file_names = ["tmp1", "tmp2"]
     test_dir = setup(file_names)
 
     train_utils.cleanup_dir(test_dir, model_name)

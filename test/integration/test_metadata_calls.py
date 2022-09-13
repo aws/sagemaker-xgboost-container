@@ -10,17 +10,17 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-from datetime import datetime
 import os
 import pprint
 import unittest
+from datetime import datetime
+
+import boto3
 
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metadata
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
-
-import boto3
 
 
 class TestCreateAlgorithm(unittest.TestCase):
@@ -61,22 +61,16 @@ class TestCreateAlgorithm(unittest.TestCase):
             HyperParameterTuningJobName="test-hpo-" + dt_string,
             HyperParameterTuningJobConfig={
                 "Strategy": "Random",
-                "ResourceLimits": {
-                    "MaxNumberOfTrainingJobs": 6,
-                    "MaxParallelTrainingJobs": 2
-                },
+                "ResourceLimits": {"MaxNumberOfTrainingJobs": 6, "MaxParallelTrainingJobs": 2},
                 "HyperParameterTuningJobObjective": objective.format_tunable(),
-                "ParameterRanges": hyperparameters["alpha"].format_tunable_range()
+                "ParameterRanges": hyperparameters["alpha"].format_tunable_range(),
             },
             TrainingJobDefinition={
-                "AlgorithmSpecification": {
-                    "AlgorithmName": ALGORITHM_NAME,
-                    "TrainingInputMode": "File"
-                },
+                "AlgorithmSpecification": {"AlgorithmName": ALGORITHM_NAME, "TrainingInputMode": "File"},
                 "StaticHyperParameters": {"num_round": "3"},
                 "RoleArn": ROLE_ARN,
                 "OutputDataConfig": {"S3OutputPath": OUTPUT_PATH},
                 "ResourceConfig": {"InstanceType": "ml.m5.xlarge", "InstanceCount": 1, "VolumeSizeInGB": 5},
-                "StoppingCondition": {"MaxRuntimeInSeconds": 300}
-                }
+                "StoppingCondition": {"MaxRuntimeInSeconds": 300},
+            },
         )

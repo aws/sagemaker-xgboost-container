@@ -15,45 +15,58 @@ import csv
 import logging
 import os
 import shutil
-
 from typing import List, Union
 
 import mlio
-from mlio.integ.arrow import as_arrow_file
-from mlio.integ.numpy import as_numpy
-from mlio.integ.scipy import to_coo_matrix
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
+import xgboost as xgb
+from mlio.integ.arrow import as_arrow_file
+from mlio.integ.numpy import as_numpy
+from mlio.integ.scipy import to_coo_matrix
 from sagemaker_containers import _content_types
 from scipy.sparse import vstack as scipy_vstack
-import xgboost as xgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants import xgb_content_types
 
-
 BATCH_SIZE = 4000
 
-CSV = 'csv'
-LIBSVM = 'libsvm'
-PARQUET = 'parquet'
-RECORDIO_PROTOBUF = 'recordio-protobuf'
+CSV = "csv"
+LIBSVM = "libsvm"
+PARQUET = "parquet"
+RECORDIO_PROTOBUF = "recordio-protobuf"
 
-VALID_CONTENT_TYPES = [CSV, LIBSVM, PARQUET, RECORDIO_PROTOBUF,
-                       _content_types.CSV, xgb_content_types.LIBSVM,
-                       xgb_content_types.X_LIBSVM, xgb_content_types.X_PARQUET,
-                       xgb_content_types.X_RECORDIO_PROTOBUF]
+VALID_CONTENT_TYPES = [
+    CSV,
+    LIBSVM,
+    PARQUET,
+    RECORDIO_PROTOBUF,
+    _content_types.CSV,
+    xgb_content_types.LIBSVM,
+    xgb_content_types.X_LIBSVM,
+    xgb_content_types.X_PARQUET,
+    xgb_content_types.X_RECORDIO_PROTOBUF,
+]
 
-VALID_PIPED_CONTENT_TYPES = [CSV, PARQUET, RECORDIO_PROTOBUF,
-                             _content_types.CSV, xgb_content_types.X_PARQUET,
-                             xgb_content_types.X_RECORDIO_PROTOBUF]
+VALID_PIPED_CONTENT_TYPES = [
+    CSV,
+    PARQUET,
+    RECORDIO_PROTOBUF,
+    _content_types.CSV,
+    xgb_content_types.X_PARQUET,
+    xgb_content_types.X_RECORDIO_PROTOBUF,
+]
 
 
-INVALID_CONTENT_TYPE_ERROR = "{invalid_content_type} is not an accepted ContentType: " + \
-                             ", ".join(['%s' % c for c in VALID_CONTENT_TYPES]) + "."
-INVALID_CONTENT_FORMAT_ERROR = "First line '{line_snippet}...' of file '{file_name}' is not " \
-                               "'{content_type}' format. Please ensure the file is in '{content_type}' format."
+INVALID_CONTENT_TYPE_ERROR = (
+    "{invalid_content_type} is not an accepted ContentType: " + ", ".join(["%s" % c for c in VALID_CONTENT_TYPES]) + "."
+)
+INVALID_CONTENT_FORMAT_ERROR = (
+    "First line '{line_snippet}...' of file '{file_name}' is not "
+    "'{content_type}' format. Please ensure the file is in '{content_type}' format."
+)
 
 
 def _get_invalid_content_type_error_msg(invalid_content_type):
@@ -61,11 +74,11 @@ def _get_invalid_content_type_error_msg(invalid_content_type):
 
 
 def _get_invalid_libsvm_error_msg(line_snippet, file_name):
-    return INVALID_CONTENT_FORMAT_ERROR.format(line_snippet=line_snippet, file_name=file_name, content_type='LIBSVM')
+    return INVALID_CONTENT_FORMAT_ERROR.format(line_snippet=line_snippet, file_name=file_name, content_type="LIBSVM")
 
 
 def _get_invalid_csv_error_msg(line_snippet, file_name):
-    return INVALID_CONTENT_FORMAT_ERROR.format(line_snippet=line_snippet, file_name=file_name, content_type='CSV')
+    return INVALID_CONTENT_FORMAT_ERROR.format(line_snippet=line_snippet, file_name=file_name, content_type="CSV")
 
 
 def get_content_type(content_type_cfg_val):
@@ -90,9 +103,11 @@ def get_content_type(content_type_cfg_val):
         if content_type in [CSV, _content_types.CSV]:
             # CSV content type allows a label_size parameter
             # that should be 1 for XGBoost
-            if (params and 'label_size' in params and params['label_size'] != '1'):
-                msg = "{} is not an accepted csv ContentType. "\
-                        "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
+            if params and "label_size" in params and params["label_size"] != "1":
+                msg = (
+                    "{} is not an accepted csv ContentType. "
+                    "Optional parameter label_size must be equal to 1".format(content_type_cfg_val)
+                )
                 raise exc.UserError(msg)
             return CSV
         elif content_type in [LIBSVM, xgb_content_types.LIBSVM, xgb_content_types.X_LIBSVM]:
@@ -118,11 +133,11 @@ def _is_data_file(file_path, file_name):
     """
     if not os.path.isfile(os.path.join(file_path, file_name)):
         return False
-    if file_name.startswith('.') or file_name.startswith('_'):
+    if file_name.startswith(".") or file_name.startswith("_"):
         return False
     # avoid XGB cache file
-    if '.cache' in file_name:
-        if 'dtrain' in file_name or 'dval' in file_name:
+    if ".cache" in file_name:
+        if "dtrain" in file_name or "dval" in file_name:
             return False
     return True
 
@@ -130,7 +145,7 @@ def _is_data_file(file_path, file_name):
 def _get_csv_delimiter(sample_csv_line):
     try:
         delimiter = csv.Sniffer().sniff(sample_csv_line).delimiter
-        logging.info("Determined delimiter of CSV input is \'{}\'".format(delimiter))
+        logging.info("Determined delimiter of CSV input is '{}'".format(delimiter))
     except Exception as e:
         raise exc.UserError("Could not determine delimiter on line {}:\n{}".format(sample_csv_line[:50], e))
     return delimiter
@@ -145,7 +160,7 @@ def _get_num_valid_libsvm_features(libsvm_line):
     :param libsvm_line:
     :return: -1 if the line is not a valid LIBSVM line; otherwise, return number of correctly formatted features
     """
-    split_line = libsvm_line.split(' ')
+    split_line = libsvm_line.split(" ")
     num_sparse_features = 0
 
     if not _is_valid_libsvm_label(split_line[0]):
@@ -154,10 +169,10 @@ def _get_num_valid_libsvm_features(libsvm_line):
 
     if len(split_line) > 1:
         for idx in range(1, len(split_line)):
-            if ':' not in split_line[idx]:
+            if ":" not in split_line[idx]:
                 return -1
             else:
-                libsvm_feature_contents = split_line[1].split(':')
+                libsvm_feature_contents = split_line[1].split(":")
                 if len(libsvm_feature_contents) != 2:
                     return -1
                 else:
@@ -175,7 +190,7 @@ def _is_valid_libsvm_label(libsvm_label):
 
     :param libsvm_label:
     """
-    split_label = libsvm_label.split(':')
+    split_label = libsvm_label.split(":")
 
     if len(split_label) <= 2:
         for label_part in split_label:
@@ -199,7 +214,7 @@ def _validate_csv_format(file_path):
 
     :param file_path
     """
-    with open(file_path, 'r', errors='ignore') as read_file:
+    with open(file_path, "r", errors="ignore") as read_file:
         line_to_validate = read_file.readline()
         _get_csv_delimiter(line_to_validate)
 
@@ -215,7 +230,7 @@ def _validate_libsvm_format(file_path):
 
     :param file_path
     """
-    with open(file_path, 'r', errors='ignore') as read_file:
+    with open(file_path, "r", errors="ignore") as read_file:
         for line_to_validate in read_file:
             num_sparse_libsvm_features = _get_num_valid_libsvm_features(line_to_validate)
 
@@ -223,11 +238,17 @@ def _validate_libsvm_format(file_path):
                 # Return after first valid LIBSVM line with features
                 return
             elif num_sparse_libsvm_features < 0:
-                raise exc.UserError(_get_invalid_libsvm_error_msg(
-                    line_snippet=line_to_validate[:50], file_name=file_path.split('/')[-1]))
+                raise exc.UserError(
+                    _get_invalid_libsvm_error_msg(
+                        line_snippet=line_to_validate[:50], file_name=file_path.split("/")[-1]
+                    )
+                )
 
-    logging.warning("File {} is not an invalid LIBSVM file but has no features. Accepting simple validation.".format(
-        file_path.split('/')[-1]))
+    logging.warning(
+        "File {} is not an invalid LIBSVM file but has no features. Accepting simple validation.".format(
+            file_path.split("/")[-1]
+        )
+    )
 
 
 def validate_data_file_path(data_path, content_type):
@@ -253,8 +274,10 @@ def validate_data_file_path(data_path, content_type):
                     dir_path = root
                     break
             data_files = [
-                os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path) if _is_data_file(
-                    dir_path, file_name)]
+                os.path.join(dir_path, file_name)
+                for file_name in os.listdir(dir_path)
+                if _is_data_file(dir_path, file_name)
+            ]
         if parsed_content_type.lower() == CSV:
             for data_file_path in data_files:
                 _validate_csv_format(data_file_path)
@@ -275,8 +298,11 @@ def _get_csv_dmatrix_file_mode(files_path, csv_weights):
     :param csv_weights: 1 if instance weights are in second column of CSV data; else 0
     :return: xgb.DMatrix
     """
-    csv_file = files_path if os.path.isfile(files_path) else [
-        f for f in os.listdir(files_path) if os.path.isfile(os.path.join(files_path, f))][0]
+    csv_file = (
+        files_path
+        if os.path.isfile(files_path)
+        else [f for f in os.listdir(files_path) if os.path.isfile(os.path.join(files_path, f))][0]
+    )
     with open(os.path.join(files_path, csv_file)) as read_file:
         sample_csv_line = read_file.readline()
     delimiter = _get_csv_delimiter(sample_csv_line)
@@ -284,9 +310,10 @@ def _get_csv_dmatrix_file_mode(files_path, csv_weights):
     try:
         if csv_weights == 1:
             dmatrix = xgb.DMatrix(
-                '{}?format=csv&label_column=0&delimiter={}&weight_column=1'.format(files_path, delimiter))
+                "{}?format=csv&label_column=0&delimiter={}&weight_column=1".format(files_path, delimiter)
+            )
         else:
-            dmatrix = xgb.DMatrix('{}?format=csv&label_column=0&delimiter={}'.format(files_path, delimiter))
+            dmatrix = xgb.DMatrix("{}?format=csv&label_column=0&delimiter={}".format(files_path, delimiter))
 
     except Exception as e:
         raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
@@ -465,15 +492,15 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
 
         if reader.peek_example() is not None:
             # recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
-            is_dense_tensor = type(reader.peek_example()['values']) is mlio.DenseTensor
+            is_dense_tensor = type(reader.peek_example()["values"]) is mlio.DenseTensor
 
             all_features = []
             all_labels = []
             for example in reader:
-                features = as_numpy(example['values']) if is_dense_tensor else to_coo_matrix(example['values'])
+                features = as_numpy(example["values"]) if is_dense_tensor else to_coo_matrix(example["values"])
                 all_features.append(features)
 
-                labels = as_numpy(example['label_values'])
+                labels = as_numpy(example["label_values"])
                 all_labels.append(labels)
 
             all_features = np.vstack(all_features) if is_dense_tensor else scipy_vstack(all_features).tocsr()
@@ -509,7 +536,7 @@ def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
     # directories to meet XGB's assumption that all files are in the same directory.
 
     if isinstance(data_path, list):
-        logging.info('File path {} of input files'.format(data_path))
+        logging.info("File path {} of input files".format(data_path))
         # Create a directory with symlinks to input files.
         files_path = "/tmp/sagemaker_xgboost_input_data"
         shutil.rmtree(files_path, ignore_errors=True)
@@ -525,7 +552,7 @@ def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
 
     else:
         if not os.path.exists(data_path):
-            logging.info('File path {} does not exist!'.format(data_path))
+            logging.info("File path {} does not exist!".format(data_path))
             return None
         files_path = get_files_path_from_string(data_path)
 
@@ -575,7 +602,8 @@ def get_dmatrix(data_path, content_type, csv_weights=0, is_pipe=False):
             "Got input data without labels. Please check the input data set. "
             "If training job is running on multiple instances, please switch "
             "to using single instance if number of records in the data set "
-            "is less than number of workers (16 * number of instance) in the cluster.")
+            "is less than number of workers (16 * number of instance) in the cluster."
+        )
 
     return dmatrix
 
@@ -600,7 +628,7 @@ def get_size(data_path, is_pipe=False):
         else:
             for root, dirs, files in os.walk(data_path):
                 for current_file in files:
-                    if current_file.startswith('.'):
+                    if current_file.startswith("."):
                         raise exc.UserError("Hidden file found in the data path! Remove that before training.")
                     file_path = os.path.join(root, current_file)
                     total_size += os.path.getsize(file_path)
@@ -621,7 +649,7 @@ def get_files_path_from_string(data_path: Union[List[str], str]) -> List[str]:
 
 def _make_symlink(path, source_path, name, index):
     base_name = os.path.join(source_path, f"{name}_{str(index)}")
-    logging.info(f'creating symlink between Path {source_path} and destination {base_name}')
+    logging.info(f"creating symlink between Path {source_path} and destination {base_name}")
     os.symlink(path, base_name)
 
 
@@ -648,8 +676,10 @@ def check_data_redundancy(train_path, validate_path):
         f_train_size = os.path.getsize(f_train_path)
         f_validate_size = os.path.getsize(f_validate_path)
         if f_train_size == f_validate_size:
-            logging.warning(f"Suspected identical files found. ({f_train_path} and {f_validate_path}"
-                            f"with same size {f_validate_size} bytes)."
-                            f" Note: Duplicate data in the training set and validation set is usually"
-                            f" not intentional and can impair the validity of the model evaluation by"
-                            f" the validation score.")
+            logging.warning(
+                f"Suspected identical files found. ({f_train_path} and {f_validate_path}"
+                f"with same size {f_validate_size} bytes)."
+                f" Note: Duplicate data in the training set and validation set is usually"
+                f" not intentional and can impair the validity of the model evaluation by"
+                f" the validation score."
+            )

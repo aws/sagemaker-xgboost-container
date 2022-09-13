@@ -14,10 +14,10 @@ from __future__ import absolute_import
 
 import textwrap
 
+from sagemaker_containers.beta.framework import encoders
 from sagemaker_inference import content_types, default_inference_handler
 from sagemaker_inference.default_handler_service import DefaultHandlerService
 from sagemaker_inference.transformer import Transformer
-from sagemaker_containers.beta.framework import encoders
 
 from sagemaker_xgboost_container import encoder as xgb_encoders
 
@@ -32,7 +32,6 @@ class HandlerService(DefaultHandlerService):
     """
 
     class DefaultXGBoostUserModuleInferenceHandler(default_inference_handler.DefaultInferenceHandler):
-
         def default_model_fn(self, model_dir):
             """Load a model. For XGBoost Framework, a default function to load a model is not provided.
             Users should provide customized model_fn() in script.
@@ -40,10 +39,14 @@ class HandlerService(DefaultHandlerService):
                 model_dir: a directory where model is saved.
             Returns: A XGBoost model.
             """
-            raise NotImplementedError(textwrap.dedent("""
+            raise NotImplementedError(
+                textwrap.dedent(
+                    """
             Please provide a model_fn implementation.
             See documentation for model_fn at https://github.com/aws/sagemaker-python-sdk
-            """))
+            """
+                )
+            )
 
         def default_input_fn(self, input_data, content_type):
             """Take request data and de-serializes the data into an object for prediction.

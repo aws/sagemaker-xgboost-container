@@ -11,9 +11,16 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import numpy as np
-from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, \
-    precision_score, r2_score, \
-    recall_score, balanced_accuracy_score, mean_absolute_error
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+)
 
 
 # From 1.2, custom evaluation metric receives raw prediction.
@@ -24,7 +31,7 @@ from sklearn.metrics import f1_score, mean_squared_error, accuracy_score, \
 def sigmoid(x):
     """Transform binary classification margin output to probability
     Instead of exp(-x), we employ tanh as it is stable, fast, and fairly accurate."""
-    return .5 * (1 + np.tanh(.5 * x))
+    return 0.5 * (1 + np.tanh(0.5 * x))
 
 
 def margin_to_class_label(preds):
@@ -33,7 +40,7 @@ def margin_to_class_label(preds):
     if type(preds[0]) is np.ndarray:
         return np.argmax(preds, axis=-1)
     else:
-        return (preds > 0.).astype(int)
+        return (preds > 0.0).astype(int)
 
 
 # TODO: Rename both according to AutoML standards
@@ -44,7 +51,7 @@ def accuracy(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, accuracy value.
     """
-    return 'accuracy', compute_multiclass_and_binary_metrics(accuracy_score, preds, dtrain)
+    return "accuracy", compute_multiclass_and_binary_metrics(accuracy_score, preds, dtrain)
 
 
 def balanced_accuracy(preds, dtrain):
@@ -54,7 +61,7 @@ def balanced_accuracy(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, balanced accuracy value.
     """
-    return 'balanced_accuracy', compute_multiclass_and_binary_metrics(balanced_accuracy_score, preds, dtrain)
+    return "balanced_accuracy", compute_multiclass_and_binary_metrics(balanced_accuracy_score, preds, dtrain)
 
 
 def f1(preds, dtrain):
@@ -64,8 +71,7 @@ def f1(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    return 'f1', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                       f1_score(x, y, average='macro'), preds, dtrain)
+    return "f1", compute_multiclass_and_binary_metrics(lambda x, y: f1_score(x, y, average="macro"), preds, dtrain)
 
 
 def f1_binary(preds, dtrain):
@@ -77,8 +83,9 @@ def f1_binary(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    return 'f1_binary', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                              f1_score(x, y, average='binary'), preds, dtrain)
+    return "f1_binary", compute_multiclass_and_binary_metrics(
+        lambda x, y: f1_score(x, y, average="binary"), preds, dtrain
+    )
 
 
 def f1_macro(preds, dtrain):
@@ -90,8 +97,9 @@ def f1_macro(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, f1 score
     """
-    return 'f1_macro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                             f1_score(x, y, average='macro'), preds, dtrain)
+    return "f1_macro", compute_multiclass_and_binary_metrics(
+        lambda x, y: f1_score(x, y, average="macro"), preds, dtrain
+    )
 
 
 def mae(preds, dtrain):
@@ -102,7 +110,7 @@ def mae(preds, dtrain):
     :return: Metric name, mean absolute error
     """
     labels = dtrain.get_label()
-    return 'mae', mean_absolute_error(labels, preds)
+    return "mae", mean_absolute_error(labels, preds)
 
 
 def mse(preds, dtrain):
@@ -114,7 +122,7 @@ def mse(preds, dtrain):
     :return: Metric name, mean squared error
     """
     labels = dtrain.get_label()
-    return 'mse', mean_squared_error(labels, preds)
+    return "mse", mean_squared_error(labels, preds)
 
 
 def rmse(preds, dtrain):
@@ -125,7 +133,7 @@ def rmse(preds, dtrain):
     :return: Metric name, root mean squared error
     """
     labels = dtrain.get_label()
-    return 'rmse', mean_squared_error(labels, preds, squared=False)
+    return "rmse", mean_squared_error(labels, preds, squared=False)
 
 
 def precision(preds, dtrain):
@@ -135,7 +143,7 @@ def precision(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, precision value.
     """
-    return 'precision', compute_multiclass_and_binary_metrics(precision_score, preds, dtrain)
+    return "precision", compute_multiclass_and_binary_metrics(precision_score, preds, dtrain)
 
 
 def precision_macro(preds, dtrain):
@@ -145,9 +153,9 @@ def precision_macro(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, precision score
     """
-    return 'precision_macro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                                    precision_score(x, y, average='macro'),
-                                                                    preds, dtrain)
+    return "precision_macro", compute_multiclass_and_binary_metrics(
+        lambda x, y: precision_score(x, y, average="macro"), preds, dtrain
+    )
 
 
 def precision_micro(preds, dtrain):
@@ -157,9 +165,9 @@ def precision_micro(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, precision score
     """
-    return 'precision_micro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                                    precision_score(x, y, average='micro'),
-                                                                    preds, dtrain)
+    return "precision_micro", compute_multiclass_and_binary_metrics(
+        lambda x, y: precision_score(x, y, average="micro"), preds, dtrain
+    )
 
 
 def recall(preds, dtrain):
@@ -169,7 +177,7 @@ def recall(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, recall value.
     """
-    return 'recall', compute_multiclass_and_binary_metrics(recall_score, preds, dtrain)
+    return "recall", compute_multiclass_and_binary_metrics(recall_score, preds, dtrain)
 
 
 def recall_macro(preds, dtrain):
@@ -179,8 +187,9 @@ def recall_macro(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, recall score
     """
-    return 'recall_macro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                                 recall_score(x, y, average='macro'), preds, dtrain)
+    return "recall_macro", compute_multiclass_and_binary_metrics(
+        lambda x, y: recall_score(x, y, average="macro"), preds, dtrain
+    )
 
 
 def recall_micro(preds, dtrain):
@@ -190,8 +199,9 @@ def recall_micro(preds, dtrain):
     :param dtrain: Training data with labels
     :return: Metric name, recall score
     """
-    return 'recall_micro', compute_multiclass_and_binary_metrics(lambda x, y:
-                                                                 recall_score(x, y, average='micro'), preds, dtrain)
+    return "recall_micro", compute_multiclass_and_binary_metrics(
+        lambda x, y: recall_score(x, y, average="micro"), preds, dtrain
+    )
 
 
 def r2(preds, dtrain):
@@ -202,7 +212,7 @@ def r2(preds, dtrain):
     :return: Metric name, coefficient of determination
     """
     labels = dtrain.get_label()
-    return 'r2', r2_score(labels, preds)
+    return "r2", r2_score(labels, preds)
 
 
 def compute_multiclass_and_binary_metrics(metricfunc, preds, dtrain):
@@ -256,6 +266,7 @@ def configure_feval(custom_metric_list):
     :param custom_metric_list: Metrics to evaluate using feval
     :return: Configured feval method
     """
+
     def custom_feval(preds, dtrain):
         metrics = []
 

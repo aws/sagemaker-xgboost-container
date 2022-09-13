@@ -1,6 +1,6 @@
-import pkg_resources
 import sys
 
+import pkg_resources
 
 PYTHON_MAJOR_VERSION = 3
 PYTHON_MINOR_VERSION = 8
@@ -46,12 +46,12 @@ def assert_package_version(package_name, version):
 
 
 def parse_requirements(requirements):
-    for package_equals_version in requirements.split('\n'):
+    for package_equals_version in requirements.split("\n"):
         package, version = package_equals_version.split("==")
         yield package, version
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     assert_python_version(PYTHON_MAJOR_VERSION, PYTHON_MINOR_VERSION)
     for package, version in parse_requirements(REQUIREMENTS):
         assert_package_version(package, version)

@@ -1,14 +1,14 @@
 import logging
 import os
-import tempfile
-import threading
 import queue
 import re
+import tempfile
+import threading
+
 import xgboost as xgb
 from xgboost import rabit
-from xgboost.core import Booster, XGBoostError
 from xgboost.callback import _fmt_metric as format_metric
-
+from xgboost.core import Booster, XGBoostError
 
 TEMP_FILE_SUFFIX = ".sagemaker-ignore"
 FILE_LOCK_SUFFIX = ".sagemaker-uploading"
@@ -89,14 +89,16 @@ def print_checkpointed_evaluation(period=1, show_stdv=True, start_iteration=0):
     callback : function
         A callback that print evaluation every period iterations.
     """
+
     def callback(env):
         """internal function"""
         if env.rank != 0 or (not env.evaluation_result_list) or period is False or period == 0:
             return
         i = env.iteration
         if i % period == 0 or i + 1 == env.begin_iteration or i + 1 == env.end_iteration:
-            msg = '\t'.join([format_metric(x, show_stdv) for x in env.evaluation_result_list])
-            rabit.tracker_print('[%d]\t%s\n' % (i + start_iteration, msg))
+            msg = "\t".join([format_metric(x, show_stdv) for x in env.evaluation_result_list])
+            rabit.tracker_print("[%d]\t%s\n" % (i + start_iteration, msg))
+
     return callback
 
 
@@ -125,7 +127,7 @@ def load_checkpoint(checkpoint_dir, max_try=5):
             booster = Booster()
             booster.load_model(xgb_model)
 
-            filename, extension = latest_checkpoint.split('.')
+            filename, extension = latest_checkpoint.split(".")
             iteration = int(extension) + 1
             break
         except XGBoostError:
@@ -135,7 +137,7 @@ def load_checkpoint(checkpoint_dir, max_try=5):
 
 
 def _sort_checkpoints(checkpoint_files):
-    checkpoint_files.sort(key=lambda x: int(x.split('.')[1]))
+    checkpoint_files.sort(key=lambda x: int(x.split(".")[1]))
     return checkpoint_files
 
 
@@ -145,8 +147,9 @@ def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=
     This is a wrapper function around SaveCheckpoint.
     For details, see SaveCheckpoint.
     """
-    return SaveCheckpoint(checkpoint_dir=checkpoint_dir, start_iteration=start_iteration,
-                          max_to_keep=max_to_keep, num_round=num_round)
+    return SaveCheckpoint(
+        checkpoint_dir=checkpoint_dir, start_iteration=start_iteration, max_to_keep=max_to_keep, num_round=num_round
+    )
 
 
 class SaveCheckpoint(object):
@@ -193,6 +196,7 @@ class SaveCheckpoint(object):
         >>> save_checkpoint = SaveCheckpoint("/opt/ml/checkpoints")
         >>> xgboost.train(prams, dtrain, callbacks=[save_checkpoint])
     """
+
     SENTINEL = None
 
     def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None):
@@ -204,9 +208,7 @@ class SaveCheckpoint(object):
 
         if not os.path.exists(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
-        self.previous_checkpoints = [
-            os.path.join(self.checkpoint_dir, f)
-            for f in os.listdir(self.checkpoint_dir)]
+        self.previous_checkpoints = [os.path.join(self.checkpoint_dir, f) for f in os.listdir(self.checkpoint_dir)]
 
         self.thread = None
         self.delete_queue = queue.Queue()
@@ -234,6 +236,7 @@ class SaveCheckpoint(object):
         When training is complete, we put SENTINEL on the queue, and when we
         see the SENTINEL, we clean up and exit the thread.
         """
+
         def _is_uploading(path):
             uploading = os.path.isfile(path + FILE_LOCK_SUFFIX)
             uploaded = os.path.isfile(path + FILE_SAFE_SUFFIX)
@@ -283,9 +286,7 @@ class SaveCheckpoint(object):
             _delete_uploaded_files()
             _cleanup()
 
-        self.thread = threading.Thread(
-            target=_delete_uploaded_files_and_cleanup,
-            daemon=True)
+        self.thread = threading.Thread(target=_delete_uploaded_files_and_cleanup, daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -297,8 +298,7 @@ class SaveCheckpoint(object):
 
     def _save_checkpoint(self, model, iteration):
         """Save checkpoint to a file path formatted with iteration number"""
-        with tempfile.NamedTemporaryFile(
-                dir=self.checkpoint_dir, suffix=TEMP_FILE_SUFFIX, delete=False) as tf:
+        with tempfile.NamedTemporaryFile(dir=self.checkpoint_dir, suffix=TEMP_FILE_SUFFIX, delete=False) as tf:
             model.save_model(tf.name)
 
         save_file_path = self.format_path(iteration)
@@ -324,7 +324,7 @@ class SaveCheckpoint(object):
         self.delete_queue.put(iteration_to_delete)
 
         offset_iteration = env.end_iteration if self.num_round is None else self.num_round
-        training_has_ended = (current_iteration + 1 >= self.start_iteration + offset_iteration)
+        training_has_ended = current_iteration + 1 >= self.start_iteration + offset_iteration
         if training_has_ended:
             self.stop()
 
@@ -355,6 +355,7 @@ class SaveIntermediateModel(object):
         >>> save_intermediate_model = SaveIntermediateModel("/opt/ml/model", "xgboost-model")
         >>> xgboost.train(prams, dtrain, callbacks=[save_intermediate_model])
     """
+
     def __init__(self, intermediate_model_dir, model_name):
         """Init SaveIntermediateModel with intermediate_model_dir"""
         self.intermediate_model_dir = intermediate_model_dir
@@ -374,8 +375,7 @@ class SaveIntermediateModel(object):
 
     def save_intermediate_model(self, model):
         """Save intermediate model to intermediate model directory"""
-        with tempfile.NamedTemporaryFile(
-                dir=self.intermediate_model_dir, delete=False) as tf:
+        with tempfile.NamedTemporaryFile(dir=self.intermediate_model_dir, delete=False) as tf:
             model.save_model(tf.name)
 
         save_file_path = self.format_path()
@@ -393,6 +393,7 @@ class SaveIntermediateModel(object):
 
 class SaveIntermediateModelCallBack(xgb.callback.TrainingCallback):
     """The new implementation of callback functions from 1.3."""
+
     def __init__(self, intermediate_model_dir, model_name, is_master):
         self.callback = SaveIntermediateModel(intermediate_model_dir, model_name)
         self.is_master = is_master

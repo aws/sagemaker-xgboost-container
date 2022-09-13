@@ -10,20 +10,25 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-import sys
 import ast
+import sys
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 
 
 class Hyperparameter(object):
     """Represents a single SageMaker training job hyperparameter."""
-    def __init__(self,
-                 name,
-                 range=None,
-                 dependencies=None,
-                 required=None, default=None,
-                 tunable=False, tunable_recommended_range=None):
+
+    def __init__(
+        self,
+        name,
+        range=None,
+        dependencies=None,
+        required=None,
+        default=None,
+        tunable=False,
+        tunable_recommended_range=None,
+    ):
         if required is None and default is None:
             raise exc.AlgorithmError("At least one of 'required' or 'default' must be specified.")
 
@@ -98,12 +103,9 @@ class IntegerHyperparameter(Hyperparameter):
 
         min_, max_ = self.tunable_recommended_range.format_as_integer()
         scale = self.tunable_recommended_range.scale
-        return {"IntegerParameterRanges": [{
-            "MinValue": min_,
-            "MaxValue": max_,
-            "Name": self.name,
-            "ScalingType": scale
-        }]}
+        return {
+            "IntegerParameterRanges": [{"MinValue": min_, "MaxValue": max_, "Name": self.name, "ScalingType": scale}]
+        }
 
 
 class CategoricalHyperparameter(Hyperparameter):
@@ -122,15 +124,16 @@ class CategoricalHyperparameter(Hyperparameter):
         return range_.format()
 
     def format_range(self):
-        return {"CategoricalParameterRangeSpecification": {
-            "Values": self._format_range_helper(self.range)}}
+        return {"CategoricalParameterRangeSpecification": {"Values": self._format_range_helper(self.range)}}
 
     def format_tunable_range(self):
         if not self.tunable or self.tunable_recommended_range is None:
             return None
-        return {"CategoricalParameterRanges": [
-            {"Name": self.name,
-             "Values": self._format_range_helper(self.tunable_recommended_range)}]}
+        return {
+            "CategoricalParameterRanges": [
+                {"Name": self.name, "Values": self._format_range_helper(self.tunable_recommended_range)}
+            ]
+        }
 
 
 class ContinuousHyperparameter(Hyperparameter):
@@ -156,11 +159,9 @@ class ContinuousHyperparameter(Hyperparameter):
 
         min_, max_ = self.tunable_recommended_range.format_as_continuous()
         scale = self.tunable_recommended_range.scale
-        return {"ContinuousParameterRanges": [
-            {"Name": self.name,
-             "MinValue": min_,
-             "MaxValue": max_,
-             "ScalingType": scale}]}
+        return {
+            "ContinuousParameterRanges": [{"Name": self.name, "MinValue": min_, "MaxValue": max_, "ScalingType": scale}]
+        }
 
 
 class CommaSeparatedListHyperparameter(Hyperparameter):
@@ -191,9 +192,7 @@ class NestedListHyperparameter(Hyperparameter):
 
     def format_range(self):
         min_, max_ = self.range.format_as_integer()
-        return {"NestedParameterRangeSpecification": {
-            "MinValue": min_,
-            "MaxValue": max_}}
+        return {"NestedParameterRangeSpecification": {"MinValue": min_, "MaxValue": max_}}
 
     def validate_range(self, value):
         if any([element not in self.range for outer in value for element in outer]):
@@ -213,8 +212,7 @@ class TupleHyperparameter(Hyperparameter):
             return value
 
     def format_range(self):
-        return {"TupleParameterRangeSpecification": {
-            "Values": self.range}}
+        return {"TupleParameterRangeSpecification": {"Values": self.range}}
 
     def validate_range(self, value):
         if any([element not in self.range for element in value]):
@@ -290,8 +288,9 @@ class Hyperparameters(object):
             except exc.UserError:
                 raise
             except Exception as e:
-                raise exc.AlgorithmError("Hyperparameter {}: unexpected failure when validating {}".format(hp, value),
-                                         caused_by=e)
+                raise exc.AlgorithmError(
+                    "Hyperparameter {}: unexpected failure when validating {}".format(hp, value), caused_by=e
+                )
 
         # NOTE: 4. Validate dependencies.
         sorted_deps = self._sort_dependencies(converted_hyperparameters.keys())
@@ -300,9 +299,11 @@ class Hyperparameters(object):
             hp = sorted_deps.pop()
             value = converted_hyperparameters[hp]
             if self.hyperparameters[hp].dependencies:
-                dependencies = {hp_d: new_validated_hyperparameters[hp_d]
-                                for hp_d in self.hyperparameters[hp].dependencies
-                                if hp_d in new_validated_hyperparameters}
+                dependencies = {
+                    hp_d: new_validated_hyperparameters[hp_d]
+                    for hp_d in self.hyperparameters[hp].dependencies
+                    if hp_d in new_validated_hyperparameters
+                }
                 self.hyperparameters[hp].validate_dependencies(value, dependencies)
             new_validated_hyperparameters[hp] = value
 
@@ -312,12 +313,12 @@ class Hyperparameters(object):
         return self.hyperparameters[name]
 
     def format(self):
-        return [hyperparameter.format()
-                for name, hyperparameter in self.hyperparameters.items()]
+        return [hyperparameter.format() for name, hyperparameter in self.hyperparameters.items()]
 
 
 class Range:
     """Abstract interface for Hyperparameter.range objects."""
+
     def __contains__(self, value):
         raise NotImplementedError
 
@@ -363,30 +364,34 @@ class Interval(Range):
 
     def __contains__(self, value):
         return not (
-            (self.min_open is not None and value <= self.min_open) or
-            (self.min_closed is not None and value < self.min_closed) or
-            (self.max_open is not None and value >= self.max_open) or
-            (self.max_closed is not None and value > self.max_closed))
+            (self.min_open is not None and value <= self.min_open)
+            or (self.min_closed is not None and value < self.min_closed)
+            or (self.max_open is not None and value >= self.max_open)
+            or (self.max_closed is not None and value > self.max_closed)
+        )
 
     def _format_range_value(self, open_, closed, default):
-        return str(open_ if open_ is not None
-                   else closed if closed is not None
-                   else default)
+        return str(open_ if open_ is not None else closed if closed is not None else default)
 
     def format_as_integer(self):
-        max_neg_signed_int = -2 ** 31
+        max_neg_signed_int = -(2 ** 31)
         max_signed_int = 2 ** 31 - 1
-        return (self._format_range_value(self.min_open, self.min_closed, max_neg_signed_int),
-                self._format_range_value(self.max_open, self.max_closed, max_signed_int))
+        return (
+            self._format_range_value(self.min_open, self.min_closed, max_neg_signed_int),
+            self._format_range_value(self.max_open, self.max_closed, max_signed_int),
+        )
 
     def format_as_continuous(self):
         max_float = sys.float_info.max
-        return (self._format_range_value(self.min_open, self.min_closed, -max_float),
-                self._format_range_value(self.max_open, self.max_closed, max_float))
+        return (
+            self._format_range_value(self.min_open, self.min_closed, -max_float),
+            self._format_range_value(self.max_open, self.max_closed, max_float),
+        )
 
 
 class range_validator:
     """Function decorator helper to override hyperparameter's range validation."""
+
     def __init__(self, range):
         self.range = range
 
@@ -400,11 +405,13 @@ class range_validator:
 
             def __contains__(self_, value):
                 return f(self.range, value)
+
         return inner()
 
 
 class dependencies_validator:
     """Function decorator helper to override hyperparameter's dependency validation."""
+
     def __init__(self, dependencies):
         self.dependencies = dependencies
 
@@ -421,4 +428,5 @@ class dependencies_validator:
 
             def __call__(self, value, dependencies):
                 return f(value, dependencies)
+
         return inner()

@@ -11,6 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
+
 import unittest
 
 from sagemaker_algorithm_toolkit import channel_validation as cv
@@ -21,16 +22,10 @@ NOT_REQUIRED_CHANNEL = "not_required"
 
 
 class TestChannelValidation(unittest.TestCase):
-
     def setUp(self):
         self.channels = acv.initialize()
 
     def test_default_content_type(self):
-        test_user_channels = {
-            "train": {
-                cv.TRAINING_INPUT_MODE: "File",
-                cv.S3_DIST_TYPE: "FullyReplicated"
-            }
-        }
+        test_user_channels = {"train": {cv.TRAINING_INPUT_MODE: "File", cv.S3_DIST_TYPE: "FullyReplicated"}}
         self.channels.validate(test_user_channels)
         self.assertEqual(test_user_channels["train"][cv.CONTENT_TYPE], "text/libsvm")

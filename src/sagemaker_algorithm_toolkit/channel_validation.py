@@ -12,7 +12,6 @@
 # language governing permissions and limitations under the License.
 from sagemaker_algorithm_toolkit import exceptions as exc
 
-
 CONTENT_TYPE = "ContentType"
 TRAINING_INPUT_MODE = "TrainingInputMode"
 S3_DIST_TYPE = "S3DistributionType"
@@ -20,6 +19,7 @@ S3_DIST_TYPE = "S3DistributionType"
 
 class Channel(object):
     """Represents a single SageMaker training job channel."""
+
     FILE_MODE = "File"
     PIPE_MODE = "Pipe"
     AUGMENTED_MODE = "Augmented"
@@ -36,12 +36,13 @@ class Channel(object):
         """Format channel for SageMaker's CreateAlgorithm API."""
         supported_content_types = list(set(c[0] for c in self.supported))
         supported_input_modes = list(set(c[1] for c in self.supported))
-        return {"Name": self.name,
-                "Description": self.name,
-                "IsRequired": self.required,
-                "SupportedContentTypes": supported_content_types,
-                "SupportedInputModes": supported_input_modes,
-                }
+        return {
+            "Name": self.name,
+            "Description": self.name,
+            "IsRequired": self.required,
+            "SupportedContentTypes": supported_content_types,
+            "SupportedInputModes": supported_input_modes,
+        }
 
     def add(self, content_type, supported_input_mode, supported_s3_data_distribution_type):
         """Add relevant configuration as a supported configuration for the channel."""

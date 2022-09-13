@@ -11,6 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
+
 import logging
 import os
 
@@ -26,12 +27,10 @@ from sagemaker_containers.beta.framework import (
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import encoder as xgb_encoders
 from sagemaker_xgboost_container.algorithm_mode import serve
-from sagemaker_xgboost_container.serving_mms import start_mxnet_model_server
 from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.serving_mms import start_mxnet_model_server
 
-logging.basicConfig(
-    format="%(asctime)s %(levelname)s - %(name)s - %(message)s", level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s %(levelname)s - %(name)s - %(message)s", level=logging.INFO)
 logging.getLogger("boto3").setLevel(logging.INFO)
 logging.getLogger("s3transfer").setLevel(logging.INFO)
 logging.getLogger("botocore").setLevel(logging.WARN)
@@ -122,9 +121,7 @@ def _user_module_transformer(user_module):
     transform_fn = getattr(user_module, "transform_fn", None)
 
     if transform_fn and (input_fn or predict_fn or output_fn):
-        raise exc.UserError(
-            "Cannot use transform_fn implementation with input_fn, predict_fn, and/or output_fn"
-        )
+        raise exc.UserError("Cannot use transform_fn implementation with input_fn, predict_fn, and/or output_fn")
 
     if transform_fn is not None:
         return transformer.Transformer(model_fn=model_fn, transform_fn=transform_fn)
@@ -147,9 +144,7 @@ def main(environ, start_response):
         if serving_env.module_name is None:
             app = serve.ScoringService.csdk_start()
         else:
-            user_module = modules.import_module(
-                serving_env.module_dir, serving_env.module_name
-            )
+            user_module = modules.import_module(serving_env.module_dir, serving_env.module_name)
             user_module_transformer = _user_module_transformer(user_module)
             user_module_transformer.initialize()
             app = worker.Worker(

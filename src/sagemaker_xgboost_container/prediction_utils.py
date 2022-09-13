@@ -10,14 +10,15 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-import os
 import logging
+import os
+
 import numpy as np
 from scipy import stats
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 
-PREDICTIONS_OUTPUT_FILE = 'predictions.csv'
+PREDICTIONS_OUTPUT_FILE = "predictions.csv"
 EXAMPLE_ROWS_EXCEPTION_COUNT = 100
 
 
@@ -32,6 +33,7 @@ class ValidationPredictionRecorder:
         num_cv_round     (int): number times cross validation procedure will be repeated.
         classification   (bool): indicates type of learning problem.
     """
+
     def __init__(self, y_true: np.ndarray, num_cv_round: int, classification: bool, output_data_dir: str) -> None:
         self.y_true = y_true.copy()
         num_rows = len(y_true)
@@ -52,9 +54,7 @@ class ValidationPredictionRecorder:
         if self.pred_ndim_ is None:
             self.pred_ndim_ = predictions.ndim
         if self.pred_ndim_ != predictions.ndim:
-            raise exc.AlgorithmError(
-                f"Expected predictions with ndim={self.pred_ndim_}, got ndim={predictions.ndim}."
-            )
+            raise exc.AlgorithmError(f"Expected predictions with ndim={self.pred_ndim_}, got ndim={predictions.ndim}.")
 
         cv_repeat_idx = self.cv_repeat_counter[indices]
         if np.any(cv_repeat_idx == self.num_cv_round):
@@ -111,4 +111,4 @@ class ValidationPredictionRecorder:
         save_path = self._get_save_path()
 
         logging.info(f"Storing predictions on validation set(s) in {save_path}")
-        np.savetxt(save_path, self._aggregate_predictions(), delimiter=',', fmt='%f')
+        np.savetxt(save_path, self._aggregate_predictions(), delimiter=",", fmt="%f")
