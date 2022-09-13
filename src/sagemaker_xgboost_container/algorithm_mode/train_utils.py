@@ -36,7 +36,9 @@ def get_union_metrics(metric_a, metric_b):
     elif metric_b is None:
         return metric_a
     else:
-        metric_list = list(set(metric_a).union(metric_b))
+        # The order of metric_list need to be consistent among all hosts in distributed training
+        # So we have metric_list sorted here.
+        metric_list = sorted(list(set(metric_a).union(metric_b)))
         return metric_list
 
 
