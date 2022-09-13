@@ -11,16 +11,20 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from __future__ import absolute_import
+
 import os
 
 from sagemaker_inference import content_types, default_inference_handler, encoder
 from sagemaker_inference.default_handler_service import DefaultHandlerService
 
-from sagemaker_xgboost_container.mms_patch.mms_transformer import XGBMMSTransformer
-from sagemaker_xgboost_container.algorithm_mode.inference_errors import NoContentInferenceError, \
-    UnsupportedMediaTypeInferenceError, ModelLoadInferenceError, BadRequestInferenceError
 from sagemaker_xgboost_container.algorithm_mode import serve_utils
-
+from sagemaker_xgboost_container.algorithm_mode.inference_errors import (
+    BadRequestInferenceError,
+    ModelLoadInferenceError,
+    NoContentInferenceError,
+    UnsupportedMediaTypeInferenceError,
+)
+from sagemaker_xgboost_container.mms_patch.mms_transformer import XGBMMSTransformer
 
 SAGEMAKER_BATCH = os.getenv("SAGEMAKER_BATCH")
 
@@ -33,8 +37,8 @@ class HandlerService(DefaultHandlerService):
         - The ``initialize`` method is invoked at model server start up.
     Based on: https://github.com/awslabs/mxnet-model-server/blob/v1.0.8/docs/custom_service.md
     """
-    class DefaultXGBoostAlgoModeInferenceHandler(default_inference_handler.DefaultInferenceHandler):
 
+    class DefaultXGBoostAlgoModeInferenceHandler(default_inference_handler.DefaultInferenceHandler):
         def default_model_fn(self, model_dir):
             """Load a model. For XGBoost Framework, a default function to load a model is not provided.
             Users should provide customized model_fn() in script.
@@ -92,22 +96,24 @@ class HandlerService(DefaultHandlerService):
             """
             accept_type = accept.lower()
             try:
-                if accept_type == content_types.CSV or accept_type == 'csv':
+                if accept_type == content_types.CSV or accept_type == "csv":
                     if SAGEMAKER_BATCH:
-                        return_data = "\n".join(map(str, prediction.tolist())) + '\n'
+                        return_data = "\n".join(map(str, prediction.tolist())) + "\n"
                     else:
                         # FIXME: this is invalid CSV and is only retained for backwards compatibility
                         return_data = ",".join(map(str, prediction.tolist()))
                     encoded_prediction = return_data.encode("utf-8")
-                elif accept_type == content_types.JSON or accept_type == 'json':
+                elif accept_type == content_types.JSON or accept_type == "json":
                     encoded_prediction = encoder.encode(prediction, accept_type)
                 else:
-                    raise ValueError("{} is not an accepted Accept type. Please choose one of the following:"
-                                     " ['{}', '{}'].".format(accept, content_types.CSV, content_types.JSON))
+                    raise ValueError(
+                        "{} is not an accepted Accept type. Please choose one of the following:"
+                        " ['{}', '{}'].".format(accept, content_types.CSV, content_types.JSON)
+                    )
             except Exception as e:
                 raise UnsupportedMediaTypeInferenceError(
-                    "Encoding to accept type {} failed with exception: {}".format(accept,
-                                                                                  e))
+                    "Encoding to accept type {} failed with exception: {}".format(accept, e)
+                )
             return encoded_prediction
 
     def __init__(self):

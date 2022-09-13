@@ -12,10 +12,13 @@
 # language governing permissions and limitations under the License.
 import logging
 import os
-from sagemaker_xgboost_container.metrics.custom_metrics import get_custom_metrics, configure_feval
 
+from sagemaker_xgboost_container.metrics.custom_metrics import (
+    configure_feval,
+    get_custom_metrics,
+)
 
-HPO_SEPARATOR = ':'
+HPO_SEPARATOR = ":"
 
 
 # These are helper functions for parsing the list of metrics to be outputted
@@ -55,8 +58,8 @@ def get_eval_metrics_and_feval(tuning_objective_metric_param, eval_metric):
 
     if tuning_objective_metric_param is not None:
         tuning_objective_metric_tuple = MetricNameComponents.decode(tuning_objective_metric_param)
-        tuning_objective_metric = tuning_objective_metric_tuple.metric_name.split(',')
-        logging.info('Setting up HPO optimized metric to be : {}'.format(tuning_objective_metric_tuple.metric_name))
+        tuning_objective_metric = tuning_objective_metric_tuple.metric_name.split(",")
+        logging.info("Setting up HPO optimized metric to be : {}".format(tuning_objective_metric_tuple.metric_name))
 
     union_metrics = get_union_metrics(tuning_objective_metric, eval_metric)
 
@@ -79,6 +82,7 @@ def cleanup_dir(dir, file_prefix):
     :param dir: model directory which needs to be cleaned
     :param file_prefix: file name prefix which isn't removed if present
     """
+
     def _format_path(file_name):
         return os.path.join(dir, file_name)
 

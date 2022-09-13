@@ -1,18 +1,19 @@
 import os
-import shutil
 import pathlib
+import shutil
 import tempfile
 import time
 import unittest
 from unittest.mock import patch
+
 import numpy as np
 import xgboost as xgb
+
 from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.checkpointing import SaveCheckpoint, _sort_checkpoints
 
 
 class TestSaveCheckpoint(unittest.TestCase):
-
     def setUp(self):
 
         self.test_dir = tempfile.mkdtemp()
@@ -55,18 +56,13 @@ class TestSaveCheckpoint(unittest.TestCase):
         env.rank = 0
         env.end_iteration = end_iteration
 
-        callback = SaveCheckpoint(
-            checkpoint_dir=self.test_dir,
-            max_to_keep=max_to_keep)
+        callback = SaveCheckpoint(checkpoint_dir=self.test_dir, max_to_keep=max_to_keep)
 
         for i in range(end_iteration):
             env.iteration = i
             callback(env)
 
-        expected_files = [
-            "xgboost-checkpoint.97",
-            "xgboost-checkpoint.98",
-            "xgboost-checkpoint.99"]
+        expected_files = ["xgboost-checkpoint.97", "xgboost-checkpoint.98", "xgboost-checkpoint.99"]
 
         for fname in expected_files:
             fpath = os.path.join(self.test_dir, fname)
@@ -86,19 +82,14 @@ class TestSaveCheckpoint(unittest.TestCase):
         env.rank = 0
 
         callback = SaveCheckpoint(
-            checkpoint_dir=self.test_dir,
-            max_to_keep=max_to_keep,
-            start_iteration=start_iteration,
-            num_round=num_round)
+            checkpoint_dir=self.test_dir, max_to_keep=max_to_keep, start_iteration=start_iteration, num_round=num_round
+        )
 
         for i in range(num_round):
             env.iteration = i
             callback(env)
 
-        expected_files = [
-            "xgboost-checkpoint.17",
-            "xgboost-checkpoint.18",
-            "xgboost-checkpoint.19"]
+        expected_files = ["xgboost-checkpoint.17", "xgboost-checkpoint.18", "xgboost-checkpoint.19"]
 
         for fname in expected_files:
             fpath = os.path.join(self.test_dir, fname)
@@ -123,9 +114,7 @@ class TestSaveCheckpoint(unittest.TestCase):
         env.rank = 0
         env.end_iteration = end_iteration
 
-        callback = SaveCheckpoint(
-            checkpoint_dir=self.test_dir,
-            max_to_keep=max_to_keep)
+        callback = SaveCheckpoint(checkpoint_dir=self.test_dir, max_to_keep=max_to_keep)
 
         env.iteration = 0
         callback(env)
@@ -184,12 +173,7 @@ def test_train(tmpdir, caplog):
 
     params = {"objective": "binary:logistic"}
 
-    train_args = dict(
-        params=params,
-        dtrain=dtrain,
-        num_boost_round=20,
-        evals=[(dtrain, 'train'), (dtest, 'test')]
-    )
+    train_args = dict(params=params, dtrain=dtrain, num_boost_round=20, evals=[(dtrain, "train"), (dtest, "test")])
     checkpoint_dir = os.path.join(tmpdir, "test_checkpoints")
 
     checkpointing.train(train_args, checkpoint_dir)
@@ -207,7 +191,8 @@ def test_train(tmpdir, caplog):
         "xgboost-checkpoint.16",
         "xgboost-checkpoint.17",
         "xgboost-checkpoint.18",
-        "xgboost-checkpoint.19"]
+        "xgboost-checkpoint.19",
+    ]
     assert sorted(os.listdir(checkpoint_dir)) == expected_files
 
     train_args["num_boost_round"] = 30
@@ -222,11 +207,14 @@ def test_train(tmpdir, caplog):
     assert "Resuming from iteration 20" in caplog.text
 
     expected_files.extend(
-        ["xgboost-checkpoint.25",
-         "xgboost-checkpoint.26",
-         "xgboost-checkpoint.27",
-         "xgboost-checkpoint.28",
-         "xgboost-checkpoint.29"])
+        [
+            "xgboost-checkpoint.25",
+            "xgboost-checkpoint.26",
+            "xgboost-checkpoint.27",
+            "xgboost-checkpoint.28",
+            "xgboost-checkpoint.29",
+        ]
+    )
     assert sorted(os.listdir(checkpoint_dir)) == expected_files
 
 
@@ -242,12 +230,7 @@ def test_train_zero_or_negative_rounds(tmpdir, caplog):
 
     params = {"objective": "binary:logistic"}
 
-    train_args = dict(
-        params=params,
-        dtrain=dtrain,
-        num_boost_round=0,
-        evals=[(dtrain, 'train'), (dtest, 'test')]
-    )
+    train_args = dict(params=params, dtrain=dtrain, num_boost_round=0, evals=[(dtrain, "train"), (dtest, "test")])
     checkpoint_dir = os.path.join(tmpdir, "test_checkpoints")
 
     bst = checkpointing.train(train_args, checkpoint_dir)

@@ -11,7 +11,10 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 from sagemaker_algorithm_toolkit import channel_validation as cv
-from sagemaker_xgboost_container.data_utils import VALID_CONTENT_TYPES, VALID_PIPED_CONTENT_TYPES
+from sagemaker_xgboost_container.data_utils import (
+    VALID_CONTENT_TYPES,
+    VALID_PIPED_CONTENT_TYPES,
+)
 
 
 def initialize():

@@ -21,7 +21,6 @@ from sagemaker_inference.transformer import Transformer
 
 
 class XGBMMSTransformer(Transformer):
-
     def transform(self, data, context):
         """Take a request with input data, deserialize it, make a prediction, and return a
         serialized response.
@@ -41,7 +40,7 @@ class XGBMMSTransformer(Transformer):
         if not self._initialized:
             try:
                 sys_properties = context._system_properties
-                model_dir = sys_properties.get('model_dir')
+                model_dir = sys_properties.get("model_dir")
                 self.validate_and_initialize(model_dir)
             except Exception as e:
                 if isinstance(e, BaseInferenceToolkitError):
@@ -52,13 +51,13 @@ class XGBMMSTransformer(Transformer):
             self._initialized = True
 
         try:
-            input_data = data[0].get('body')
+            input_data = data[0].get("body")
 
             request_processor = context.request_processor[0]
 
             request_property = request_processor.get_request_properties()
             content_type = utils.retrieve_content_type_header(request_property)
-            accept = request_property.get('Accept') or request_property.get('accept')
+            accept = request_property.get("Accept") or request_property.get("accept")
 
             if not accept or accept == content_types.ANY:
                 accept = self._environment.default_accept

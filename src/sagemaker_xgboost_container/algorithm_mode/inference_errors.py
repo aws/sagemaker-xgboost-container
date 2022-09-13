@@ -12,7 +12,6 @@
 # language governing permissions and limitations under the License.
 import http.client
 
-
 from sagemaker_inference import errors
 
 
@@ -29,14 +28,12 @@ class UnsupportedMediaTypeInferenceError(errors.BaseInferenceToolkitError):
 class ModelLoadInferenceError(errors.BaseInferenceToolkitError):
     def __init__(self, message):
         formatted_message = "Unable to load model: {}".format(message)
-        super(ModelLoadInferenceError, self).__init__(http.client.INTERNAL_SERVER_ERROR,
-                                                      formatted_message,
-                                                      formatted_message)
+        super(ModelLoadInferenceError, self).__init__(
+            http.client.INTERNAL_SERVER_ERROR, formatted_message, formatted_message
+        )
 
 
 class BadRequestInferenceError(errors.BaseInferenceToolkitError):
     def __init__(self, message):
         formatted_message = "Unable to evaluate payload provided: {}".format(message)
-        super(BadRequestInferenceError, self).__init__(http.client.BAD_REQUEST,
-                                                       formatted_message,
-                                                       formatted_message)
+        super(BadRequestInferenceError, self).__init__(http.client.BAD_REQUEST, formatted_message, formatted_message)

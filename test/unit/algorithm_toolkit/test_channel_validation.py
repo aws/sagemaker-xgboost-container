@@ -21,18 +21,25 @@ class TestChannelValidation(unittest.TestCase):
         channel = cv.Channel(name="train", required=True)
         channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
         channels = cv.Channels(channel)
-        channels.validate({"train": {cv.CONTENT_TYPE: "text/csv", cv.TRAINING_INPUT_MODE: "File",
-                                     cv.S3_DIST_TYPE: "FullyReplicated", "RecordWrapperType": "None"}})
+        channels.validate(
+            {
+                "train": {
+                    cv.CONTENT_TYPE: "text/csv",
+                    cv.TRAINING_INPUT_MODE: "File",
+                    cv.S3_DIST_TYPE: "FullyReplicated",
+                    "RecordWrapperType": "None",
+                }
+            }
+        )
 
     def test_default_content_type(self):
         channel = cv.Channel(name="train", required=True)
         channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
         channels = cv.Channels(channel)
         channels.set_default_content_type("text/csv")
-        test_user_channels = {"train": {
-            cv.TRAINING_INPUT_MODE: "File",
-            cv.S3_DIST_TYPE: "FullyReplicated",
-            "RecordWrapperType": "None"}}
+        test_user_channels = {
+            "train": {cv.TRAINING_INPUT_MODE: "File", cv.S3_DIST_TYPE: "FullyReplicated", "RecordWrapperType": "None"}
+        }
         channels.validate(test_user_channels)
         self.assertEqual(test_user_channels["train"][cv.CONTENT_TYPE], "text/csv")
 
@@ -41,17 +48,33 @@ class TestChannelValidation(unittest.TestCase):
         channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
         channels = cv.Channels(channel)
         with self.assertRaises(exc.UserError):
-            channels.validate({"train": {cv.CONTENT_TYPE: "text/csv", cv.TRAINING_INPUT_MODE: "Pipe",
-                                         cv.S3_DIST_TYPE: "FullyReplicated", "RecordWrapperType": "None"}})
+            channels.validate(
+                {
+                    "train": {
+                        cv.CONTENT_TYPE: "text/csv",
+                        cv.TRAINING_INPUT_MODE: "Pipe",
+                        cv.S3_DIST_TYPE: "FullyReplicated",
+                        "RecordWrapperType": "None",
+                    }
+                }
+            )
 
     def test_simple_extra(self):
         channel = cv.Channel(name="train", required=True)
         channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
         channels = cv.Channels(channel)
         with self.assertRaises(exc.UserError):
-            channels.validate({"train": {cv.CONTENT_TYPE: "text/csv", cv.TRAINING_INPUT_MODE: "File",
-                                         cv.S3_DIST_TYPE: "FullyReplicated", "RecordWrapperType": "None"},
-                               "extra": {}})
+            channels.validate(
+                {
+                    "train": {
+                        cv.CONTENT_TYPE: "text/csv",
+                        cv.TRAINING_INPUT_MODE: "File",
+                        cv.S3_DIST_TYPE: "FullyReplicated",
+                        "RecordWrapperType": "None",
+                    },
+                    "extra": {},
+                }
+            )
 
     def test_simple_required(self):
         channel = cv.Channel(name="train", required=True)
@@ -65,10 +88,12 @@ class TestChannelValidation(unittest.TestCase):
         channel.add("text/csv", cv.Channel.FILE_MODE, cv.Channel.REPLICATED)
         channels = cv.Channels(channel)
 
-        result = {"Name": "train",
-                  "Description": "train",
-                  "IsRequired": True,
-                  "SupportedContentTypes": ["text/csv"],
-                  "SupportedInputModes": ["File"]}
+        result = {
+            "Name": "train",
+            "Description": "train",
+            "IsRequired": True,
+            "SupportedContentTypes": ["text/csv"],
+            "SupportedInputModes": ["File"],
+        }
         self.assertEqual(channel.format(), result)
         self.assertEqual(channels.format(), [result])

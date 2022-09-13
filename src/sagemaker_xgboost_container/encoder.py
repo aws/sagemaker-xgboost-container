@@ -22,18 +22,18 @@ import tempfile
 from typing import Iterable, Union
 
 import mlio
+import numpy as np
+import xgboost as xgb
 from mlio.integ.numpy import as_numpy
 from mlio.integ.scipy import to_coo_matrix
-import numpy as np
 from sagemaker_containers import _content_types, _errors
 from scipy.sparse import vstack as scipy_vstack
-import xgboost as xgb
 
 from sagemaker_xgboost_container.constants import xgb_content_types
 
 
 def _clean_csv_string(csv_string, delimiter):
-    return ['nan' if x == '' else x for x in csv_string.split(delimiter)]
+    return ["nan" if x == "" else x for x in csv_string.split(delimiter)]
 
 
 def csv_to_dmatrix(input: Union[str, bytes], dtype=None) -> xgb.DMatrix:
@@ -48,11 +48,11 @@ def csv_to_dmatrix(input: Union[str, bytes], dtype=None) -> xgb.DMatrix:
         (xgb.DMatrix): XGBoost DataMatrix
     """
     csv_string = input.decode() if isinstance(input, bytes) else input
-    sniff_delimiter = csv.Sniffer().sniff(csv_string.split('\n')[0][:512]).delimiter
-    delimiter = ',' if sniff_delimiter.isalnum() else sniff_delimiter
-    logging.info("Determined delimiter of CSV input is \'{}\'".format(delimiter))
+    sniff_delimiter = csv.Sniffer().sniff(csv_string.split("\n")[0][:512]).delimiter
+    delimiter = "," if sniff_delimiter.isalnum() else sniff_delimiter
+    logging.info("Determined delimiter of CSV input is '{}'".format(delimiter))
 
-    np_payload = np.array(list(map(lambda x: _clean_csv_string(x, delimiter), csv_string.split('\n')))).astype(dtype)
+    np_payload = np.array(list(map(lambda x: _clean_csv_string(x, delimiter), csv_string.split("\n")))).astype(dtype)
     return xgb.DMatrix(np_payload)
 
 
@@ -89,12 +89,12 @@ def recordio_protobuf_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
     reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=100)
     reader = mlio.RecordIOProtobufReader(reader_params)
 
-    is_dense_tensor = type(reader.peek_example()['values']) is mlio.DenseTensor
+    is_dense_tensor = type(reader.peek_example()["values"]) is mlio.DenseTensor
 
     examples = []
     for example in reader:
         # Ignore labels if present
-        values = as_numpy(example['values']) if is_dense_tensor else to_coo_matrix(example['values'])
+        values = as_numpy(example["values"]) if is_dense_tensor else to_coo_matrix(example["values"])
         examples.append(values)
 
     data = np.vstack(examples) if is_dense_tensor else scipy_vstack(examples).tocsr()
@@ -106,7 +106,8 @@ _dmatrix_decoders_map = {
     _content_types.CSV: csv_to_dmatrix,
     xgb_content_types.LIBSVM: libsvm_to_dmatrix,
     xgb_content_types.X_LIBSVM: libsvm_to_dmatrix,
-    xgb_content_types.X_RECORDIO_PROTOBUF: recordio_protobuf_to_dmatrix}
+    xgb_content_types.X_RECORDIO_PROTOBUF: recordio_protobuf_to_dmatrix,
+}
 
 
 def json_to_jsonlines(json_data):

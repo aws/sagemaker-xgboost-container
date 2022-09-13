@@ -20,38 +20,39 @@ import time
 import pytest
 import requests
 
-PING_URL = 'http://localhost:8080/ping'
-INVOCATION_URL = 'http://localhost:8080/models/{}/invoke'
-MODELS_URL = 'http://localhost:8080/models'
-DELETE_MODEL_URL = 'http://localhost:8080/models/{}'
+PING_URL = "http://localhost:8080/ping"
+INVOCATION_URL = "http://localhost:8080/models/{}/invoke"
+MODELS_URL = "http://localhost:8080/models"
+DELETE_MODEL_URL = "http://localhost:8080/models/{}"
 
 path = os.path.abspath(__file__)
-resource_path = os.path.join(os.path.dirname(path), '..', '..', 'resources')
+resource_path = os.path.join(os.path.dirname(path), "..", "..", "resources")
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 def volume():
     try:
-        model_dir = os.path.join(resource_path, 'models')
+        model_dir = os.path.join(resource_path, "models")
         subprocess.check_call(
-            'docker volume create --name dynamic_endpoint_model_volume --opt type=none '
-            '--opt device={} --opt o=bind'.format(model_dir).split())
+            "docker volume create --name dynamic_endpoint_model_volume --opt type=none "
+            "--opt device={} --opt o=bind".format(model_dir).split()
+        )
         yield model_dir
     finally:
-        subprocess.check_call('docker volume rm dynamic_endpoint_model_volume'.split())
+        subprocess.check_call("docker volume rm dynamic_endpoint_model_volume".split())
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def container(request, docker_base_name, tag):
-    test_name = 'sagemaker-xgboost-serving-test'
+    test_name = "sagemaker-xgboost-serving-test"
     try:
         command = (
-            'docker run --name {} -p 8080:8080'
-            ' --mount type=volume,source=dynamic_endpoint_model_volume,target=/opt/ml/model,readonly'
-            ' -e SAGEMAKER_BIND_TO_PORT=8080'
-            ' -e SAGEMAKER_SAFE_PORT_RANGE=9000-9999'
-            ' -e SAGEMAKER_MULTI_MODEL=true'
-            ' {}:{} serve'
+            "docker run --name {} -p 8080:8080"
+            " --mount type=volume,source=dynamic_endpoint_model_volume,target=/opt/ml/model,readonly"
+            " -e SAGEMAKER_BIND_TO_PORT=8080"
+            " -e SAGEMAKER_SAFE_PORT_RANGE=9000-9999"
+            " -e SAGEMAKER_MULTI_MODEL=true"
+            " {}:{} serve"
         ).format(test_name, docker_base_name, tag)
 
         proc = subprocess.Popen(command.split(), stdout=sys.stdout, stderr=subprocess.STDOUT)
@@ -60,7 +61,7 @@ def container(request, docker_base_name, tag):
         while attempts < 5:
             time.sleep(3)
             try:
-                requests.get('http://localhost:8080/ping')
+                requests.get("http://localhost:8080/ping")
                 break
             except Exception:
                 attempts += 1
@@ -68,12 +69,12 @@ def container(request, docker_base_name, tag):
 
         yield proc.pid
     finally:
-        subprocess.check_call('docker rm -f {}'.format(test_name).split())
+        subprocess.check_call("docker rm -f {}".format(test_name).split())
 
 
-def make_invocation_request(data, model_name, content_type='text/csv'):
+def make_invocation_request(data, model_name, content_type="text/csv"):
     headers = {
-        'Content-Type': content_type,
+        "Content-Type": content_type,
     }
     response = requests.post(INVOCATION_URL.format(model_name), data=data, headers=headers)
     return response.status_code, json.loads(response.content.decode(encodings.utf_8.getregentry().name))
@@ -85,14 +86,12 @@ def make_list_model_request():
 
 
 def make_get_model_request(model_name):
-    response = requests.get(MODELS_URL + '/{}'.format(model_name))
+    response = requests.get(MODELS_URL + "/{}".format(model_name))
     return response.status_code, json.loads(response.content.decode(encodings.utf_8.getregentry().name))
 
 
-def make_load_model_request(data, content_type='application/json'):
-    headers = {
-        'Content-Type': content_type
-    }
+def make_load_model_request(data, content_type="application/json"):
+    headers = {"Content-Type": content_type}
     response = requests.post(MODELS_URL, data=data, headers=headers)
     return response.status_code, response.content.decode(encodings.utf_8.getregentry().name)
 
@@ -110,99 +109,85 @@ def test_ping():
 def test_list_models_empty():
     code, res = make_list_model_request()
     # assert code == 200
-    assert res == {'models': []}
+    assert res == {"models": []}
 
 
 def test_delete_unloaded_model():
     # unloads the given model/version, no-op if not loaded
-    model_name = 'non-existing-model'
+    model_name = "non-existing-model"
     code, res = make_unload_model_request(model_name)
     assert code == 404
 
 
 def test_load_and_unload_model():
-    model_name = 'pickled_model'
-    model_data = {
-        'model_name': model_name,
-        'url': '/opt/ml/model/{}'.format(model_name)
-    }
+    model_name = "pickled_model"
+    model_data = {"model_name": model_name, "url": "/opt/ml/model/{}".format(model_name)}
     code, res = make_load_model_request(json.dumps(model_data))
     assert code == 200, res
     res_json = json.loads(res)
-    assert res_json['status'] == 'Workers scaled'
+    assert res_json["status"] == "Workers scaled"
 
-    code, res = make_invocation_request('0,0,1,0', model_name)
+    code, res = make_invocation_request("0,0,1,0", model_name)
     assert code == 200, res
 
     code, res = make_unload_model_request(model_name)
     assert code == 200, res
     res_json = json.loads(res)
-    assert res_json['status'] == "Model \"{}\" unregistered".format(model_name), res
+    assert res_json["status"] == 'Model "{}" unregistered'.format(model_name), res
 
-    code, res = make_invocation_request('0,0,1,0', model_name)
+    code, res = make_invocation_request("0,0,1,0", model_name)
     assert code == 404, res
-    assert res['message'] == "Model not found: {}".format(model_name), res
+    assert res["message"] == "Model not found: {}".format(model_name), res
 
 
 def test_load_and_unload_two_models():
-    model_name_0 = 'pickled_model'
-    model_data_0 = {
-        'model_name': model_name_0,
-        'url': '/opt/ml/model/{}'.format(model_name_0)
-    }
+    model_name_0 = "pickled_model"
+    model_data_0 = {"model_name": model_name_0, "url": "/opt/ml/model/{}".format(model_name_0)}
     code, res = make_load_model_request(json.dumps(model_data_0))
     assert code == 200, res
     res_json = json.loads(res)
-    assert res_json['status'] == 'Workers scaled'
+    assert res_json["status"] == "Workers scaled"
 
-    model_name_1 = 'saved_booster'
-    model_data_1 = {
-        'model_name': model_name_1,
-        'url': '/opt/ml/model/{}'.format(model_name_1)
-    }
+    model_name_1 = "saved_booster"
+    model_data_1 = {"model_name": model_name_1, "url": "/opt/ml/model/{}".format(model_name_1)}
     code, res = make_load_model_request(json.dumps(model_data_1))
     assert code == 200, res
     res_json = json.loads(res)
-    assert res_json['status'] == 'Workers scaled'
+    assert res_json["status"] == "Workers scaled"
 
-    code, res = make_invocation_request('0,0,1,0', model_name_0)
+    code, res = make_invocation_request("0,0,1,0", model_name_0)
     assert code == 200, res
 
-    code, res = make_invocation_request('0,0,1,0', model_name_1)
+    code, res = make_invocation_request("0,0,1,0", model_name_1)
     assert code == 200, res
 
     code, res = make_unload_model_request(model_name_0)
     assert code == 200, res
     res_json = json.loads(res)
-    assert res_json['status'] == "Model \"{}\" unregistered".format(model_name_0), res
+    assert res_json["status"] == 'Model "{}" unregistered'.format(model_name_0), res
 
     code, res = make_unload_model_request(model_name_1)
     assert code == 200, res
     res_json = json.loads(res)
-    assert res_json['status'] == "Model \"{}\" unregistered".format(model_name_1), res
+    assert res_json["status"] == 'Model "{}" unregistered'.format(model_name_1), res
 
 
 def test_container_start_invocation_fail():
-    x = {
-        'instances': [1.0, 2.0, 5.0]
-    }
-    code, res = make_invocation_request(json.dumps(x), 'half_plus_three')
+    x = {"instances": [1.0, 2.0, 5.0]}
+    code, res = make_invocation_request(json.dumps(x), "half_plus_three")
     assert code == 404
-    assert res['message'] == "Model not found: {}".format('half_plus_three')
+    assert res["message"] == "Model not found: {}".format("half_plus_three")
 
 
 def test_load_one_model_two_times():
-    model_name = 'pickled_model'
-    model_data = {
-        'model_name': model_name,
-        'url': '/opt/ml/model/{}'.format(model_name)
-    }
+    model_name = "pickled_model"
+    model_data = {"model_name": model_name, "url": "/opt/ml/model/{}".format(model_name)}
     code_load, res = make_load_model_request(json.dumps(model_data))
     assert code_load == 200, res
     res_json = json.loads(res)
-    assert res_json['status'] == 'Workers scaled'
+    assert res_json["status"] == "Workers scaled"
 
     code_load, res = make_load_model_request(json.dumps(model_data))
     assert code_load == 409
     res_json = json.loads(res)
-    assert res_json['message'] == 'Model {} is already registered.'.format(model_name)
+    assert res_json["message"] == "Model {} is already registered.".format(model_name)

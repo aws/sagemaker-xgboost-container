@@ -39,9 +39,7 @@ class BaseToolkitError(Exception):
                                  non-BaseToolkitError.
     """
 
-    def __init__(self,
-                 message=None,
-                 caused_by=None):
+    def __init__(self, message=None, caused_by=None):
         formatted_message = BaseToolkitError._format_exception_message(message, caused_by)
         super(BaseToolkitError, self).__init__(formatted_message)
         self.message = formatted_message
@@ -63,7 +61,7 @@ class BaseToolkitError(Exception):
         elif caused_by:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")  # Suppress deprecation warning
-                formatted_message = getattr(caused_by, 'message', str(caused_by))
+                formatted_message = getattr(caused_by, "message", str(caused_by))
         else:
             formatted_message = "unknown error occurred"
 

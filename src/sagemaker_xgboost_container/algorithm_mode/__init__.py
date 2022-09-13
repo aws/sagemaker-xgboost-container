@@ -11,9 +11,10 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import os
-from sagemaker_containers.beta.framework import env
-from sagemaker_xgboost_container.algorithm_mode import serve
 
+from sagemaker_containers.beta.framework import env
+
+from sagemaker_xgboost_container.algorithm_mode import serve
 
 # Pre-load the model in the algorithm mode.
 # Otherwise, the model will be loaded when serving the first request per worker.

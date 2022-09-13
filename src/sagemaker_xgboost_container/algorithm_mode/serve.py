@@ -18,23 +18,21 @@ import os
 import signal
 import sys
 
-from gunicorn.six import iteritems
 import flask
 import gunicorn.app.base
+from gunicorn.six import iteritems
 from sagemaker_containers import _content_types
-
 from sagemaker_containers.beta.framework import encoders
-from sagemaker_xgboost_container.algorithm_mode import integration
-from sagemaker_xgboost_container.algorithm_mode import serve_utils
-from sagemaker_xgboost_container.constants import sm_env_constants
 
+from sagemaker_xgboost_container.algorithm_mode import integration, serve_utils
+from sagemaker_xgboost_container.constants import sm_env_constants
 
 SAGEMAKER_BATCH = os.getenv(sm_env_constants.SAGEMAKER_BATCH)
 SUPPORTED_ACCEPTS = ["application/json", "application/jsonlines", "application/x-recordio-protobuf", "text/csv"]
 logging = integration.setup_main_logger(__name__)
 
 
-PARSED_MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", '6291456'))
+PARSED_MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", "6291456"))
 
 
 def number_of_workers():
@@ -75,7 +73,7 @@ class ScoringService(object):
         return cls.format
 
     @classmethod
-    def predict(cls, data, content_type='text/x-libsvm', model_format='pkl_format'):
+    def predict(cls, data, content_type="text/x-libsvm", model_format="pkl_format"):
         return serve_utils.predict(cls.booster, model_format, data, content_type, cls.objective)
 
     @classmethod
@@ -151,11 +149,12 @@ def execution_parameters():
         parameters = {
             "MaxConcurrentTransforms": number_of_workers(),
             "BatchStrategy": "MULTI_RECORD",
-            "MaxPayloadInMB": int(PARSED_MAX_CONTENT_LENGTH / (1024 ** 2))
+            "MaxPayloadInMB": int(PARSED_MAX_CONTENT_LENGTH / (1024 ** 2)),
         }
     except Exception as e:
-        return flask.Response(response="Unable to determine execution parameters: %s" % e,
-                              status=http.client.INTERNAL_SERVER_ERROR)
+        return flask.Response(
+            response="Unable to determine execution parameters: %s" % e, status=http.client.INTERNAL_SERVER_ERROR
+        )
 
     response_text = json.dumps(parameters)
     return flask.Response(response=response_text, status=http.client.OK, mimetype="application/json")
@@ -174,8 +173,9 @@ def _parse_accept(request):
     if not accept or accept == "*/*":
         return os.getenv(sm_env_constants.SAGEMAKER_DEFAULT_INVOCATIONS_ACCEPT, "text/csv")
     if accept.lower() not in SUPPORTED_ACCEPTS:
-        raise ValueError("Accept type {} is not supported. Please use supported accept types: {}."
-                         .format(accept, SUPPORTED_ACCEPTS))
+        raise ValueError(
+            "Accept type {} is not supported. Please use supported accept types: {}.".format(accept, SUPPORTED_ACCEPTS)
+        )
     return accept.lower()
 
 
@@ -188,12 +188,13 @@ def _handle_selectable_inference_response(predictions, accept):
     """
     try:
         config = ScoringService.get_config_json()
-        objective = config['learner']['objective']['name']
-        num_class = config['learner']['learner_model_param'].get('num_class', '')
+        objective = config["learner"]["objective"]["name"]
+        num_class = config["learner"]["learner_model_param"].get("num_class", "")
         selected_content_keys = serve_utils.get_selected_output_keys()
 
-        selected_content = serve_utils.get_selected_predictions(predictions, selected_content_keys, objective,
-                                                                num_class=num_class)
+        selected_content = serve_utils.get_selected_predictions(
+            predictions, selected_content_keys, objective, num_class=num_class
+        )
 
         response = serve_utils.encode_selected_predictions(selected_content, selected_content_keys, accept)
     except Exception as e:
@@ -238,7 +239,7 @@ def invocations():
 
     preds_list = preds.tolist()
     if SAGEMAKER_BATCH:
-        return_data = "\n".join(map(str, preds_list)) + '\n'
+        return_data = "\n".join(map(str, preds_list)) + "\n"
     else:
         if accept == _content_types.JSON:
             return_data = serve_utils.encode_predictions_as_json(preds_list)
@@ -248,5 +249,5 @@ def invocations():
     return flask.Response(response=return_data, status=http.client.OK, mimetype=accept)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ScoringService.start()

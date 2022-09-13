@@ -13,9 +13,7 @@
 from __future__ import absolute_import
 
 import os
-
 from test.utils import local_mode
-
 
 path = os.path.dirname(os.path.realpath(__file__))
 script_path = os.path.join(path, "..", "..", "resources", "versions")

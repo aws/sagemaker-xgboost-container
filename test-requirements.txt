@@ -1,7 +1,9 @@
 Flask==1.1.1  # sagemaker-containers requires flask 1.1.1
+black
 coverage
 docker-compose
 flake8
+isort
 mock
 pytest
 pytest-cov

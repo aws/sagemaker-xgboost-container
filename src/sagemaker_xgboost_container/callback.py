@@ -1,7 +1,7 @@
 import logging
-from smdebug.xgboost import Hook
-import xgboost as xgb
 
+import xgboost as xgb
+from smdebug.xgboost import Hook
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class SmeDebugHook(xgb.callback.TrainingCallback, Hook):
     :param train_dmatrix: Training data set.
     :param val_dmatrix: Validation data set.
     """
-    def __init__(self, json_config_path, hyperparameters,
-                 train_dmatrix, val_dmatrix):
+
+    def __init__(self, json_config_path, hyperparameters, train_dmatrix, val_dmatrix):
         self = self.hook_from_config(json_config_path)
         self.hyperparameters = hyperparameters
         self.train_data = train_dmatrix
@@ -27,8 +27,7 @@ class SmeDebugHook(xgb.callback.TrainingCallback, Hook):
             self.validation_data = val_dmatrix
 
 
-def add_debugging(callbacks, hyperparameters, train_dmatrix,
-                  val_dmatrix=None, json_config_path=None):
+def add_debugging(callbacks, hyperparameters, train_dmatrix, val_dmatrix=None, json_config_path=None):
     """Add a sagemaker debug hook to a list of callbacks.
 
     :param callbacks: List of callback functions.

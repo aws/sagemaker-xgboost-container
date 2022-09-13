@@ -19,9 +19,7 @@ import os
 import shutil
 import tempfile
 import textwrap
-
 from test.utils import local_mode, test_utils
-
 
 LIBSVM_SAMPLE = "10 1:2 2:0.645 3:0.515 4:0.15 5:1.212 6:0.515 7:0.2055 8:0.385"
 
@@ -102,12 +100,8 @@ def test_xgboost_abalone_inference(docker_image, opt_ml):
     customer_script = "abalone_distributed.py"
     request_body = get_libsvm_request_body()
 
-    with local_mode.serve(
-        customer_script, libsvm_model_dir, docker_image, opt_ml, source_dir=abalone_path
-    ):
-        response_status_code, response_body = local_mode.request(
-            request_body, content_type="text/libsvm"
-        )
+    with local_mode.serve(customer_script, libsvm_model_dir, docker_image, opt_ml, source_dir=abalone_path):
+        response_status_code, response_body = local_mode.request(request_body, content_type="text/libsvm")
 
     assert response_status_code == 200
     assert not local_mode.file_exists(opt_ml, "output/failure"), "Failure happened"
@@ -117,9 +111,7 @@ def test_xgboost_abalone_inference(docker_image, opt_ml):
 def test_xgboost_abalone_algorithm_mode_inference_csv_out(docker_image, opt_ml):
     request_body = get_libsvm_request_body()
 
-    with local_mode.serve(
-        None, libsvm_model_dir, docker_image, opt_ml, source_dir=abalone_path
-    ):
+    with local_mode.serve(None, libsvm_model_dir, docker_image, opt_ml, source_dir=abalone_path):
         response_status_code, response_body = local_mode.request(
             request_body, content_type="text/libsvm", accept_type="text/csv"
         )
@@ -132,9 +124,7 @@ def test_xgboost_abalone_algorithm_mode_inference_csv_out(docker_image, opt_ml):
 def test_xgboost_abalone_algorithm_mode_inference_json_out(docker_image, opt_ml):
     request_body = get_libsvm_request_body()
 
-    with local_mode.serve(
-        None, libsvm_model_dir, docker_image, opt_ml, source_dir=abalone_path
-    ):
+    with local_mode.serve(None, libsvm_model_dir, docker_image, opt_ml, source_dir=abalone_path):
         response_status_code, response_body = local_mode.request(
             request_body, content_type="text/libsvm", accept_type="application/json"
         )
@@ -150,9 +140,7 @@ def test_xgboost_abalone_algorithm_mode_inference_json_out(docker_image, opt_ml)
 def test_xgboost_abalone_custom_inference_with_transform_fn(docker_image, opt_ml):
     customer_script = "abalone_distributed.py"
     request_body = get_libsvm_request_body()
-    with append_transform_fn_to_abalone_script(
-        abalone_path, customer_script
-    ) as custom_script_path:
+    with append_transform_fn_to_abalone_script(abalone_path, customer_script) as custom_script_path:
         with local_mode.serve(
             customer_script,
             libsvm_model_dir,
@@ -160,15 +148,10 @@ def test_xgboost_abalone_custom_inference_with_transform_fn(docker_image, opt_ml
             opt_ml,
             source_dir=custom_script_path,
         ):
-            response_status_code, response_body = local_mode.request(
-                request_body, content_type="text/libsvm"
-            )
+            response_status_code, response_body = local_mode.request(request_body, content_type="text/libsvm")
     assert response_status_code == 200
     assert not local_mode.file_exists(opt_ml, "output/failure"), "Failure happened"
-    assert (
-        len(response_body.split(","))
-        == len(request_body.split()) + 1  # final column is the bias term
-    )
+    assert len(response_body.split(",")) == len(request_body.split()) + 1  # final column is the bias term
 
 
 def test_xgboost_abalone_mme(docker_image, opt_ml):
@@ -180,9 +163,7 @@ def test_xgboost_abalone_mme(docker_image, opt_ml):
         "SAGEMAKER_MULTI_MODEL=true",
     ]
     model_name = "libsvm_pickled"
-    model_data = json.dumps(
-        {"model_name": model_name, "url": "/opt/ml/model/{}".format(model_name)}
-    )
+    model_data = json.dumps({"model_name": model_name, "url": "/opt/ml/model/{}".format(model_name)})
     with local_mode.serve(
         customer_script,
         models_dir,
@@ -217,12 +198,8 @@ def test_xgboost_abalone_mme_with_transform_fn(docker_image, opt_ml):
         "SAGEMAKER_MULTI_MODEL=true",
     ]
     model_name = "libsvm_pickled"
-    model_data = json.dumps(
-        {"model_name": model_name, "url": "/opt/ml/model/{}".format(model_name)}
-    )
-    with append_transform_fn_to_abalone_script(
-        abalone_path, customer_script
-    ) as custom_script_path:
+    model_data = json.dumps({"model_name": model_name, "url": "/opt/ml/model/{}".format(model_name)})
+    with append_transform_fn_to_abalone_script(abalone_path, customer_script) as custom_script_path:
         with local_mode.serve(
             customer_script,
             models_dir,
@@ -244,8 +221,5 @@ def test_xgboost_abalone_mme_with_transform_fn(docker_image, opt_ml):
             )
 
     assert invoke_status_code == 200
-    assert (
-        len(invoke_response_body.split(","))
-        == len(request_body.split()) + 1  # final column is the bias term
-    )
+    assert len(invoke_response_body.split(",")) == len(request_body.split()) + 1  # final column is the bias term
     assert not local_mode.file_exists(opt_ml, "output/failure"), "Failure happened"

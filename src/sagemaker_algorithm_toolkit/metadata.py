@@ -18,10 +18,11 @@ import boto3
 def _get_instance_types(region_name="us-east-1", location="US East (N. Virginia)"):
     s = boto3.client("pricing", region_name=region_name)
 
-    NAME = 'AmazonSageMaker'
+    NAME = "AmazonSageMaker"
     FILTERS = [
         {"Type": "TERM_MATCH", "Field": "productFamily", "Value": "ML Instance"},
-        {"Type": "TERM_MATCH", "Field": "location", "Value": location}]
+        {"Type": "TERM_MATCH", "Field": "location", "Value": location},
+    ]
     results = s.get_products(ServiceCode=NAME, Filters=FILTERS)
 
     total_results = []
@@ -75,10 +76,9 @@ def get_multi_gpu_instance_types(product, **kwargs):
     return results
 
 
-def training_spec(hyperparameters, channels, metrics,
-                  image_uri,
-                  supported_training_instance_types,
-                  supports_distributed_training):
+def training_spec(
+    hyperparameters, channels, metrics, image_uri, supported_training_instance_types, supports_distributed_training
+):
     return {
         "TrainingImage": image_uri,
         "TrainingChannels": channels.format(),
@@ -87,23 +87,24 @@ def training_spec(hyperparameters, channels, metrics,
         "SupportsDistributedTraining": supports_distributed_training,
         "MetricDefinitions": metrics.format_definitions(),
         "SupportedTuningJobObjectiveMetrics": metrics.format_tunable(),
-        }
+    }
 
 
-def inference_spec(image_uri,
-                   supported_realtime_inference_instance_types,
-                   supported_transform_inference_instance_types,
-                   supported_content_types,
-                   supported_response_mimetypes):
+def inference_spec(
+    image_uri,
+    supported_realtime_inference_instance_types,
+    supported_transform_inference_instance_types,
+    supported_content_types,
+    supported_response_mimetypes,
+):
     return {
         "Containers": [{"Image": image_uri}],
         "SupportedTransformInstanceTypes": supported_transform_inference_instance_types,
         "SupportedRealtimeInferenceInstanceTypes": supported_realtime_inference_instance_types,
         "SupportedContentTypes": supported_content_types,
-        "SupportedResponseMIMETypes": supported_response_mimetypes
-        }
+        "SupportedResponseMIMETypes": supported_response_mimetypes,
+    }
 
 
 def generate_metadata(training_spec, inference_spec):
-    return {"TrainingSpecification": training_spec,
-            "InferenceSpecification": inference_spec}
+    return {"TrainingSpecification": training_spec, "InferenceSpecification": inference_spec}
