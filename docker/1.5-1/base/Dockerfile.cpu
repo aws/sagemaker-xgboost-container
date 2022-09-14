@@ -1,6 +1,6 @@
 ARG UBUNTU_VERSION=18.04
 ARG CUDA_VERSION=10.2
-ARG IMAGE_DIGEST=218afa9c2002be9c4629406c07ae4daaf72a3d65eb3c5a5614d9d7110840a46e
+ARG IMAGE_DIGEST=ed4b2e8703ed3f94029ce0823c44fe57b2800108953cf81f97781d6a2a5535fc
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
@@ -24,7 +24,6 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING='utf-8'
 
 RUN rm /etc/apt/sources.list.d/cuda.list && \
-        rm /etc/apt/sources.list.d/nvidia-ml.list && \
         apt-key del 7fa2af80 && \
         apt-get update && apt-get install -y --no-install-recommends wget && \
         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb && \
