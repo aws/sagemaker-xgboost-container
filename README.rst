@@ -69,20 +69,13 @@ above.
 
 If you want to build your base docker image, then use:
 
-::
-
     # All build instructions assume you're building from the root directory of the sagemaker-xgboost-container.
 
     # CPU
     docker build -t xgboost-container-base:<SageMaker-XGBoost-version>-cpu-py3 -f docker/<SageMaker-XGBoost-version>/base/Dockerfile.cpu .
 
-.. parsed-literal::
-
-    # Example
-
     # CPU
-    docker build -t xgboost-container-base:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/base/Dockerfile.cpu .
-
+    docker build -t xgboost-container-base:|XGBoostLatestVersion|-cpu-py3 -f docker/|XGBoostLatestVersion|/base/Dockerfile.cpu 
 
 Final Images
 ~~~~~~~~~~~~
