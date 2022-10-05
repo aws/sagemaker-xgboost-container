@@ -30,7 +30,7 @@ phases:
     - echo Running tox...
     - printf "FROM ${PREPROD_TAG}\nADD . /app\nWORKDIR /app\nRUN python3 -m pip install .[test]" > Dockerfile.test
     - docker build -t test-xgboost-container -f Dockerfile.test .
-    - docker run --rm -t test-xgboost-container sh -c 'pytest --cov=sagemaker_xgboost_container --cov-fail-under=60 test/unit'
+    - docker run --rm -t test-xgboost-container sh -c 'pytest --cov=sagemaker_xgboost_container --cov-fail-under=55 test/unit'
     - docker run --rm -t test-xgboost-container sh -c 'flake8 setup.py src test'
     - echo Running container tests...
     - pytest test/integration/local --docker-base-name preprod-xgboost-container --tag ${CPU_TAG_SUFFIX} --py-version 3 --framework-version $FRAMEWORK_VERSION
