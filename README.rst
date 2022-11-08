@@ -131,7 +131,7 @@ dependencies.
 
     git clone https://github.com/aws/sagemaker-xgboost-container.git
     cd sagemaker-xgboost-container
-    pip install -e .[test]
+    pip install -e .[test] # Use bash when running this command
 
 Conda is also required and can be installed by following the instructions at https://conda.io/projects/conda/en/latest/user-guide/install/index.html. For convenience, the Linux installation commands are provided as an example.
 
