@@ -100,6 +100,11 @@ def _set_mms_configs(is_multi_model, handler):
     _set_default_if_not_exist("SAGEMAKER_MAX_HEAP_SIZE", str(max_heap_size) + 'm')
     _set_default_if_not_exist("SAGEMAKER_MAX_DIRECT_MEMORY_SIZE", os.environ["SAGEMAKER_MAX_HEAP_SIZE"])
 
+    disable_container_support_flag = ""
+    if "SAGEMAKER_DISABLE_CONTAINER_SUPPORT" in os.environ \
+            and os.environ["SAGEMAKER_DISABLE_CONTAINER_SUPPORT"] == "true":
+        disable_container_support_flag = " -XX:-UseContainerSupport"
+
     MMS_CONFIG_FILE_PATH = get_mms_config_file_path()
 
     # TODO: Revert config.properties.tmp to config.properties and add back in vmargs
@@ -115,7 +120,9 @@ def _set_mms_configs(is_multi_model, handler):
                         + " -XX:InitiatingHeapOccupancyPercent=25"
                         + " -Xms" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
                         + " -Xmx" + os.environ["SAGEMAKER_MAX_HEAP_SIZE"]
-                        + " -XX:MaxDirectMemorySize=" + os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"] + "\n")
+                        + " -XX:MaxDirectMemorySize=" + os.environ["SAGEMAKER_MAX_DIRECT_MEMORY_SIZE"]
+                        + disable_container_support_flag
+                        + "\n")
                 g.write(f.read())
     except Exception:
         pass
