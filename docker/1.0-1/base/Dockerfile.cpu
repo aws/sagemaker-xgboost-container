@@ -29,6 +29,10 @@ RUN apt-get update && \
 RUN apt-get update
 RUN apt-get clean
 
+# http://es.archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi7_3.3-4_amd64.deb
+COPY docker/1.0-1/resources/libffi7_3.3-4_amd64.deb /tmp
+RUN dpkg -i /tmp/libffi7_3.3-4_amd64.deb
+
 # Install conda
 RUN cd /tmp && \
     curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-Linux-x86_64.sh && \
