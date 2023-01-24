@@ -8,7 +8,7 @@ import threading
 import xgboost as xgb
 from xgboost import rabit
 from xgboost.callback import EvaluationMonitor
-from xgboost.core import Booster, XGBoostError
+from xgboost.core import XGBoostError
 
 TEMP_FILE_SUFFIX = ".sagemaker-ignore"
 FILE_LOCK_SUFFIX = ".sagemaker-uploading"
@@ -52,8 +52,10 @@ def train(train_args, checkpoint_dir):
         logging.warning("Resuming from iteration %s", start_iteration)
 
     callbacks = train_args.get("callbacks", [])
-    callbacks.append(print_checkpointed_evaluation(start_iteration=start_iteration, end_iteration = train_args["num_boost_round"]))
-    callbacks.append(save_checkpoint(checkpoint_dir, start_iteration=start_iteration, iteration = start_iteration, end_iteration=train_args["num_boost_round"]))
+    callbacks.append(print_checkpointed_evaluation(start_iteration=start_iteration,
+                                                   end_iteration=train_args["num_boost_round"]))
+    callbacks.append(save_checkpoint(checkpoint_dir, start_iteration=start_iteration, iteration=start_iteration,
+                                     end_iteration=train_args["num_boost_round"]))
 
     train_args["verbose_eval"] = False  # suppress xgboost's print_evaluation()
     train_args["xgb_model"] = xgb_model
@@ -65,7 +67,7 @@ def train(train_args, checkpoint_dir):
 
 
 class PrintCheckpoint(xgb.callback.TrainingCallback):
-    def __init__(self, end_iteration, iteration= 0, rank = 0, period=1, show_stdv=True, start_iteration=0):
+    def __init__(self, end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
         self.period = period
         self.show_stdv = show_stdv
         self.start_iteration = start_iteration
@@ -73,7 +75,7 @@ class PrintCheckpoint(xgb.callback.TrainingCallback):
         self.iteration = iteration
         self.end_iteration = end_iteration
 
-    def __call__(self, model, epoch = 0, evals_log = None):
+    def __call__(self, model, epoch=0, evals_log=None):
         return self.after_iteration(model, epoch, evals_log)
 
     def after_iteration(self, model, epoch=0, evals_log=None):
@@ -95,7 +97,8 @@ class PrintCheckpoint(xgb.callback.TrainingCallback):
             msg += "\n"
             rabit.tracker_print("[%d]\t%s\n" % (i + self.start_iteration, msg))
 
-def print_checkpointed_evaluation(end_iteration, iteration= 0, rank = 0, period=1, show_stdv=True, start_iteration=0):
+
+def print_checkpointed_evaluation(end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
 
     return PrintCheckpoint(end_iteration, iteration, rank, period, show_stdv, start_iteration)
 
@@ -136,20 +139,24 @@ def _sort_checkpoints(checkpoint_files):
     return checkpoint_files
 
 
-def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank = 0, iteration = 0, end_iteration = None):
+def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0,
+                    end_iteration=None):
     """A callback function that saves checkpoints to disk.
 
     This is a wrapper function around SaveCheckpoint.
     For details, see SaveCheckpoint.
     """
     return SaveCheckpointCallBack(
-        checkpoint_dir=checkpoint_dir, start_iteration=start_iteration, max_to_keep=max_to_keep, num_round=num_round, iteration = iteration, end_iteration=end_iteration
+        checkpoint_dir=checkpoint_dir, start_iteration=start_iteration, max_to_keep=max_to_keep, num_round=num_round,
+        iteration=iteration, end_iteration=end_iteration
     )
 
 
 class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
     SENTINEL = None
-    def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0, end_iteration=None):
+
+    def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0,
+                 end_iteration=None):
         """Init SaveCheckpoint with checkpoint_dir"""
         self.checkpoint_dir = checkpoint_dir
         self.max_to_keep = max_to_keep
@@ -187,7 +194,7 @@ class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
             logger.debug("Not master (rank = %d). Exiting checkpoint callback.", self.rank)
             return
 
-        if len(os.listdir(self.checkpoint_dir))!=0:
+        if len(os.listdir(self.checkpoint_dir)) != 0:
             xgb_model, self.iteration = load_checkpoint(self.checkpoint_dir)
             current_iteration = self.iteration
         else:
@@ -286,6 +293,7 @@ class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
 
         save_file_path = self.format_path(iteration)
         os.rename(tf.name, save_file_path)
+
 
 def save_intermediate_model(intermediate_model_dir, model_name):
     """A callback function that saves intermediate models to disk.
