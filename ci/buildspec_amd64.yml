@@ -47,3 +47,4 @@ phases:
     - echo Pushing the Docker image...
     - docker push ${ECR_CPU_TAG} | grep -v -E "[0-9]{12}.dkr.ecr.\S+.amazonaws.com"
     - docker push ${ECR_TAG} | grep -v -E "[0-9]{12}.dkr.ecr.\S+.amazonaws.com"
+    test
