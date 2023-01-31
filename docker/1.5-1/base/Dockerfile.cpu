@@ -1,8 +1,8 @@
 ARG UBUNTU_VERSION=18.04
-ARG CUDA_VERSION=10.2
-ARG IMAGE_DIGEST=ed4b2e8703ed3f94029ce0823c44fe57b2800108953cf81f97781d6a2a5535fc
+ARG CUDA_VERSION=11.2.0
+ARG IMAGE_DIGEST=3b0b74463441090450ce4d7d5314436d2657142ec635fc3533dcfc27ec1c1a42
 
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
+FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
 ARG MINICONDA_VERSION=4.9.2
 ARG CONDA_PY_VERSION=39
@@ -118,5 +118,13 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     ldconfig && \
     rm -rf /tmp/mlio
 
+RUN python3 -m pip install  cudf-cu11 dask-cudf-cu11 --extra-index-url=https://pypi.ngc.nvidia.com && \
+    python3 -m pip uninstall cupy-cuda115 && \ 
+    python3 -m pip install cupy-cuda11x 
+
+# TODO: Use the devel docker image instead.
+RUN conda install -y -c nvidia cudatoolkit=${CUDA_VERSION}
+
 # Install latest version of XGBoost
 RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION}
+
