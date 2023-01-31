@@ -90,4 +90,4 @@ class PlatformError(BaseToolkitError):
 
     def __init__(self, message=None, caused_by=None):
         super(PlatformError, self).__init__(message, caused_by)
-        print("test1")
+        print("test2")
