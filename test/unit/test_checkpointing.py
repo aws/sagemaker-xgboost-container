@@ -1,4 +1,5 @@
 import os
+import logging
 import pathlib
 import shutil
 import tempfile
@@ -192,7 +193,8 @@ def test_train(tmpdir, caplog):
     assert sorted(os.listdir(checkpoint_dir)) == expected_files
 
     train_args["num_boost_round"] = 30
-    checkpointing.train(train_args, checkpoint_dir)
+    with caplog.at_level(logging.INFO):
+        checkpointing.train(train_args, checkpoint_dir)
 
     assert "callbacks" not in train_args
     assert "xgb_model" not in train_args

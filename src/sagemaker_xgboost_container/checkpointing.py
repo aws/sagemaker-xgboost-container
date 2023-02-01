@@ -48,8 +48,8 @@ def train(train_args, checkpoint_dir):
     train_args["num_boost_round"] = train_args.get("num_boost_round", 10) - start_iteration
 
     if xgb_model is not None:
-        logging.warning("Checkpoint loaded from %s", xgb_model)
-        logging.warning("Resuming from iteration %s", start_iteration)
+        logging.info("Checkpoint loaded from %s", xgb_model)
+        logging.info("Resuming from iteration %s", start_iteration)
 
     callbacks = train_args.get("callbacks", [])
     callbacks.append(print_checkpointed_evaluation(start_iteration=start_iteration,
@@ -67,6 +67,25 @@ def train(train_args, checkpoint_dir):
 
 
 class PrintCheckpoint(xgb.callback.TrainingCallback):
+    """Create a callback that print evaluation result every period iteration.
+
+    This function was modified from https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/callback.py
+    The only difference between the following function and the original function in xgboost.callback
+    is the additional 'start_iteration' parameter.
+
+    We print the evaluation results every **period** iterations
+    and on the first and the last iterations.
+
+    Attributes
+    ----------
+    period : int
+    The period to log the evaluation results
+    show_stdv : bool, optional
+    Whether show stdv if provided
+    start_iteration: int, optioonal
+    Used for offsetting the iteratoin number that appears at the beginning of each evaluation result in the logs.
+    """
+
     def __init__(self, end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
         self.period = period
         self.show_stdv = show_stdv
@@ -99,7 +118,11 @@ class PrintCheckpoint(xgb.callback.TrainingCallback):
 
 
 def print_checkpointed_evaluation(end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
+    """A callback function that print evaluation result every period iteration.
 
+    This is a wrapper function around PrintCheckpoint.
+    For details, see PrintCheckpoint.
+    """
     return PrintCheckpoint(end_iteration, iteration, rank, period, show_stdv, start_iteration)
 
 
@@ -153,6 +176,50 @@ def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=
 
 
 class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
+    """Create a callback that saves checkpoints to disk.
+
+        The main purpose of this class is to support checkpointing for managed spot
+        training:
+        https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html.
+        Since spot instances can be interrupted at anytime, we need to be able to
+        save checkpoints during training, and we also need to be able to resume
+        from the last checkpoint when the training job is restarted.
+
+        We save each checkpoint to different files at the end of each iteration by
+        appending the iteration number to the file name, e.g., xgboost-checkpont.1,
+        xgboost-checkpont.2, and so on. These files are written to `checkpoint_dir`,
+
+        Since saving one checkpoint per iteration could result in a large number of
+        files to save in S3 and download when spot instances are resumed, we retain
+        only the `max_to_keep` (5 by default) most recent checkpoints in the
+        directory. This is accomplished by a background thread that deletes all
+        checkpoints older than 5 most recent checkpoints (the number of files to
+        keep is somewhat arbitrary, choosing the optimal number of files to keep is
+        left for future work). Note that when a file is being uploaded by SM, it
+        will create a marker file (file name + .sagemaker-uploading) to indicate
+        that the file is being uploaded. SM will also create another marker file
+        (file name + .sagemaker-uploaded) when the upload is completed. Thus, the
+        background will skip deleting a file and try again later if there is a
+        marker file <filename>.sagemaker-uploading and only attempt to delete a
+        file when the marker file <filename>.sagemaker-uploaded is present.
+
+        Attributes:
+            checkpoint_dir: indicates the path to the directory where checkpoints
+                will be saved.  Defaults to /opt/ml/checkpoints on SageMaker.
+            max_to_keep: indicates the maximum number of recent checkpoint files to
+                keep.  As new files are created, older files are deleted.  Defaults
+                to 5 (that is, the 5 most recent checkpoint files are kept.)
+            start_iteration: indicates the round at which the current training
+                started. If xgb_model was loaded from a previous checkpoint, this
+                will be greater than 0 (that is, if the previous training ended
+                after round 19, start_iteration will be 20).
+            num_round: (optional) indicates the number of boosting rounds.
+
+        Example:
+            >>> save_checkpoint = SaveCheckpoint("/opt/ml/checkpoints")
+            >>> xgboost.train(prams, dtrain, callbacks=[save_checkpoint])
+        """
+
     SENTINEL = None
 
     def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0,
@@ -217,6 +284,7 @@ class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
 
     def start(self):
         """Start a background thread that deletes old checkpoints
+
         To delete stale checkpoints, we use a producer-consumer pattern: we
         start a daemon thread in the background and maintain a queue of files
         to delete.
