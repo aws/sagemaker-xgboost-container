@@ -21,7 +21,7 @@ import time
 import dask.dataframe as dask_dataframe
 from dask.dataframe import DataFrame
 from dask.dataframe import Series
-from dask.distributed import Client
+from dask.distributed import Client, wait
 from sagemaker_algorithm_toolkit import exceptions as exc
 import xgboost as xgb
 
@@ -30,7 +30,8 @@ from sagemaker_xgboost_container.constants.xgb_constants import MODEL_NAME
 DASK_PATH = "/miniconda3/bin"
 SCHEDULER_PORT = "8786"
 
-WAIT_TIME_DAEMONS_STARTUP = 2
+WAIT_TIME_DAEMONS_STARTUP_SEC = 2
+WAIT_FOR_ALL_WORKERS_TIMEOUT_SEC = 20
 
 logger = logging.getLogger(__name__)
 
@@ -73,37 +74,22 @@ def _get_host_ip(host_name: str) -> str:
     return host_ip
 
 
-# We should ensure all workers are present.
-def _wait_for_workers(client: Client, expected_num_workers: int):
-    max_wait_time_sec = 20
-    time_spend = 0
-    actual_workers = 0
-    while actual_workers < expected_num_workers and time_spend < max_wait_time_sec:
-        joined_so_far = len(client.scheduler_info()['workers'])
-        if joined_so_far == expected_num_workers:
-            logging.info("All {} workers have joined the cluster.".format(expected_num_workers))
-            return
-        actual_workers = joined_so_far
-        time_spend += 1
-        time.sleep(1)
-
-    raise Exception(
-        "Waited {} seconds and only {} workers joined. Expected {} workers.".format(time_spend,
-                                                                                    actual_workers,
-                                                                                    expected_num_workers)
-    )
-
-
-def _read_data(local_path: str, content_type) -> (DataFrame, Series):
+def _read_data(client: Client, local_path: str, content_type: str) -> (DataFrame, Series):
     if content_type == "csv":
         dataframe = dask_dataframe.read_csv(local_path + "/*.csv", header=None)
     # content_type should only be csv or parquet after checks in train.py.
     else:
         dataframe = dask_dataframe.read_parquet(local_path)
     target_column = dataframe.columns[0]
-    label = dataframe[target_column]
+    labels = dataframe[target_column]
     features = dataframe[dataframe.columns.difference([target_column])]
-    return features, label
+
+    features, labels = client.persist(
+        [features, labels]
+    )
+    wait([features, labels])
+
+    return features, labels
 
 
 def run_training_with_dask(
@@ -124,21 +110,20 @@ def run_training_with_dask(
     total_num_workers = len(sm_hosts) * num_gpus
     is_scheduler_host = current_host == sm_hosts[0]
 
-    time.sleep(WAIT_TIME_DAEMONS_STARTUP)
+    time.sleep(WAIT_TIME_DAEMONS_STARTUP_SEC)
 
     # We only need to submit the job from one node/container.
     if is_scheduler_host:
         scheduler_address = "{}:{}".format(scheduler_host_ip, SCHEDULER_PORT)
         with Client(scheduler_address) as client:
-            _wait_for_workers(client, total_num_workers)
+            # We ensure that all workers are present before proceeding.
+            client.wait_for_workers(total_num_workers, WAIT_FOR_ALL_WORKERS_TIMEOUT_SEC)
 
             logging.info("Starting to read training data...")
             watchlist = []
             try:
-                X_train, y_train = _read_data(train_path, content_type)
+                X_train, y_train = _read_data(client, train_path, content_type)
 
-                # Due to lazy nature of Dask, no data load has taken place yet.
-                # Creation of DaskDMatrix is where computation starts.
                 dtrain = xgb.dask.DaskDMatrix(client, X_train, y_train)
 
                 # X_train.shape[0].compute() is an expensive operation, but provides sanity check.
@@ -147,7 +132,7 @@ def run_training_with_dask(
                 watchlist.append((dtrain, 'train'))
 
                 if validation_path is not None:
-                    X_valid, y_valid = _read_data(validation_path, content_type)
+                    X_valid, y_valid = _read_data(client, validation_path, content_type)
                     dvalid = xgb.dask.DaskDMatrix(client, X_valid, y_valid)
                     watchlist.append((dvalid, 'validation'))
 
