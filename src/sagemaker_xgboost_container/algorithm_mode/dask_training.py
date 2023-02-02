@@ -43,7 +43,7 @@ def _start_daemons(scheduler_host_ip: str, current_host_ip: str):
 
     # We can set this based on number of vCPUs in the future.
     # So far haven't seen improvement with > 4, during testing.
-    num_threads_per_worker_process = str(4)
+    num_threads_per_worker_process = "4"
     # Dask cuda worker API doc: https://docs.rapids.ai/api/dask-cuda/nightly/api.html
     worker_cli_command = [cmd_start_worker, schedule_conn_string, "--no-dashboard",
                           "--nthreads", num_threads_per_worker_process]
