@@ -25,9 +25,8 @@ from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
-from sagemaker_xgboost_container.algorithm_mode.dask_training import run_training_with_dask
 from sagemaker_xgboost_container.callback import add_debugging
-from sagemaker_xgboost_container.constants.sm_env_constants import SM_NUM_GPUS, SM_OUTPUT_DATA_DIR
+from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
 from sagemaker_xgboost_container.constants.xgb_constants import (
     CUSTOMER_ERRORS,
     MODEL_NAME,
@@ -117,11 +116,16 @@ def get_validated_dmatrices(
 
     return train_dmatrix, val_dmatrix, train_val_dmatrix
 
+
 # TODO: Add data distributionType check here.
 def eligible_for_dask_run(tree_method_selected: str, num_gpus: int, is_pipe: bool, content_type: str) -> bool:
     dask_supported_content_types = ["parquet", "csv"]
-    return tree_method_selected == "gpu_hist" and num_gpus > 1 and is_pipe is False and \
-           content_type.lower() in dask_supported_content_types
+    return (
+        tree_method_selected == "gpu_hist"
+        and num_gpus > 1
+        and is_pipe is False
+        and content_type.lower() in dask_supported_content_types
+    )
 
 
 def sagemaker_train(
@@ -176,7 +180,7 @@ def sagemaker_train(
     # Obtain information about training resources to determine which distributed setup to use, if needed.
     num_hosts = len(sm_hosts)
 
-    '''
+    """
     tree_method_selected = validated_train_config.get("tree_method")
     num_gpus = int(os.environ[SM_NUM_GPUS])
 
@@ -192,7 +196,7 @@ def sagemaker_train(
                                sm_current_host,
                                num_gpus)
         return
-    '''
+    """
 
     train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(
         train_path, val_path, file_type, csv_weights, is_pipe, combine_train_val

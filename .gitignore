@@ -8,3 +8,4 @@ __pycache__
 .coverage*
 .mypy_cache/
 .idea/
+.DS_Store
