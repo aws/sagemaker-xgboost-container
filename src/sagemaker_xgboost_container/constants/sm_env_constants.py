@@ -15,6 +15,7 @@
 # Resource related constants
 SM_CURRENT_HOST = "SM_CURRENT_HOST"
 SM_HOSTS = "SM_HOSTS"
+SM_NUM_GPUS = "SM_NUM_GPUS"
 
 # Data related constants
 SM_CHANNEL_TRAIN = "SM_CHANNEL_TRAIN"
