@@ -20,7 +20,7 @@ SCHEDULER_EXEC_PATH = "/miniconda3/bin/dask-scheduler"
 CUDA_WORKER_EXEC_PATH = "/miniconda3/bin/dask-cuda-worker"
 
 
-def start_daemons_in_current_instance(scheduler_conn_string: str, is_scheduler_host: bool, num_gpus: int):
+def start_daemons_in_current_instance(scheduler_conn_string: str, is_scheduler_host: bool):
     # Dask distributed scheduler API doc: https://docs.dask.org/en/stable/deploying-cli.html
     scheduler_cli_command = [SCHEDULER_EXEC_PATH, "--no-dashboard"]
 
