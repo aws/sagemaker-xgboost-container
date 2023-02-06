@@ -15,8 +15,9 @@ import os
 import unittest
 from pathlib import Path
 
+from sagemaker_algorithm_toolkit.exceptions import UserError
+from sagemaker_xgboost_container.data_utils import CSV, LIBSVM, PARQUET
 from sagemaker_xgboost_container.distributed_gpu.dask_data_utils import _read_data
-from sagemaker_xgboost_container.data_utils import CSV, PARQUET, LIBSVM
 
 
 class TestDaskDataUtils(unittest.TestCase):
@@ -56,9 +57,5 @@ class TestDaskDataUtils(unittest.TestCase):
         assert y.shape[0].compute() == self.NUM_ROWS_IN_EACH_FILE * 2
 
     def test_read_data_unsupported_content(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(UserError):
             _read_data(self.data_path_parquet, LIBSVM)
-
-
-
-

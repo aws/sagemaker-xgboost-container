@@ -27,6 +27,7 @@ from sagemaker_xgboost_container.distributed_gpu.dask_cluster_utils import (
     start_daemons_in_current_instance,
 )
 from sagemaker_xgboost_container.distributed_gpu.dask_data_utils import (
+    create_dask_dmatrix,
     get_dataframe_dimensions,
     load_data_into_memory,
 )
@@ -34,9 +35,8 @@ from sagemaker_xgboost_container.distributed_gpu.dask_data_utils import (
 logger = logging.getLogger(__name__)
 
 SCHEDULER_PORT = "8786"
-WAIT_TIME_DAEMONS_STARTUP_SEC = 2
 WAIT_FOR_ALL_WORKERS_TIMEOUT_SEC = 20
-WORKER_STAY_ALIVE_CHECK_FREQ_SEC = 2
+WORKER_STAY_ALIVE_CHECK_FREQ_SEC = 10
 
 
 def run_training_with_dask(
@@ -53,11 +53,9 @@ def run_training_with_dask(
     scheduler_host_ip = get_host_ip(scheduler_host)
 
     scheduler_address = f"{scheduler_host_ip}:{SCHEDULER_PORT}"
-    scheduler_conn_string = f"tcp://{scheduler_address}"
     is_scheduler_host = current_host == scheduler_host
 
-    start_daemons_in_current_instance(scheduler_conn_string, is_scheduler_host)
-    time.sleep(WAIT_TIME_DAEMONS_STARTUP_SEC)
+    start_daemons_in_current_instance(scheduler_address, is_scheduler_host)
 
     total_num_workers = len(sm_hosts) * num_gpus
 
@@ -69,24 +67,21 @@ def run_training_with_dask(
 
             logging.info("Starting to read training data...")
             watchlist = []
-            try:
-                X_train, y_train = load_data_into_memory(client, train_path, content_type)
 
-                dtrain = xgb.dask.DaskDMatrix(client, X_train, y_train)
+            X_train, y_train = load_data_into_memory(client, train_path, content_type)
 
-                # Log train data dimension for sanity check.
-                train_num_rows, train_num_cols = get_dataframe_dimensions(X_train)
-                logging.info(f"Train features matrix has {train_num_rows} rows and {train_num_cols} columns")
+            dtrain = create_dask_dmatrix(client, X_train, y_train)
 
-                watchlist.append((dtrain, "train"))
+            # Log train data dimension for sanity check.
+            train_num_rows, train_num_cols = get_dataframe_dimensions(X_train)
+            logging.info(f"Train features matrix has {train_num_rows} rows and {train_num_cols} columns")
 
-                if validation_path is not None:
-                    X_valid, y_valid = load_data_into_memory(client, validation_path, content_type)
-                    dvalid = xgb.dask.DaskDMatrix(client, X_valid, y_valid)
-                    watchlist.append((dvalid, "validation"))
+            watchlist.append((dtrain, "train"))
 
-            except Exception as e:
-                raise exc.UserError(f"Failed to load data with exception:\n{e}")
+            if validation_path is not None:
+                X_valid, y_valid = load_data_into_memory(client, validation_path, content_type)
+                dvalid = create_dask_dmatrix(client, X_valid, y_valid)
+                watchlist.append((dvalid, "validation"))
 
             logging.info("Data load complete. Starting training...")
 
@@ -105,15 +100,12 @@ def run_training_with_dask(
             logging.info("Terminating cluster...")
 
     else:
+        scheduler = (scheduler_host_ip, int(SCHEDULER_PORT))
         # Do not exit till the job is done.
         while True:
-            scheduler = (scheduler_host_ip, int(SCHEDULER_PORT))
-            alive_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            alive_check = alive_socket.connect_ex(scheduler)
-            if alive_check == 0:
-                pass
-            else:
-                logging.info("Received a shutdown signal from scheduler. Exiting...")
-                break
-            alive_socket.close()
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as alive_socket:
+                alive_check = alive_socket.connect_ex(scheduler)
+                if alive_check != 0:
+                    logging.info("Received a shutdown signal from scheduler. Exiting...")
+                    break
             time.sleep(WORKER_STAY_ALIVE_CHECK_FREQ_SEC)

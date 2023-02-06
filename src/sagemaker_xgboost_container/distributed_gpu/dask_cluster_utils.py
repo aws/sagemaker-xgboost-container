@@ -14,21 +14,33 @@
 import socket
 from subprocess import Popen
 
-from sagemaker_algorithm_toolkit.exceptions import PlatformError
+from dask.distributed import Client
+
+from sagemaker_algorithm_toolkit.exceptions import AlgorithmError, PlatformError
 
 SCHEDULER_EXEC_PATH = "/miniconda3/bin/dask-scheduler"
 CUDA_WORKER_EXEC_PATH = "/miniconda3/bin/dask-cuda-worker"
 
+SCHEDULER_CONN_TIMEOUT = "20s"
 
-def start_daemons_in_current_instance(scheduler_conn_string: str, is_scheduler_host: bool):
+
+def start_daemons_in_current_instance(scheduler_address: str, is_scheduler_host: bool):
     # Dask distributed scheduler API doc: https://docs.dask.org/en/stable/deploying-cli.html
     scheduler_cli_command = [SCHEDULER_EXEC_PATH, "--no-dashboard"]
-
+    scheduler_conn_string = f"tcp://{scheduler_address}"
     # Dask cuda worker API doc: https://docs.rapids.ai/api/dask-cuda/nightly/api.html
     worker_cli_command = [CUDA_WORKER_EXEC_PATH, scheduler_conn_string, "--no-dashboard"]
     if is_scheduler_host:
         Popen(scheduler_cli_command)
-    Popen(worker_cli_command)
+    try:
+        # Ensure that the scheduler is up before starting workers.
+        with Client(scheduler_address, timeout=SCHEDULER_CONN_TIMEOUT):
+            Popen(worker_cli_command)
+    except TimeoutError as e:
+        raise AlgorithmError(
+            f"Couldn't connect to scheduler after {SCHEDULER_CONN_TIMEOUT}. Please try re-running the training job."
+            f" Exception: {e}"
+        )
 
 
 def get_host_ip(host_name: str) -> str:

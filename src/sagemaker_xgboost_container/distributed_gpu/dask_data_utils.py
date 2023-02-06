@@ -16,7 +16,9 @@ import os
 import dask.dataframe as dask_dataframe
 from dask.dataframe import DataFrame, Series
 from dask.distributed import Client, wait
+from xgboost.dask import DaskDMatrix
 
+from sagemaker_algorithm_toolkit.exceptions import AlgorithmError, UserError
 from sagemaker_xgboost_container.data_utils import CSV, PARQUET
 
 
@@ -26,7 +28,7 @@ def _read_data(local_path: str, content_type: str) -> (DataFrame, Series):
     elif content_type == PARQUET:
         dataframe = dask_dataframe.read_parquet(local_path)
     else:
-        raise ValueError(f"Unexpected content type '{content_type}'. Supported content types are CSV and PARQUET.")
+        raise UserError(f"Unexpected content type '{content_type}'. Supported content types are CSV and PARQUET.")
 
     target_column = dataframe.columns[0]
     labels = dataframe[target_column]
@@ -44,7 +46,20 @@ def get_dataframe_dimensions(dataframe: DataFrame) -> (int, int):
 
 
 def load_data_into_memory(client: Client, local_data_path: str, content_type: str) -> (DataFrame, Series):
-    features, labels = _read_data(local_data_path, content_type)
-    features, labels = client.persist([features, labels])
-    wait([features, labels])
+    try:
+        features, labels = _read_data(local_data_path, content_type)
+        # Due to the lazy nature of Dask collections,
+        # most data related errors will likely show up once data load is started here.
+        features, labels = client.persist([features, labels])
+        wait([features, labels])
+    except Exception as e:
+        raise UserError(f"Failed to load data. Exception: {e}")
     return features, labels
+
+
+def create_dask_dmatrix(client: Client, features: DataFrame, labels: Series) -> DaskDMatrix:
+    try:
+        dmatrix = DaskDMatrix(client, features, labels)
+    except Exception as e:
+        raise AlgorithmError(f"Failed to create DaskDMatrix with given data. Exception: {e}")
+    return dmatrix
