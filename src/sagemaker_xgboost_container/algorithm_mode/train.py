@@ -29,6 +29,7 @@ from sagemaker_xgboost_container.callback import add_debugging
 from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
 from sagemaker_xgboost_container.constants.xgb_constants import (
     CUSTOMER_ERRORS,
+    MODEL_NAME,
     XGB_MAXIMIZE_METRICS,
 )
 from sagemaker_xgboost_container.data_utils import (
@@ -39,8 +40,6 @@ from sagemaker_xgboost_container.data_utils import (
     validate_data_file_path,
 )
 from sagemaker_xgboost_container.prediction_utils import ValidationPredictionRecorder
-
-MODEL_NAME = "xgboost-model"
 
 logger = logging.getLogger(__name__)
 
@@ -157,10 +156,6 @@ def sagemaker_train(
 
     validation_channel = validated_data_config.get("validation", None)
     combine_train_val = "_kfold" in validated_train_config
-    train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(
-        train_path, val_path, file_type, csv_weights, is_pipe, combine_train_val
-    )
-    checkpoint_dir = checkpoint_config.get("LocalPath", None)
     if val_path is not None:
         if train_path == val_path or os.path.basename(train_path) == os.path.basename(val_path):
             logger.warning(
@@ -170,6 +165,15 @@ def sagemaker_train(
         elif not is_pipe:
             # Check if there is potential data redundancy between training and validation sets
             check_data_redundancy(train_path, val_path)
+
+    # Obtain information about training resources to determine which distributed setup to use, if needed.
+    num_hosts = len(sm_hosts)
+
+    train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(
+        train_path, val_path, file_type, csv_weights, is_pipe, combine_train_val
+    )
+    checkpoint_dir = checkpoint_config.get("LocalPath", None)
+
     train_args = dict(
         train_cfg=validated_train_config,
         train_dmatrix=train_dmatrix,
@@ -178,9 +182,6 @@ def sagemaker_train(
         model_dir=model_dir,
         checkpoint_dir=checkpoint_dir,
     )
-
-    # Obtain information about training resources to determine whether to set up Rabit or not
-    num_hosts = len(sm_hosts)
 
     if num_hosts > 1:
         # Wait for hosts to find each other

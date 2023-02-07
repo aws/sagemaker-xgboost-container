@@ -91,3 +91,5 @@ BINARY_LOGRAW = "binary:logitraw"
 BINARY_HINGE = "binary:hinge"
 MULTI_SOFTMAX = "multi:softmax"
 MULTI_SOFTPROB = "multi:softprob"
+
+MODEL_NAME = "xgboost-model"
