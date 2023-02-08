@@ -15,13 +15,14 @@ import logging
 import os
 import socket
 import time
-from typing import Dict
+from typing import Dict, Callable
 
 import xgboost as xgb
 from dask.distributed import Client
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_xgboost_container.constants.xgb_constants import MODEL_NAME
+from sagemaker_xgboost_container.constants.xgb_constants import MODEL_NAME, GPU_TREE_METHOD
+from sagemaker_xgboost_container.data_utils import CSV, PARQUET
 from sagemaker_xgboost_container.distributed_gpu.dask_cluster_utils import (
     get_host_ip,
     start_daemons_in_current_instance,
@@ -38,6 +39,50 @@ SCHEDULER_PORT = "8786"
 WAIT_FOR_ALL_WORKERS_TIMEOUT_SEC = 20
 WORKER_STAY_ALIVE_CHECK_FREQ_SEC = 10
 
+DASK_SUPPORTED_FORMATS = [CSV, PARQUET]
+FULLY_REPLICATED = "FullyReplicated"
+PIPE_MODE = "Pipe"
+
+
+def eligible_for_dask_gpu_training(
+    tree_method_hp: str, num_gpus: int, input_mode: str, input_format: str, data_distribution_type: str
+) -> bool:
+    return (
+        tree_method_hp is not None
+        and tree_method_hp == GPU_TREE_METHOD
+        and num_gpus > 0
+        and input_mode != PIPE_MODE
+        and input_format in DASK_SUPPORTED_FORMATS
+        and data_distribution_type is not None
+        and data_distribution_type == FULLY_REPLICATED
+    )
+
+
+def run_xgb_train(
+    client,
+    train_cfg,
+    train_dmatrix,
+    num_boost_round,
+    evals,
+    evals_result,
+    feval,
+    callbacks,
+    xgb_model
+):
+    output = xgb.dask.train(
+                client,
+                train_cfg,
+                train_dmatrix,
+                num_boost_round=num_boost_round,
+                evals=evals,
+                feval=feval,
+                evals_result=evals_result,
+                callbacks=callbacks,
+                xgb_model=xgb_model,
+                verbose_eval=False,
+            )
+    return output["booster"]
+
 
 def run_training_with_dask(
     hyperparameters: Dict,
@@ -48,6 +93,7 @@ def run_training_with_dask(
     sm_hosts: [str],
     current_host: str,
     num_gpus: int,
+    training_func: Callable
 ):
     scheduler_host = sm_hosts[0]
     scheduler_host_ip = get_host_ip(scheduler_host)
@@ -86,6 +132,7 @@ def run_training_with_dask(
             logging.info("Data load complete. Starting training...")
 
             try:
+                training_func()
                 output = xgb.dask.train(
                     client, hyperparameters, dtrain, num_boost_round=hyperparameters["num_round"], evals=watchlist
                 )

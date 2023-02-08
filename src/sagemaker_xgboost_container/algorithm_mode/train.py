@@ -26,7 +26,7 @@ from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 from sagemaker_xgboost_container.callback import add_debugging
-from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
+from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR, SM_NUM_GPUS
 from sagemaker_xgboost_container.constants.xgb_constants import (
     CUSTOMER_ERRORS,
     MODEL_NAME,
@@ -38,6 +38,10 @@ from sagemaker_xgboost_container.data_utils import (
     get_dmatrix,
     get_size,
     validate_data_file_path,
+)
+from sagemaker_xgboost_container.distributed_gpu.distributed_gpu_training import (
+    eligible_for_dask_gpu_training,
+    run_training_with_dask,
 )
 from sagemaker_xgboost_container.prediction_utils import ValidationPredictionRecorder
 
@@ -168,6 +172,24 @@ def sagemaker_train(
 
     # Obtain information about training resources to determine which distributed setup to use, if needed.
     num_hosts = len(sm_hosts)
+    num_gpus = os.environ.get(SM_NUM_GPUS)
+    tree_method_hp = validated_train_config.get("tree_method")
+    distribution_type = validated_data_config["train"].get(cv.S3_DIST_TYPE)
+
+    use_dask = eligible_for_dask_gpu_training(tree_method_hp, num_gpus, input_mode, file_type, distribution_type)
+    if use_dask:
+        logging.info("Will be using Dask for GPU training...")
+        run_training_with_dask(
+            hyperparameters=train_config,
+            train_path=train_path,
+            validation_path=val_path,
+            model_dir=model_dir,
+            content_type=file_type,
+            sm_hosts=sm_hosts,
+            current_host=sm_current_host,
+            num_gpus=num_gpus,
+        )
+        return
 
     train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(
         train_path, val_path, file_type, csv_weights, is_pipe, combine_train_val
@@ -182,6 +204,8 @@ def sagemaker_train(
         model_dir=model_dir,
         checkpoint_dir=checkpoint_dir,
     )
+
+    train_args["xgb_train_func"] = run_xgb_train
 
     if num_hosts > 1:
         # Wait for hosts to find each other
@@ -215,7 +239,9 @@ def sagemaker_train(
         raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
 
-def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_dir, checkpoint_dir, is_master):
+def train_job(
+    train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_dir, checkpoint_dir, is_master, xgb_train_func
+):
     """Train and save XGBoost model using data on current node.
 
     If doing distributed training, XGBoost will use rabit to sync the trained model between each boosting iteration.
@@ -276,15 +302,15 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix, val_dmatrix=val_dmatrix
             )
 
-            bst = xgb.train(
+            bst = xgb_train_func(
                 train_cfg,
                 train_dmatrix,
                 num_boost_round=num_round - iteration,
                 evals=watchlist,
+                evals_result=None,
                 feval=configured_feval,
                 callbacks=callbacks,
                 xgb_model=xgb_model,
-                verbose_eval=False,
             )
 
         else:
@@ -343,16 +369,15 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
                 evals_result = {}
                 logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
-                booster = xgb.train(
+                booster = xgb_train_func(
                     train_cfg,
                     cv_train_dmatrix,
                     num_boost_round=num_round - iteration,
                     evals=watchlist,
-                    feval=configured_feval,
                     evals_result=evals_result,
+                    feval=configured_feval,
                     callbacks=callbacks,
                     xgb_model=xgb_model,
-                    verbose_eval=False,
                 )
                 bst.append(booster)
                 evals_results.append(evals_result)
@@ -389,6 +414,20 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 model_location = os.path.join(model_dir, f"{MODEL_NAME}-{fold}")
                 bst[fold].save_model(model_location)
                 logging.debug("Stored trained model {} at {}".format(fold, model_location))
+
+
+def run_xgb_train(train_cfg, train_dmatrix, num_boost_round, evals, evals_result, feval, callbacks, xgb_model):
+    return xgb.train(
+        train_cfg,
+        train_dmatrix,
+        num_boost_round=num_boost_round,
+        evals=evals,
+        feval=feval,
+        evals_result=evals_result,
+        callbacks=callbacks,
+        xgb_model=xgb_model,
+        verbose_eval=False,
+    )
 
 
 def get_callbacks_watchlist(
