@@ -32,7 +32,7 @@ def _read_data(local_path: str, content_type: str) -> (DataFrame, Series):
 
     target_column = dataframe.columns[0]
     labels = dataframe[target_column]
-    features = dataframe[dataframe.columns.difference([target_column])]
+    features = dataframe.drop(target_column, axis=1)
 
     return features, labels
 
