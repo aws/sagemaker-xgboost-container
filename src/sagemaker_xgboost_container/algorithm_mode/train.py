@@ -12,7 +12,6 @@
 # language governing permissions and limitations under the License.
 import logging
 import os
-import signal
 
 import numpy as np
 import xgboost as xgb
@@ -20,18 +19,14 @@ from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import Channel
-from sagemaker_xgboost_container import checkpointing, distributed
+from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
-from sagemaker_xgboost_container.callback import add_debugging
-from sagemaker_xgboost_container.constants.sm_env_constants import SM_OUTPUT_DATA_DIR
-from sagemaker_xgboost_container.constants.xgb_constants import (
-    CUSTOMER_ERRORS,
-    MODEL_NAME,
-    XGB_MAXIMIZE_METRICS,
-)
+from sagemaker_xgboost_container.callback import add_debugging, get_callbacks
+from sagemaker_xgboost_container.constants.sm_env_constants import SM_NUM_GPUS, SM_OUTPUT_DATA_DIR
+from sagemaker_xgboost_container.constants.xgb_constants import CUSTOMER_ERRORS, MODEL_NAME
 from sagemaker_xgboost_container.data_utils import (
     check_data_redundancy,
     get_content_type,
@@ -39,30 +34,10 @@ from sagemaker_xgboost_container.data_utils import (
     get_size,
     validate_data_file_path,
 )
+from sagemaker_xgboost_container.distributed_gpu import distributed_gpu_training
 from sagemaker_xgboost_container.prediction_utils import ValidationPredictionRecorder
 
 logger = logging.getLogger(__name__)
-
-
-def add_sigterm_handler(model_dir, is_master):
-    """Stop training and cleanup model directory when SIGTERM is received.
-
-    Model directory is only cleaned if is_master is True. Otherwise program terminates.
-
-    :param model_dir: Directory where model is saved
-    :param is_master: True if single node training, or the current node is the master node in distributed training
-    """
-
-    def _terminate():
-        os._exit(0)
-
-    def _cleanup_files(signo, frame):
-        if is_master:
-            train_utils.cleanup_dir(model_dir, MODEL_NAME)
-
-        _terminate()
-
-    signal.signal(signal.SIGTERM, _cleanup_files)
 
 
 def get_validated_dmatrices(
@@ -169,50 +144,64 @@ def sagemaker_train(
     # Obtain information about training resources to determine which distributed setup to use, if needed.
     num_hosts = len(sm_hosts)
 
-    train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(
-        train_path, val_path, file_type, csv_weights, is_pipe, combine_train_val
-    )
     checkpoint_dir = checkpoint_config.get("LocalPath", None)
 
-    train_args = dict(
-        train_cfg=validated_train_config,
-        train_dmatrix=train_dmatrix,
-        val_dmatrix=val_dmatrix,
-        train_val_dmatrix=train_val_dmatrix,
-        model_dir=model_dir,
-        checkpoint_dir=checkpoint_dir,
-    )
-
-    if num_hosts > 1:
-        # Wait for hosts to find each other
-        logging.info("Distributed node training with {} hosts: {}".format(num_hosts, sm_hosts))
-        distributed.wait_hostname_resolution(sm_hosts)
-
-        if not train_dmatrix:
-            logging.warning(
-                "Host {} does not have data. Will broadcast to cluster and will not be used in distributed"
-                " training.".format(sm_current_host)
-            )
-        distributed.rabit_run(
-            exec_fun=train_job,
-            args=train_args,
-            include_in_training=(train_dmatrix is not None),
-            hosts=sm_hosts,
+    num_gpus = int(os.getenv(SM_NUM_GPUS, 0))
+    logging.info("Determined {} GPU(s) from environment variable 'SM_NUM_GPUS'".format(num_gpus))
+    is_dask_job = num_gpus > 1 \
+        and num_hosts > 1 \
+        and file_type in distributed_gpu_training.SUPPORTED_TRAINING_CONTENT_TYPES \
+        and not is_pipe
+    if is_dask_job:
+        logging.info("Going to run distributed training through Dask")
+        distributed_gpu_training.run_training_with_dask(
+            hyperparameters=validated_train_config,
+            train_path=train_path,
+            validation_path=val_path,
+            model_dir=model_dir,
+            content_type=file_type,
+            sm_hosts=sm_hosts,
             current_host=sm_current_host,
-            update_rabit_args=True,
-        )
-    elif num_hosts == 1:
-        if train_dmatrix:
-            if validation_channel:
-                if not val_dmatrix:
-                    raise exc.UserError("No data in validation channel path {}".format(val_path))
-            logging.info("Single node training.")
-            train_args.update({"is_master": True})
-            train_job(**train_args)
-        else:
-            raise exc.UserError("No data in training channel path {}".format(train_path))
+            checkpoint_dir=checkpoint_dir,
+            num_gpus=num_gpus)
     else:
-        raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
+        train_dmatrix, val_dmatrix, train_val_dmatrix = get_validated_dmatrices(
+            train_path, val_path, file_type, csv_weights, is_pipe, combine_train_val)
+        train_args = dict(
+            train_cfg=validated_train_config,
+            train_dmatrix=train_dmatrix,
+            val_dmatrix=val_dmatrix,
+            train_val_dmatrix=train_val_dmatrix,
+            model_dir=model_dir,
+            checkpoint_dir=checkpoint_dir)
+        if num_hosts > 1:
+            # Wait for hosts to find each other
+            logging.info("Distributed node training with {} hosts: {}".format(num_hosts, sm_hosts))
+            distributed.wait_hostname_resolution(sm_hosts)
+            if not train_dmatrix:
+                logging.warning(
+                    "Host {} does not have data. Will broadcast to cluster and will not be used in distributed"
+                    " training.".format(sm_current_host)
+                )
+            distributed.rabit_run(
+                exec_fun=train_job,
+                args=train_args,
+                include_in_training=(train_dmatrix is not None),
+                hosts=sm_hosts,
+                current_host=sm_current_host,
+                update_rabit_args=True)
+        elif num_hosts == 1:
+            if train_dmatrix:
+                if validation_channel:
+                    if not val_dmatrix:
+                        raise exc.UserError("No data in validation channel path {}".format(val_path))
+                logging.info("Single node training.")
+                train_args.update({"is_master": True})
+                train_job(**train_args)
+            else:
+                raise exc.UserError("No data in training channel path {}".format(train_path))
+        else:
+            raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
 
 def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_dir, checkpoint_dir, is_master):
@@ -259,11 +248,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
     try:
         kfold = train_cfg.pop("_kfold", None)
+        watchlist = [(train_dmatrix, "train")]
+        if val_dmatrix is not None:
+            watchlist.append((val_dmatrix, "validation"))
 
         if kfold is None:
-            xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                train_dmatrix=train_dmatrix,
-                val_dmatrix=val_dmatrix,
+            xgb_model, iteration, callbacks = get_callbacks(
                 model_dir=model_dir,
                 checkpoint_dir=checkpoint_dir,
                 early_stopping_data_name=early_stopping_data_name,
@@ -322,9 +312,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 cv_train_dmatrix = train_val_dmatrix.slice(train_idx)
                 cv_val_dmatrix = train_val_dmatrix.slice(val_idx)
 
-                xgb_model, iteration, callbacks, watchlist = get_callbacks_watchlist(
-                    train_dmatrix=cv_train_dmatrix,
-                    val_dmatrix=cv_val_dmatrix,
+                xgb_model, iteration, callbacks = get_callbacks(
                     model_dir=model_dir,
                     checkpoint_dir=checkpoint_dir,
                     early_stopping_data_name=early_stopping_data_name,
@@ -389,61 +377,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 model_location = os.path.join(model_dir, f"{MODEL_NAME}-{fold}")
                 bst[fold].save_model(model_location)
                 logging.debug("Stored trained model {} at {}".format(fold, model_location))
-
-
-def get_callbacks_watchlist(
-    train_dmatrix,
-    val_dmatrix,
-    model_dir,
-    checkpoint_dir,
-    early_stopping_data_name,
-    early_stopping_metric,
-    early_stopping_rounds,
-    save_model_on_termination,
-    is_master,
-    fold=None,
-):
-    if checkpoint_dir and fold is not None:
-        checkpoint_dir = os.path.join(checkpoint_dir, f"model-{fold}")
-
-    # Set callbacks
-    xgb_model, iteration = checkpointing.load_checkpoint(checkpoint_dir)
-    if xgb_model is not None:
-        if fold is not None:
-            xgb_model = f"{xgb_model}-{fold}"
-        logging.info("Checkpoint loaded from %s", xgb_model)
-        logging.info("Resuming from iteration %s", iteration)
-
-    callbacks = []
-    callbacks.append(xgb.callback.EvaluationMonitor())
-    if checkpoint_dir:
-        save_checkpoint = xgb.callback.TrainingCheckPoint(
-            directory=checkpoint_dir, iterations=iteration, name=checkpointing.CHECKPOINT_FILENAME
-        )
-        callbacks.append(save_checkpoint)
-
-    if save_model_on_termination == "true":
-        model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
-        save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(model_dir, model_name, is_master)
-        callbacks.append(save_intermediate_model)
-        add_sigterm_handler(model_dir, is_master)
-
-    if early_stopping_data_name and early_stopping_metric and early_stopping_rounds:
-        maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
-        early_stop = xgb.callback.EarlyStopping(
-            rounds=early_stopping_rounds,
-            data_name=early_stopping_data_name,
-            metric_name=early_stopping_metric,
-            maximize=maximize,
-            save_best=True,
-        )
-        callbacks.append(early_stop)
-
-    watchlist = [(train_dmatrix, "train")]
-    if val_dmatrix is not None:
-        watchlist.append((val_dmatrix, "validation"))
-
-    return xgb_model, iteration, callbacks, watchlist
 
 
 def print_cv_metric(num_round, evals_results):
