@@ -10,12 +10,12 @@ Pillow==9.1.1
 PyYAML==5.4
 boto3==1.17.52
 botocore==1.20.52
-conda==4.9.0
+conda==4.10.1
 cryptography==35.0.0
 gunicorn==19.10.0
 matplotlib==3.3.2
 multi-model-server==1.1.1
-numpy==1.20.3
+numpy==1.21.6
 pandas==1.1.3
 psutil==5.6.7
 pyarrow==1.0.1
