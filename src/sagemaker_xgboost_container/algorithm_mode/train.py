@@ -18,7 +18,7 @@ import xgboost as xgb
 from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
 
 from sagemaker_algorithm_toolkit import exceptions as exc
-from sagemaker_algorithm_toolkit.channel_validation import Channel
+from sagemaker_algorithm_toolkit.channel_validation import Channel, S3_DIST_TYPE
 from sagemaker_xgboost_container import distributed
 from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
@@ -148,11 +148,15 @@ def sagemaker_train(
 
     num_gpus = int(os.getenv(SM_NUM_GPUS, 0))
     logging.info("Determined {} GPU(s) from environment variable 'SM_NUM_GPUS'".format(num_gpus))
-    is_dask_job = num_gpus > 1 \
-        and num_hosts > 1 \
-        and file_type in distributed_gpu_training.SUPPORTED_TRAINING_CONTENT_TYPES \
-        and not is_pipe
+    is_dask_job = num_gpus > 1 and train_config.get("tree_method", None) == "gpu_hist"
     if is_dask_job:
+        # TODO: Following can likely be moved to hyperparamter validations
+        is_unsupported_file_type = file_type not in distributed_gpu_training.SUPPORTED_TRAINING_CONTENT_TYPES
+        is_channels_not_replicated = any({channel.get(S3_DIST_TYPE, None) != Channel.REPLICATED
+                                          for channel in validated_data_config.values()})
+        if is_unsupported_file_type or is_channels_not_replicated:
+            raise exc.UserError("Multi-GPU training requires fully replicated data and only supports: {}".format(
+                distributed_gpu_training.SUPPORTED_TRAINING_CONTENT_TYPES))
         logging.info("Going to run distributed training through Dask")
         distributed_gpu_training.run_training_with_dask(
             hyperparameters=validated_train_config,
