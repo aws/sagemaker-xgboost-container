@@ -9,3 +9,4 @@ __pycache__
 .mypy_cache/
 .idea/
 .DS_Store
+test.parquet

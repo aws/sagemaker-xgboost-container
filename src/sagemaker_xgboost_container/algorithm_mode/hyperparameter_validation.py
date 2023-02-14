@@ -338,6 +338,8 @@ def initialize(metrics):
         hpv.CategoricalHyperparameter(name="deterministic_histogram", range=["true", "false"], required=False),
         hpv.CategoricalHyperparameter(name="sampling_method", range=["uniform", "gradient_based"], required=False),
         hpv.IntegerHyperparameter(name="prob_buffer_row", range=hpv.Interval(min_open=1.0), required=False),
+        # Not an XGB training HP, but is used to determine which distributed training framework to use by SM XGB.
+        hpv.CategoricalHyperparameter(name="use_dask_gpu_training", range=["true", "false"], required=False),
     )
 
     hyperparameters.declare_alias("eta", "learning_rate")
