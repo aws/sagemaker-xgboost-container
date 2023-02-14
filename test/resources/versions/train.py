@@ -18,7 +18,7 @@ multi-model-server==1.1.1
 numpy==1.20.3
 pandas==1.1.3
 psutil==5.6.7
-pyarrow==0.16.0
+pyarrow==1.0.1
 python-dateutil==2.8.0
 requests==2.25.1
 retrying==1.3.3
