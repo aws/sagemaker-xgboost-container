@@ -128,8 +128,8 @@ def sagemaker_train(
     channels = cv.initialize()
     validated_data_config = channels.validate(data_config)
 
-    logging.debug("hyperparameters {}".format(validated_train_config))
-    logging.debug("channels {}".format(validated_data_config))
+    logging.debug(f"hyperparameters {validated_train_config}")
+    logging.debug(f"channels {validated_data_config}")
 
     # Get Training and Validation Data Matrices
     file_type = get_content_type(validated_data_config["train"].get("ContentType"))
@@ -171,8 +171,10 @@ def sagemaker_train(
         )
 
         if gpu_train_validation_errors:
-            raise exc.UserError(f"Some configurations unsuitable for Dask GPU training were found: "
-                                f"{'. '.join(gpu_train_validation_errors)}")
+            raise exc.UserError(
+                f"Some configurations unsuitable for Dask GPU training were found: "
+                f"{'. '.join(gpu_train_validation_errors)}"
+            )
 
         logging.info("Going to run distributed GPU training through Dask.")
         distributed_gpu_training.run_training_with_dask(
@@ -206,7 +208,7 @@ def sagemaker_train(
         )
         if num_hosts > 1:
             # Wait for hosts to find each other
-            logging.info("Distributed node training with {} hosts: {}".format(num_hosts, sm_hosts))
+            logging.info(f"Distributed node training with {num_hosts} hosts: {sm_hosts}")
             distributed.wait_hostname_resolution(sm_hosts)
             if not train_dmatrix:
                 logging.warning(
@@ -224,12 +226,12 @@ def sagemaker_train(
         elif num_hosts == 1:
             if train_dmatrix:
                 if validation_channel and not val_dmatrix:
-                    raise exc.UserError("No data in validation channel path {}".format(val_path))
+                    raise exc.UserError(f"No data in validation channel path {val_path}")
                 logging.info("Single node training.")
                 train_args.update({"is_master": True})
                 train_job(**train_args)
             else:
-                raise exc.UserError("No data in training channel path {}".format(train_path))
+                raise exc.UserError(f"No data in training channel path {train_path}")
         else:
             raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
 
@@ -272,9 +274,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         elif eval_metric:
             early_stopping_metric = eval_metric[-1]
 
-    logging.info("Train matrix has {} rows and {} columns".format(train_dmatrix.num_row(), train_dmatrix.num_col()))
+    logging.info(f"Train matrix has {train_dmatrix.num_row()} rows and {train_dmatrix.num_col()} columns")
     if val_dmatrix:
-        logging.info("Validation matrix has {} rows".format(val_dmatrix.num_row()))
+        logging.info(f"Validation matrix has {val_dmatrix.num_row()} rows")
 
     try:
         kfold = train_cfg.pop("_kfold", None)
@@ -360,7 +362,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 )
 
                 evals_result = {}
-                logging.info("Train cross validation fold {}".format((len(bst) % kfold) + 1))
+                logging.info(f"Train cross validation fold {(len(bst) % kfold) + 1}")
                 booster = xgb.train(
                     train_cfg,
                     cv_train_dmatrix,
@@ -377,13 +379,13 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 val_pred.record(val_idx, booster.predict(cv_val_dmatrix))
 
                 if len(bst) % kfold == 0:
-                    logging.info("The metrics of round {} cross validation".format(int(len(bst) / kfold)))
+                    logging.info(f"The metrics of round {int(len(bst) / kfold)} cross validation")
                     print_cv_metric(num_round, evals_results[-kfold:])
 
             val_pred.save()
 
             if num_cv_round > 1:
-                logging.info("The overall metrics of {}-round cross validation".format(num_cv_round))
+                logging.info(f"The overall metrics of {num_cv_round}-round cross validation")
                 print_cv_metric(num_round, evals_results)
 
     except Exception as e:
@@ -392,7 +394,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 raise exc.UserError(str(e))
 
         exception_prefix = "XGB train call failed with exception"
-        raise exc.AlgorithmError("{}:\n {}".format(exception_prefix, str(e)))
+        raise exc.AlgorithmError(f"{exception_prefix}:\n {str(e)}")
 
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
@@ -401,12 +403,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         if type(bst) is not list:
             model_location = os.path.join(model_dir, MODEL_NAME)
             bst.save_model(model_location)
-            logging.debug("Stored trained model at {}".format(model_location))
+            logging.debug(f"Stored trained model at {model_location}")
         else:
             for fold in range(len(bst)):
                 model_location = os.path.join(model_dir, f"{MODEL_NAME}-{fold}")
                 bst[fold].save_model(model_location)
-                logging.debug("Stored trained model {} at {}".format(fold, model_location))
+                logging.debug(f"Stored trained model {fold} at {model_location}")
 
 
 def print_cv_metric(num_round, evals_results):
@@ -414,5 +416,5 @@ def print_cv_metric(num_round, evals_results):
     for metric_name in evals_results[0]["train"]:
         for data_name in ["train", "validation"]:
             metric_val = [evals_result[data_name][metric_name][-1] for evals_result in evals_results]
-            cv_eval_report += "\t{0}-{1}:{2:.5f}".format(data_name, metric_name, np.mean(metric_val))
+            cv_eval_report += f"\t{data_name}-{metric_name}:{np.mean(metric_val):.5f}"
     print(cv_eval_report)

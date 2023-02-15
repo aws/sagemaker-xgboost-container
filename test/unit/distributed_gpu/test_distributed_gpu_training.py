@@ -14,7 +14,6 @@
 import unittest
 
 from sagemaker_algorithm_toolkit import channel_validation as cv
-from sagemaker_algorithm_toolkit.exceptions import UserError
 from sagemaker_xgboost_container.distributed_gpu.distributed_gpu_training import (
     INPUT_FORMAT_ERROR_MSG,
     NON_GPU_ERROR_MSG,
