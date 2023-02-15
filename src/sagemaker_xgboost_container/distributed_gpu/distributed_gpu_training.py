@@ -81,6 +81,7 @@ def run_training_with_dask(
     checkpoint_dir: str,
     num_gpus: int,
 ):
+    startTime = time.time()
     scheduler_host = sm_hosts[0]
     is_scheduler_host = current_host == scheduler_host
     scheduler_host_ip = get_host_ip(scheduler_host)
@@ -187,3 +188,6 @@ def run_training_with_dask(
                     logging.info("Received a shutdown signal from scheduler. Exiting...")
                     break
             time.sleep(WORKER_STAY_ALIVE_CHECK_FREQ_SEC)
+
+    endTime = time.time()
+    print(f"Total training time: {endTime - startTime}")
