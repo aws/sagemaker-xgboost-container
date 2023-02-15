@@ -172,7 +172,7 @@ def run_training_with_dask(
                     num_boost_round=num_round,
                     evals=watchlist,
                     feval=configured_feval,
-                    callbacks=callbacks,
+                    # callbacks=callbacks,
                 )
                 booster = output["booster"]
 
