@@ -38,7 +38,7 @@ from sagemaker_xgboost_container.distributed_gpu.dask_cluster_utils import (
 from sagemaker_xgboost_container.distributed_gpu.dask_data_utils import (
     create_dask_dmatrix,
     get_dataframe_dimensions,
-    load_data_into_memory,
+    read_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ def run_training_with_dask(
             logging.info("Starting to read training data...")
             watchlist = []
 
-            X_train, y_train = load_data_into_memory(client, train_path, content_type)
+            X_train, y_train = read_data(train_path, content_type)
 
             dtrain = create_dask_dmatrix(client, X_train, y_train)
 
@@ -111,7 +111,7 @@ def run_training_with_dask(
 
             dvalid = None
             if validation_path:
-                X_valid, y_valid = load_data_into_memory(client, validation_path, content_type)
+                X_valid, y_valid = read_data(validation_path, content_type)
                 dvalid = create_dask_dmatrix(client, X_valid, y_valid)
                 watchlist.append((dvalid, "validation"))
 
