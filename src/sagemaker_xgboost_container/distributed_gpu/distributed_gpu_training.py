@@ -116,6 +116,9 @@ def run_training_with_dask(
                 dvalid = create_dask_dmatrix(client, X_valid, y_valid)
                 watchlist.append((dvalid, "validation"))
 
+            data_load_complete = time.time()
+            print(f"Cluster start + data loading: {data_load_complete - startTime}")
+
             logging.info("Data load complete. Starting training...")
 
             # Redundant Code -------------------------------------------------------------------- >
@@ -158,6 +161,9 @@ def run_training_with_dask(
                 is_master=is_scheduler_host,
             )
 
+            training_call_start = time.time()
+            print(f"After data load and before training start: {training_call_start - data_load_complete}")
+
             try:
                 output = xgb.dask.train(
                     client=client,
@@ -176,6 +182,8 @@ def run_training_with_dask(
                 exception_prefix = "XGB train call failed with exception"
                 raise exc.AlgorithmError(f"{exception_prefix}:\n {str(e)}")
 
+            training_call_end = time.time()
+            print(f"Only training call time: {training_call_end - training_call_start}")
             logging.info("Terminating cluster...")
 
     else:
