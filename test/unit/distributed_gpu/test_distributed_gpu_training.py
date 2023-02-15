@@ -20,7 +20,7 @@ from sagemaker_xgboost_container.distributed_gpu.distributed_gpu_training import
     NON_GPU_ERROR_MSG,
     NOT_REPLICATED_ERROR_MSG,
     PIPE_MODE_ERROR_MSG,
-    check_if_all_conditions_met,
+    validate_gpu_train_configuration,
 )
 
 
@@ -34,32 +34,33 @@ class TestDistributedGPUTraining(unittest.TestCase):
         }
 
     def test_conditions_fail_channel_not_replicated_multi_host(self):
-        with self.assertRaises(UserError) as e:
-            check_if_all_conditions_met("gpu_hist", 2, 1, "File", "csv", self.multi_channel_not_replicated)
-            assert e.exception == NOT_REPLICATED_ERROR_MSG
+        exc_list = validate_gpu_train_configuration("gpu_hist", 2, 1, "File", "csv", self.multi_channel_not_replicated)
+        assert NOT_REPLICATED_ERROR_MSG in exc_list
 
     def test_conditions_pass_channel_replicated_multi_host(self):
-        check_if_all_conditions_met("gpu_hist", 2, 1, "File", "csv", self.train_channel_replicated)
+        exc_list = validate_gpu_train_configuration("gpu_hist", 2, 1, "File", "csv", self.train_channel_replicated)
+        assert not exc_list
 
     def test_conditions_pass_channel_not_replicated_singlehost(self):
-        check_if_all_conditions_met("gpu_hist", 1, 1, "File", "csv", self.train_channel_not_replicated)
+        exc_list = validate_gpu_train_configuration("gpu_hist", 1, 1, "File", "csv", self.train_channel_not_replicated)
+        assert not exc_list
 
     def test_conditions_fail_not_gpu_instance(self):
-        with self.assertRaises(UserError) as e:
-            check_if_all_conditions_met("gpu_hist", 1, 0, "File", "csv", self.train_channel_replicated)
-            assert e.exception == NON_GPU_ERROR_MSG
+        exc_list = validate_gpu_train_configuration("gpu_hist", 1, 0, "File", "csv", self.train_channel_replicated)
+        assert NON_GPU_ERROR_MSG in exc_list
 
     def test_conditions_fail_non_gpu_tree_method(self):
-        with self.assertRaises(UserError) as e:
-            check_if_all_conditions_met("approx", 1, 1, "File", "csv", self.train_channel_replicated)
-            assert e.exception == NON_GPU_ERROR_MSG
+        exc_list = validate_gpu_train_configuration("approx", 1, 1, "File", "csv", self.train_channel_replicated)
+        assert NON_GPU_ERROR_MSG in exc_list
 
     def test_conditions_fail_pipe_mode(self):
-        with self.assertRaises(UserError) as e:
-            check_if_all_conditions_met("gpu_hist", 1, 1, "Pipe", "csv", self.train_channel_replicated)
-            assert e.exception == PIPE_MODE_ERROR_MSG
+        exc_list = validate_gpu_train_configuration("gpu_hist", 1, 1, "Pipe", "csv", self.train_channel_replicated)
+        assert PIPE_MODE_ERROR_MSG in exc_list
 
     def test_conditions_fail_unsupported_format(self):
-        with self.assertRaises(UserError) as e:
-            check_if_all_conditions_met("gpu_hist", 1, 1, "File", "libsvm", self.train_channel_replicated)
-            assert e.exception == INPUT_FORMAT_ERROR_MSG
+        exc_list = validate_gpu_train_configuration("gpu_hist", 1, 1, "File", "libsvm", self.train_channel_replicated)
+        assert INPUT_FORMAT_ERROR_MSG in exc_list
+
+    def test_conditions_fail_multiple_checks(self):
+        exc_list = validate_gpu_train_configuration("approx", 1, 1, "Pipe", "libsvm", self.train_channel_replicated)
+        assert len(exc_list) == 3

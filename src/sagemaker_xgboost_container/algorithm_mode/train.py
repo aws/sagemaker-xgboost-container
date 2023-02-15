@@ -161,7 +161,7 @@ def sagemaker_train(
     is_dask_job = validated_train_config.pop("use_dask_gpu_training", "false")
 
     if is_dask_job == "true":
-        distributed_gpu_training.check_if_all_conditions_met(
+        gpu_train_validation_errors = distributed_gpu_training.validate_gpu_train_configuration(
             tree_method_hp=tree_method_hp,
             num_hosts=num_hosts,
             num_gpus=num_gpus,
@@ -169,6 +169,11 @@ def sagemaker_train(
             input_format=file_type,
             data_config=validated_data_config,
         )
+
+        if gpu_train_validation_errors:
+            raise exc.UserError(f"Some configurations unsuitable for Dask GPU training were found: "
+                                f"{'. '.join(gpu_train_validation_errors)}")
+
         logging.info("Going to run distributed GPU training through Dask.")
         distributed_gpu_training.run_training_with_dask(
             hyperparameters=validated_train_config,
@@ -218,9 +223,8 @@ def sagemaker_train(
             )
         elif num_hosts == 1:
             if train_dmatrix:
-                if validation_channel:
-                    if not val_dmatrix:
-                        raise exc.UserError("No data in validation channel path {}".format(val_path))
+                if validation_channel and not val_dmatrix:
+                    raise exc.UserError("No data in validation channel path {}".format(val_path))
                 logging.info("Single node training.")
                 train_args.update({"is_master": True})
                 train_job(**train_args)

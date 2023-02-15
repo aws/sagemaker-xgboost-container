@@ -22,7 +22,6 @@ from dask.distributed import Client
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import S3_DIST_TYPE, Channel
-from sagemaker_algorithm_toolkit.exceptions import UserError
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 from sagemaker_xgboost_container.callback import get_callbacks
 from sagemaker_xgboost_container.constants.xgb_constants import (
@@ -49,26 +48,29 @@ WORKER_STAY_ALIVE_CHECK_FREQ_SEC = 10
 SUPPORTED_TRAINING_CONTENT_TYPES = {CSV, PARQUET}
 
 NON_GPU_ERROR_MSG = "Dask training is only available for `gpu_hist` training on GPU instances."
-PIPE_MODE_ERROR_MSG = "Dask training is not supported for pipe mode input."
+PIPE_MODE_ERROR_MSG = "Dask training is not supported for pipe mode input. Please use File mode."
 INPUT_FORMAT_ERROR_MSG = "Dask training is only supported for CSV and Parquet input."
 NOT_REPLICATED_ERROR_MSG = "Dask distributed training requires FullyReplicated data."
 
 
-def check_if_all_conditions_met(
+def validate_gpu_train_configuration(
     tree_method_hp: str, num_hosts: int, num_gpus: int, input_mode: str, input_format: str, data_config: Dict
-):
+) -> [str]:
+    all_exceptions = []
     if tree_method_hp != GPU_TREE_METHOD or num_gpus == 0:
-        raise UserError(NON_GPU_ERROR_MSG)
+        all_exceptions.append(NON_GPU_ERROR_MSG)
     if input_mode == PIPE_MODE:
-        raise UserError(PIPE_MODE_ERROR_MSG)
+        all_exceptions.append(PIPE_MODE_ERROR_MSG)
     if input_format not in SUPPORTED_TRAINING_CONTENT_TYPES:
-        raise UserError(INPUT_FORMAT_ERROR_MSG)
+        all_exceptions.append(INPUT_FORMAT_ERROR_MSG)
     is_channels_not_replicated = any(
         {channel.get(S3_DIST_TYPE, None) != Channel.REPLICATED for channel in data_config.values()}
     )
+    # For single host replicated and sharded means the same thing.
     if is_channels_not_replicated and num_hosts > 1:
-        raise UserError(NOT_REPLICATED_ERROR_MSG)
+        all_exceptions.append(NOT_REPLICATED_ERROR_MSG)
 
+    return all_exceptions
 
 def run_training_with_dask(
     hyperparameters: Dict,

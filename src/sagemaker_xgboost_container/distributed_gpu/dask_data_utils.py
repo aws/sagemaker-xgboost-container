@@ -15,7 +15,7 @@ import os
 
 import dask.dataframe as dask_dataframe
 from dask.dataframe import DataFrame, Series
-from dask.distributed import Client, wait
+from dask.distributed import Client
 from xgboost.dask import DaskDMatrix
 
 from sagemaker_algorithm_toolkit.exceptions import AlgorithmError, UserError
