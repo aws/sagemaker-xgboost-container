@@ -3,13 +3,13 @@ ARG IMAGE_DIGEST=cd9842111e50ca15135bd04bccfeed4e1e63006ee7d2210927fc8f49bacb4ee
 
 FROM ubuntu:${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
-ARG MINICONDA_VERSION=4.9.2
-ARG CONDA_PY_VERSION=39
-ARG CONDA_CHECKSUM="b4e46fcc8029e2cfa731b788f25b1d36"
-ARG CONDA_PKG_VERSION=4.10.1
+ARG MINICONDA_VERSION=4.8.3
+ARG CONDA_PY_VERSION=38
+ARG CONDA_CHECKSUM="d63adf39f2c220950a063e0529d4ff74"
+ARG CONDA_PKG_VERSION=4.9.0
 ARG PYTHON_VERSION=3.7.10
 ARG CRYPTO_VERSION=3.4.6
-ARG PYARROW_VERSION=1.0
+ARG PYARROW_VERSION=0.14.1
 ARG MLIO_VERSION=0.1.3
 ARG XGBOOST_VERSION=1.0.0
 
@@ -48,7 +48,7 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda config --system --set auto_update_conda false && \
     conda config --system --set show_channel_urls true && \
     echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
-    conda install -c conda-forge python=${PYTHON_VERSION} cryptography=${CRYPTO_VERSION} && \
+    conda install -c conda-forge python=${PYTHON_VERSION} cryptography=${CRYPTO_VERSION} tqdm && \
     conda install conda=${CONDA_PKG_VERSION} && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} glog=0.4.0 tbb=2020.2 && \
