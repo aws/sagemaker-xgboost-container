@@ -10,6 +10,7 @@ ARG SAGEMAKER_XGBOOST_VERSION
 ########################
 COPY requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
+python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git@1.0.28
 
 ###########################
 # Copy wheel to container #
