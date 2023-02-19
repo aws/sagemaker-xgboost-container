@@ -9,8 +9,10 @@ ARG SAGEMAKER_XGBOOST_VERSION
 # Install dependencies #
 ########################
 COPY requirements.txt /requirements.txt
-RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt && \
-    python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git@1.0.28
+RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
+
+# Install smdebug from source
+RUN python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git@1.0.28
 
 
 ###########################

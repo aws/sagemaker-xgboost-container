@@ -26,6 +26,7 @@ sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
 scikit-learn==0.24.1
 scipy==1.6.2
+smdebug==1.0.28
 urllib3==1.26.5
 wheel==0.36.2
 jinja2==2.11.3
@@ -41,6 +42,13 @@ def assert_python_version(major, minor):
 def assert_package_version(package_name, version):
     installed_version = pkg_resources.get_distribution(package_name).version
     error_message = f"{package_name} requires {version} but {installed_version} is installed."
+    # As smdebug is being installed from source its setup.py
+    # it appends the character 'b' and the installation date to the version
+    # https://github.com/awslabs/sagemaker-debugger/blob/master/setup.py#L97
+    if package_name == "smdebug":
+        assert version == installed_version.split('b')[0], error_message
+    else:
+        assert version == installed_version, error_message
     assert version == installed_version, error_message
 
 
