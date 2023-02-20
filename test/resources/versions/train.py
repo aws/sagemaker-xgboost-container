@@ -49,7 +49,6 @@ def assert_package_version(package_name, version):
         assert version == installed_version.split('b')[0], error_message
     else:
         assert version == installed_version, error_message
-    assert version == installed_version, error_message
 
 
 def parse_requirements(requirements):
