@@ -54,6 +54,10 @@ RUN chmod +x /tmp/plugins/endpoints-1.0.jar
 RUN mkdir -p /opt/ml/models
 RUN chmod +rwx /opt/ml/models
 
+# Copy Dask configs
+RUN mkdir /etc/dask
+COPY docker/configs/dask_configs.yaml /etc/dask/
+
 # Required label for multi-model loading
 LABEL com.amazonaws.sagemaker.capabilities.multi-models=true
 
