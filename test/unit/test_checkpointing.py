@@ -108,12 +108,12 @@ class TestSaveCheckpoint(unittest.TestCase):
         # <filename>.sagemaker-uploaded is present.
 
         rank = 0
-        iteration = 0
         end_iteration = 100
 
         callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, max_to_keep=1, rank=rank,
                                           end_iteration=end_iteration)
 
+        # For iteration 0
         callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.0")
         self.assertTrue(os.path.isfile(fpath))
@@ -121,7 +121,7 @@ class TestSaveCheckpoint(unittest.TestCase):
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.0")
         pathlib.Path(fpath + ".sagemaker-uploading").touch()
 
-        iteration = 1
+        # For iteration 1
         callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.1")
         self.assertTrue(os.path.isfile(fpath))
@@ -129,7 +129,7 @@ class TestSaveCheckpoint(unittest.TestCase):
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.1")
         pathlib.Path(fpath + ".sagemaker-uploading").touch()
 
-        iteration = 2
+        # For iteration 2
         callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.2")
         self.assertTrue(os.path.isfile(fpath))
@@ -139,12 +139,12 @@ class TestSaveCheckpoint(unittest.TestCase):
         time.sleep(0.5)
         self.assertFalse(os.path.isfile(fpath))
 
-        iteration = 3
+        # For iteration 3
         callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.3")
         self.assertTrue(os.path.isfile(fpath))
 
-        iteration = 4
+        # For iteration 4
         callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.4")
         self.assertTrue(os.path.isfile(fpath))

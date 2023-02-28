@@ -6,6 +6,7 @@ import tempfile
 import threading
 
 import xgboost as xgb
+from typing import Optional
 from xgboost import rabit
 from xgboost.callback import EvaluationMonitor
 from xgboost.core import XGBoostError
@@ -43,6 +44,7 @@ def train(train_args, checkpoint_dir):
     xgb_model, start_iteration = load_checkpoint(checkpoint_dir)
 
     # xgboost's default value for num_boost_round is 10.
+    # https://xgboost.readthedocs.io/en/stable/python/python_api.html#module-xgboost.training
     # If num_boost_round <= 0, xgb.train() doesn't actually train and
     # immediately returns a Booster object.
     train_args["num_boost_round"] = train_args.get("num_boost_round", 10) - start_iteration
@@ -178,42 +180,42 @@ def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=
 class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
     """Create a callback that saves checkpoints to disk.
 
-        The main purpose of this class is to support checkpointing for managed spot
-        training:
-        https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html.
-        Since spot instances can be interrupted at anytime, we need to be able to
-        save checkpoints during training, and we also need to be able to resume
-        from the last checkpoint when the training job is restarted.
+    The main purpose of this class is to support checkpointing for managed spot
+    training:
+    https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html.
+    Since spot instances can be interrupted at anytime, we need to be able to
+    save checkpoints during training, and we also need to be able to resume
+    from the last checkpoint when the training job is restarted.
 
-        We save each checkpoint to different files at the end of each iteration by
-        appending the iteration number to the file name, e.g., xgboost-checkpont.1,
-        xgboost-checkpont.2, and so on. These files are written to `checkpoint_dir`,
+    We save each checkpoint to different files at the end of each iteration by
+    appending the iteration number to the file name, e.g., xgboost-checkpont.1,
+    xgboost-checkpont.2, and so on. These files are written to `checkpoint_dir`,
 
-        Since saving one checkpoint per iteration could result in a large number of
-        files to save in S3 and download when spot instances are resumed, we retain
-        only the `max_to_keep` (5 by default) most recent checkpoints in the
-        directory. This is accomplished by a background thread that deletes all
-        checkpoints older than 5 most recent checkpoints (the number of files to
-        keep is somewhat arbitrary, choosing the optimal number of files to keep is
-        left for future work). Note that when a file is being uploaded by SM, it
-        will create a marker file (file name + .sagemaker-uploading) to indicate
-        that the file is being uploaded. SM will also create another marker file
-        (file name + .sagemaker-uploaded) when the upload is completed. Thus, the
-        background will skip deleting a file and try again later if there is a
-        marker file <filename>.sagemaker-uploading and only attempt to delete a
-        file when the marker file <filename>.sagemaker-uploaded is present.
+    Since saving one checkpoint per iteration could result in a large number of
+    files to save in S3 and download when spot instances are resumed, we retain
+    only the `max_to_keep` (5 by default) most recent checkpoints in the
+    directory. This is accomplished by a background thread that deletes all
+    checkpoints older than 5 most recent checkpoints (the number of files to
+    keep is somewhat arbitrary, choosing the optimal number of files to keep is
+    left for future work). Note that when a file is being uploaded by SM, it
+    will create a marker file (file name + .sagemaker-uploading) to indicate
+    that the file is being uploaded. SM will also create another marker file
+    (file name + .sagemaker-uploaded) when the upload is completed. Thus, the
+    background will skip deleting a file and try again later if there is a
+    marker file <filename>.sagemaker-uploading and only attempt to delete a
+    file when the marker file <filename>.sagemaker-uploaded is present.
 
-        Attributes:
-            checkpoint_dir: indicates the path to the directory where checkpoints
-                will be saved.  Defaults to /opt/ml/checkpoints on SageMaker.
-            max_to_keep: indicates the maximum number of recent checkpoint files to
-                keep.  As new files are created, older files are deleted.  Defaults
-                to 5 (that is, the 5 most recent checkpoint files are kept.)
-            start_iteration: indicates the round at which the current training
-                started. If xgb_model was loaded from a previous checkpoint, this
-                will be greater than 0 (that is, if the previous training ended
-                after round 19, start_iteration will be 20).
-            num_round: (optional) indicates the number of boosting rounds.
+    Attributes:
+        checkpoint_dir: indicates the path to the directory where checkpoints
+            will be saved.  Defaults to /opt/ml/checkpoints on SageMaker.
+        max_to_keep: indicates the maximum number of recent checkpoint files to
+            keep.  As new files are created, older files are deleted.  Defaults
+            to 5 (that is, the 5 most recent checkpoint files are kept.)
+        start_iteration: indicates the round at which the current training
+            started. If xgb_model was loaded from a previous checkpoint, this
+            will be greater than 0 (that is, if the previous training ended
+            after round 19, start_iteration will be 20).
+        num_round: (optional) indicates the number of boosting rounds.
 
         Example:
             >>> save_checkpoint = SaveCheckpoint("/opt/ml/checkpoints")
