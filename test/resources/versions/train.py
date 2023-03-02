@@ -11,7 +11,7 @@ PyYAML==5.4.1
 boto3==1.17.52
 botocore==1.20.52
 conda==4.10.1
-cryptography==35.0.0
+cryptography==39.0.1
 gunicorn==19.10.0
 matplotlib==3.4.1
 multi-model-server==1.1.2
