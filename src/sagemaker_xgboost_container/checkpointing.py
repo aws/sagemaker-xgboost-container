@@ -6,9 +6,10 @@ import tempfile
 import threading
 
 import xgboost as xgb
+from typing import Optional
 from xgboost import rabit
-from xgboost.callback import _fmt_metric as format_metric
-from xgboost.core import Booster, XGBoostError
+from xgboost.callback import EvaluationMonitor
+from xgboost.core import XGBoostError
 
 TEMP_FILE_SUFFIX = ".sagemaker-ignore"
 FILE_LOCK_SUFFIX = ".sagemaker-uploading"
@@ -42,29 +43,33 @@ def train(train_args, checkpoint_dir):
 
     xgb_model, start_iteration = load_checkpoint(checkpoint_dir)
 
+    # xgboost's default value for num_boost_round is 10.
+    # https://xgboost.readthedocs.io/en/stable/python/python_api.html#module-xgboost.training
+    # If num_boost_round <= 0, xgb.train() doesn't actually train and
+    # immediately returns a Booster object.
+    train_args["num_boost_round"] = train_args.get("num_boost_round", 10) - start_iteration
+
     if xgb_model is not None:
         logging.info("Checkpoint loaded from %s", xgb_model)
         logging.info("Resuming from iteration %s", start_iteration)
 
     callbacks = train_args.get("callbacks", [])
-    callbacks.append(print_checkpointed_evaluation(start_iteration=start_iteration))
-    callbacks.append(save_checkpoint(checkpoint_dir, start_iteration=start_iteration))
+    callbacks.append(print_checkpointed_evaluation(start_iteration=start_iteration,
+                                                   end_iteration=train_args["num_boost_round"]))
+    callbacks.append(save_checkpoint(checkpoint_dir, start_iteration=start_iteration, iteration=start_iteration,
+                                     end_iteration=train_args["num_boost_round"]))
 
     train_args["verbose_eval"] = False  # suppress xgboost's print_evaluation()
     train_args["xgb_model"] = xgb_model
     train_args["callbacks"] = callbacks
-    # xgboost's default value for num_boost_round is 10.
-    # If num_boost_round <= 0, xgb.train() doesn't actually train and
-    # immediately returns a Booster object.
-    train_args["num_boost_round"] = train_args.get("num_boost_round", 10) - start_iteration
 
     booster = xgb.train(**train_args)
 
     return booster
 
 
-def print_checkpointed_evaluation(period=1, show_stdv=True, start_iteration=0):
-    """Create a callback that print evaluation result.
+class PrintCheckpoint(xgb.callback.TrainingCallback):
+    """Create a callback that print evaluation result every period iteration.
 
     This function was modified from https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/callback.py
     The only difference between the following function and the original function in xgboost.callback
@@ -73,33 +78,54 @@ def print_checkpointed_evaluation(period=1, show_stdv=True, start_iteration=0):
     We print the evaluation results every **period** iterations
     and on the first and the last iterations.
 
-    Parameters
+    Attributes
     ----------
     period : int
-        The period to log the evaluation results
-
+    The period to log the evaluation results
     show_stdv : bool, optional
-        Whether show stdv if provided
-
+    Whether show stdv if provided
     start_iteration: int, optioonal
-        Used for offsetting the iteratoin number that appears at the beginning of each evaluation result in the logs.
-
-    Returns
-    -------
-    callback : function
-        A callback that print evaluation every period iterations.
+    Used for offsetting the iteratoin number that appears at the beginning of each evaluation result in the logs.
     """
 
-    def callback(env):
-        """internal function"""
-        if env.rank != 0 or (not env.evaluation_result_list) or period is False or period == 0:
-            return
-        i = env.iteration
-        if i % period == 0 or i + 1 == env.begin_iteration or i + 1 == env.end_iteration:
-            msg = "\t".join([format_metric(x, show_stdv) for x in env.evaluation_result_list])
-            rabit.tracker_print("[%d]\t%s\n" % (i + start_iteration, msg))
+    def __init__(self, end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
+        self.period = period
+        self.show_stdv = show_stdv
+        self.start_iteration = start_iteration
+        self.rank = rank
+        self.iteration = iteration
+        self.end_iteration = end_iteration
 
-    return callback
+    def __call__(self, model, epoch=0, evals_log=None):
+        return self.after_iteration(model, epoch, evals_log)
+
+    def after_iteration(self, model, epoch=0, evals_log=None):
+        if self.rank != 0 or (not evals_log) or self.period is False or self.period == 0:
+            return
+        i = self.iteration
+        if i % self.period == 0 or i + 1 == self.start_iteration or i + 1 == self.end_iteration:
+            evaluation_monitor = EvaluationMonitor(self.rank, self.period, self.show_stdv)
+            msg: str = ""
+            for data, metric in evals_log.items():
+                for metric_name, log in metric.items():
+                    stdv: Optional[float] = None
+                    if isinstance(log[-1], tuple):
+                        score = log[-1][0]
+                        stdv = log[-1][1]
+                    else:
+                        score = log[-1]
+                    msg += evaluation_monitor._fmt_metric(data, metric_name, score, stdv)
+            msg += "\n"
+            rabit.tracker_print("[%d]\t%s\n" % (i + self.start_iteration, msg))
+
+
+def print_checkpointed_evaluation(end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
+    """A callback function that print evaluation result every period iteration.
+
+    This is a wrapper function around PrintCheckpoint.
+    For details, see PrintCheckpoint.
+    """
+    return PrintCheckpoint(end_iteration, iteration, rank, period, show_stdv, start_iteration)
 
 
 def load_checkpoint(checkpoint_dir, max_try=5):
@@ -107,7 +133,7 @@ def load_checkpoint(checkpoint_dir, max_try=5):
     :param checkpoint_dir: e.g., /opt/ml/checkpoints
     :param max_try: number of times to try loading checkpoint before giving up.
     :return xgb_model: file path of stored xgb model. None if no checkpoint.
-    :return iteration: iterations completed before last checkpoiint.
+    :return iteration: iterations completed before last checkpoint.
     """
     if not checkpoint_dir or not os.path.exists(checkpoint_dir):
         return None, 0
@@ -124,9 +150,6 @@ def load_checkpoint(checkpoint_dir, max_try=5):
         try:
             latest_checkpoint = checkpoints.pop()
             xgb_model = os.path.join(checkpoint_dir, latest_checkpoint)
-            booster = Booster()
-            booster.load_model(xgb_model)
-
             filename, extension = latest_checkpoint.split(".")
             iteration = int(extension) + 1
             break
@@ -141,18 +164,20 @@ def _sort_checkpoints(checkpoint_files):
     return checkpoint_files
 
 
-def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None):
+def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0,
+                    end_iteration=None):
     """A callback function that saves checkpoints to disk.
 
     This is a wrapper function around SaveCheckpoint.
     For details, see SaveCheckpoint.
     """
-    return SaveCheckpoint(
-        checkpoint_dir=checkpoint_dir, start_iteration=start_iteration, max_to_keep=max_to_keep, num_round=num_round
+    return SaveCheckpointCallBack(
+        checkpoint_dir=checkpoint_dir, start_iteration=start_iteration, max_to_keep=max_to_keep, num_round=num_round,
+        iteration=iteration, end_iteration=end_iteration
     )
 
 
-class SaveCheckpoint(object):
+class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
     """Create a callback that saves checkpoints to disk.
 
     The main purpose of this class is to support checkpointing for managed spot
@@ -192,19 +217,23 @@ class SaveCheckpoint(object):
             after round 19, start_iteration will be 20).
         num_round: (optional) indicates the number of boosting rounds.
 
-    Example:
-        >>> save_checkpoint = SaveCheckpoint("/opt/ml/checkpoints")
-        >>> xgboost.train(prams, dtrain, callbacks=[save_checkpoint])
-    """
+        Example:
+            >>> save_checkpoint = SaveCheckpoint("/opt/ml/checkpoints")
+            >>> xgboost.train(prams, dtrain, callbacks=[save_checkpoint])
+        """
 
     SENTINEL = None
 
-    def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None):
+    def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0,
+                 end_iteration=None):
         """Init SaveCheckpoint with checkpoint_dir"""
         self.checkpoint_dir = checkpoint_dir
         self.max_to_keep = max_to_keep
         self.start_iteration = start_iteration
         self.num_round = num_round
+        self.rank = rank
+        self.iteration = iteration
+        self.end_iteration = end_iteration
 
         if not os.path.exists(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
@@ -215,15 +244,45 @@ class SaveCheckpoint(object):
 
         self.start()
 
-    def __call__(self, env):
+    def __call__(self, model, epoch=0, evals_log=None):
         """Make the class callable since it is meant be used as a callback"""
-        return self.callback(env)
+        return self.after_iteration(model, epoch, evals_log)
 
     def format_path(self, iteration):
         """Return a file path to checkpoint given a iteration number"""
         filename = "{}.{}".format(CHECKPOINT_FILENAME, iteration)
         checkpoint_path = os.path.join(self.checkpoint_dir, filename)
         return checkpoint_path
+
+    def after_iteration(self, model, epoch=0, evals_log=None) -> bool:
+        # rank: master node has rank 0.
+        # iteration: current boosting round
+        # end_iteration: round # when training will end. this is always num_round + 1.
+        # model: model object
+        if self.rank != 0:
+            logger.debug("Not master (rank = %d). Exiting checkpoint callback.", self.rank)
+            return
+
+        if len(os.listdir(self.checkpoint_dir)) != 0:
+            xgb_model, self.iteration = load_checkpoint(self.checkpoint_dir)
+            current_iteration = self.iteration
+        else:
+            current_iteration = self.start_iteration + self.iteration
+        self._save_checkpoint(model, current_iteration)
+
+        # For example, if we are at iteration 5 and max_to_keep is 5, we no
+        # longer need checkpoint from iteration 0 (i.e., xgboost-checkpoint.0),
+        # so we put iteration_to_delete = 0 on the queue.
+        iteration_to_delete = current_iteration - self.max_to_keep
+        self.delete_queue.put(iteration_to_delete)
+
+        offset_iteration = self.end_iteration if self.num_round is None else self.num_round
+
+        training_has_ended = current_iteration + 1 >= self.start_iteration + offset_iteration
+
+        if training_has_ended:
+            self.stop()
+        return False
 
     def start(self):
         """Start a background thread that deletes old checkpoints
@@ -236,7 +295,6 @@ class SaveCheckpoint(object):
         When training is complete, we put SENTINEL on the queue, and when we
         see the SENTINEL, we clean up and exit the thread.
         """
-
         def _is_uploading(path):
             uploading = os.path.isfile(path + FILE_LOCK_SUFFIX)
             uploaded = os.path.isfile(path + FILE_SAFE_SUFFIX)
@@ -286,7 +344,9 @@ class SaveCheckpoint(object):
             _delete_uploaded_files()
             _cleanup()
 
-        self.thread = threading.Thread(target=_delete_uploaded_files_and_cleanup, daemon=True)
+        self.thread = threading.Thread(
+            target=_delete_uploaded_files_and_cleanup,
+            daemon=True)
         self.thread.start()
 
     def stop(self):
@@ -303,30 +363,6 @@ class SaveCheckpoint(object):
 
         save_file_path = self.format_path(iteration)
         os.rename(tf.name, save_file_path)
-
-    def callback(self, env):
-        # env.rank: rabit rank of the node/process. master node has rank 0.
-        # env.iteration: current boosting round
-        # env.begin_iteration: round # when training started. this is always 0.
-        # env.end_iteration: round # when training will end. this is always num_round + 1.
-        # env.model: model object
-        if env.rank != 0:
-            logger.debug("Not master (rank = %d). Exiting checkpoint callback.", env.rank)
-            return
-
-        current_iteration = self.start_iteration + env.iteration
-        self._save_checkpoint(env.model, current_iteration)
-
-        # For example, if we are at iteration 5 and max_to_keep is 5, we no
-        # longer need checkpoint from iteration 0 (i.e., xgboost-checkpoint.0),
-        # so we put iteration_to_delete = 0 on the queue.
-        iteration_to_delete = current_iteration - self.max_to_keep
-        self.delete_queue.put(iteration_to_delete)
-
-        offset_iteration = env.end_iteration if self.num_round is None else self.num_round
-        training_has_ended = current_iteration + 1 >= self.start_iteration + offset_iteration
-        if training_has_ended:
-            self.stop()
 
 
 def save_intermediate_model(intermediate_model_dir, model_name):

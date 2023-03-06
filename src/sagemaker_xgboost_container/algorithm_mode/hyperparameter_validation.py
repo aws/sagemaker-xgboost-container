@@ -29,7 +29,6 @@ def initialize(metrics):
             "grow_colmaker",
             "distcol",
             "grow_histmaker",
-            "grow_local_histmaker",
             "grow_skmaker",
             "sync",
             "refresh",
@@ -40,7 +39,6 @@ def initialize(metrics):
             "grow_colmaker",
             "distcol",
             "grow_histmaker",
-            "grow_local_histmaker",
             "grow_colmaker",
             "grow_quantile_histmaker",
         ]
@@ -62,7 +60,7 @@ def initialize(metrics):
             if not all(x in valid_tree_plugins for x in value):
                 raise exc.UserError(
                     "Tree updater should be selected from these options: 'grow_colmaker', 'distcol', 'grow_histmaker', "
-                    "'grow_local_histmaker', 'grow_skmaker', 'grow_quantile_histmaker', 'sync', 'refresh', 'prune', "
+                    "'grow_skmaker', 'grow_quantile_histmaker', 'sync', 'refresh', 'prune', "
                     "'shortgun', 'coord_descent'."
                 )
             # validate only one tree updater is selected
@@ -74,7 +72,7 @@ def initialize(metrics):
                 raise exc.UserError(
                     "Only one tree grow plugin can be selected. Choose one from the"
                     "following: 'grow_colmaker', 'distcol', 'grow_histmaker', "
-                    "'grow_local_histmaker', 'grow_skmaker'"
+                    "'grow_skmaker'"
                 )
 
     @hpv.range_validator(["auto", "cpu_predictor", "gpu_predictor"])
@@ -239,7 +237,6 @@ def initialize(metrics):
                 "grow_colmaker",
                 "distcol",
                 "grow_histmaker",
-                "grow_local_histmaker",
                 "grow_skmaker",
                 "sync",
                 "refresh",
@@ -247,7 +244,6 @@ def initialize(metrics):
                 "grow_colmaker",
                 "distcol",
                 "grow_histmaker",
-                "grow_local_histmaker",
                 "grow_colmaker",
                 "shotgun",
                 "coord_descent",
@@ -334,7 +330,6 @@ def initialize(metrics):
         hpv.ContinuousHyperparameter(
             name="aft_loss_distribution_scale", range=hpv.Interval(min_closed=0), required=False
         ),
-        hpv.CategoricalHyperparameter(name="single_precision_histogram", range=["true", "false"], required=False),
         hpv.CategoricalHyperparameter(name="deterministic_histogram", range=["true", "false"], required=False),
         hpv.CategoricalHyperparameter(name="sampling_method", range=["uniform", "gradient_based"], required=False),
         hpv.IntegerHyperparameter(name="prob_buffer_row", range=hpv.Interval(min_open=1.0), required=False),

@@ -1,4 +1,5 @@
 import os
+import logging
 import pathlib
 import shutil
 import tempfile
@@ -10,7 +11,7 @@ import numpy as np
 import xgboost as xgb
 
 from sagemaker_xgboost_container import checkpointing
-from sagemaker_xgboost_container.checkpointing import SaveCheckpoint, _sort_checkpoints
+from sagemaker_xgboost_container.checkpointing import SaveCheckpointCallBack, _sort_checkpoints
 
 
 class TestSaveCheckpoint(unittest.TestCase):
@@ -18,28 +19,31 @@ class TestSaveCheckpoint(unittest.TestCase):
 
         self.test_dir = tempfile.mkdtemp()
 
-    @patch("xgboost.core.CallbackEnv")
-    def test_not_master_node(self, env):
+    @patch("xgboost.core.Booster")
+    def test_not_master_node(self, model):
 
-        callback = SaveCheckpoint(checkpoint_dir=self.test_dir)
+        rank = 1
+        iteration = 10
 
-        env.rank = 1
-        env.iteration = 10
-        callback(env)
+        callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, rank=rank, iteration=iteration)
+
+        callback(model)
 
         self.assertEqual(len(os.listdir(self.test_dir)), 0)
 
         callback.stop()
 
-    @patch("xgboost.core.CallbackEnv")
-    def test_SaveCheckpoint_single_iteration(self, env):
+    @patch("xgboost.core.Booster")
+    def test_SaveCheckpoint_single_iteration(self, model):
 
-        env.rank = 0
-        env.iteration = 42
-        env.end_iteration = 100
+        rank = 0
+        iteration = 42
+        end_iteration = 100
 
-        callback = SaveCheckpoint(checkpoint_dir=self.test_dir)
-        callback(env)
+        callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, rank=rank, iteration=iteration,
+                                          end_iteration=end_iteration)
+
+        callback(model)
 
         file_path = os.path.join(self.test_dir, "xgboost-checkpoint.42")
         self.assertTrue(os.path.isfile(file_path))
@@ -47,20 +51,17 @@ class TestSaveCheckpoint(unittest.TestCase):
 
         callback.stop()
 
-    @patch("xgboost.core.CallbackEnv")
-    def test_SaveCheckpoint_multiple_from_scratch(self, env):
+    @patch("xgboost.core.Booster")
+    def test_SaveCheckpoint_multiple_from_scratch(self, model):
 
-        max_to_keep = 3
+        rank = 0
         end_iteration = 100
 
-        env.rank = 0
-        env.end_iteration = end_iteration
+        callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, max_to_keep=3, rank=rank,
+                                          end_iteration=end_iteration)
 
-        callback = SaveCheckpoint(checkpoint_dir=self.test_dir, max_to_keep=max_to_keep)
-
-        for i in range(end_iteration):
-            env.iteration = i
-            callback(env)
+        for iteration in range(end_iteration):
+            callback(model)
 
         expected_files = ["xgboost-checkpoint.97", "xgboost-checkpoint.98", "xgboost-checkpoint.99"]
 
@@ -72,33 +73,30 @@ class TestSaveCheckpoint(unittest.TestCase):
 
         callback.stop()
 
-    @patch("xgboost.core.CallbackEnv")
-    def test_SaveCheckpoint_multiple_resume(self, env):
+    @patch("xgboost.core.Booster")
+    def test_SaveCheckpoint_multiple_resume(self, model):
 
-        max_to_keep = 3
-        start_iteration = 10
         num_round = 10
 
-        env.rank = 0
+        rank = 0
 
-        callback = SaveCheckpoint(
-            checkpoint_dir=self.test_dir, max_to_keep=max_to_keep, start_iteration=start_iteration, num_round=num_round
+        callback = SaveCheckpointCallBack(
+            checkpoint_dir=self.test_dir, max_to_keep=3, start_iteration=10, num_round=10, rank=rank
         )
 
-        for i in range(num_round):
-            env.iteration = i
-            callback(env)
+        for iteration in range(num_round):
+            callback(model)
 
         expected_files = ["xgboost-checkpoint.17", "xgboost-checkpoint.18", "xgboost-checkpoint.19"]
+        self.assertTrue(len(os.listdir(self.test_dir)), 3)
+        assert sorted(os.listdir(self.test_dir)) == expected_files
 
         for fname in expected_files:
             fpath = os.path.join(self.test_dir, fname)
             self.assertTrue(os.path.isfile(fpath))
 
-        self.assertTrue(len(os.listdir(self.test_dir)), 3)
-
-    @patch("xgboost.core.CallbackEnv")
-    def test_SaveCheckpoint_uploading(self, env):
+    @patch("xgboost.core.Booster")
+    def test_SaveCheckpoint_uploading(self, model):
         # This function attempts to simulate the file uploading procedure used
         # by SageMaker. When a file is being uploaded by SM, SM will create a
         # marker file (file name + .sagemaker-uploading) to indicate that the
@@ -108,32 +106,31 @@ class TestSaveCheckpoint(unittest.TestCase):
         # try again later if there is a marker file <filename>.sagemaker-uploading
         # and only attempt to delete a file when the marker file
         # <filename>.sagemaker-uploaded is present.
-        max_to_keep = 1
+
+        rank = 0
         end_iteration = 100
 
-        env.rank = 0
-        env.end_iteration = end_iteration
+        callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, max_to_keep=1, rank=rank,
+                                          end_iteration=end_iteration)
 
-        callback = SaveCheckpoint(checkpoint_dir=self.test_dir, max_to_keep=max_to_keep)
-
-        env.iteration = 0
-        callback(env)
+        # For iteration 0
+        callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.0")
         self.assertTrue(os.path.isfile(fpath))
 
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.0")
         pathlib.Path(fpath + ".sagemaker-uploading").touch()
 
-        env.iteration = 1
-        callback(env)
+        # For iteration 1
+        callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.1")
         self.assertTrue(os.path.isfile(fpath))
 
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.1")
         pathlib.Path(fpath + ".sagemaker-uploading").touch()
 
-        env.iteration = 2
-        callback(env)
+        # For iteration 2
+        callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.2")
         self.assertTrue(os.path.isfile(fpath))
 
@@ -142,13 +139,13 @@ class TestSaveCheckpoint(unittest.TestCase):
         time.sleep(0.5)
         self.assertFalse(os.path.isfile(fpath))
 
-        env.iteration = 3
-        callback(env)
+        # For iteration 3
+        callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.3")
         self.assertTrue(os.path.isfile(fpath))
 
-        env.iteration = 4
-        callback(env)
+        # For iteration 4
+        callback(model)
         fpath = os.path.join(self.test_dir, "xgboost-checkpoint.4")
         self.assertTrue(os.path.isfile(fpath))
 
@@ -196,7 +193,8 @@ def test_train(tmpdir, caplog):
     assert sorted(os.listdir(checkpoint_dir)) == expected_files
 
     train_args["num_boost_round"] = 30
-    checkpointing.train(train_args, checkpoint_dir)
+    with caplog.at_level(logging.INFO):
+        checkpointing.train(train_args, checkpoint_dir)
 
     assert "callbacks" not in train_args
     assert "xgb_model" not in train_args
