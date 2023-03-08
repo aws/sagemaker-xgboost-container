@@ -14,6 +14,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import importlib
 
 from sagemaker_containers.beta.framework import (
     encoders,
@@ -144,7 +145,7 @@ def main(environ, start_response):
         if serving_env.module_name is None:
             app = serve.ScoringService.csdk_start()
         else:
-            user_module = modules.import_module(serving_env.module_dir, serving_env.module_name)
+            user_module = importlib.import_module(serving_env.module_name)
             user_module_transformer = _user_module_transformer(user_module)
             user_module_transformer.initialize()
             app = worker.Worker(
