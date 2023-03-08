@@ -19,7 +19,6 @@ import importlib
 from sagemaker_containers.beta.framework import (
     encoders,
     env,
-    modules,
     server,
     transformer,
     worker,
