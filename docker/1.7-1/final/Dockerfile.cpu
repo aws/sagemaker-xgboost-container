@@ -69,6 +69,9 @@ ENV SM_INPUT /opt/ml/input
 ENV SM_INPUT_TRAINING_CONFIG_FILE $SM_INPUT/config/hyperparameters.json
 ENV SM_INPUT_DATA_CONFIG_FILE $SM_INPUT/config/inputdataconfig.json
 ENV SM_CHECKPOINT_CONFIG_FILE $SM_INPUT/config/checkpointconfig.json
+# See: https://github.com/dmlc/xgboost/issues/7982#issuecomment-1379390906 https://github.com/dmlc/xgboost/pull/8257
+ENV NCCL_SOCKET_IFNAME eth 
+                            
 
 # Set SageMaker serving environment variables
 ENV SM_MODEL_DIR /opt/ml/model
