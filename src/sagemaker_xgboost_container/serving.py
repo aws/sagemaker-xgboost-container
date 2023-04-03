@@ -19,7 +19,6 @@ import importlib
 from sagemaker_containers.beta.framework import (
     encoders,
     env,
-    server,
     transformer,
     worker,
 )
@@ -28,6 +27,7 @@ from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import encoder as xgb_encoders
 from sagemaker_xgboost_container.algorithm_mode import serve
 from sagemaker_xgboost_container.constants import sm_env_constants
+from sagemaker_xgboost_container.sagemaker_containers_patch import server
 from sagemaker_xgboost_container.serving_mms import start_mxnet_model_server
 
 logging.basicConfig(format="%(asctime)s %(levelname)s - %(name)s - %(message)s", level=logging.INFO)
