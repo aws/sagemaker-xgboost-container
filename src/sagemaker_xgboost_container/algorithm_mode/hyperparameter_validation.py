@@ -299,6 +299,7 @@ def initialize(metrics):
                 "reg:gamma",
                 "reg:pseudohubererror",
                 "reg:squaredlogerror",
+                "reg:absoluteerror",
                 "reg:tweedie",
                 "survival:aft",
                 "survival:cox",
