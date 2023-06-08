@@ -133,6 +133,10 @@ TEST_RAW_PREDICTIONS_REG_LOG = np.array([0.5, -7.0])
 TEST_KEYS_REG_LOG = serve_utils.VALID_OBJECTIVES[serve_utils.REG_LOG]
 TEST_PREDICTIONS_REG_LOG = [{"predicted_score": 0.5}, {"predicted_score": -7.0}]
 
+TEST_RAW_PREDICTIONS_REG_ABSOLUTEERR = np.array([2.0, 6.0])
+TEST_KEYS_REG_ABSOLUTEERR = serve_utils.VALID_OBJECTIVES[serve_utils.REG_ABSOLUTEERR]
+TEST_PREDICTIONS_REG_ABSOLUTEERR = [{"predicted_score": 2.0}, {"predicted_score": 6.0}]
+
 
 def test_is_selectable_inference_response_false():
     assert not serve_utils.is_selectable_inference_output()
@@ -160,6 +164,8 @@ def test_get_selected_content_keys_error():
     [
         (TEST_RAW_PREDICTIONS, TEST_KEYS_BINARY_LOG, serve_utils.BINARY_LOG, TEST_PREDICTIONS_BINARY_LOG),
         (TEST_RAW_PREDICTIONS_REG_LOG, TEST_KEYS_REG_LOG, serve_utils.REG_LOG, TEST_PREDICTIONS_REG_LOG),
+        (TEST_RAW_PREDICTIONS_REG_ABSOLUTEERR, TEST_KEYS_REG_ABSOLUTEERR, serve_utils.REG_ABSOLUTEERR,
+         TEST_PREDICTIONS_REG_ABSOLUTEERR),
     ],
 )
 def test_get_selected_predictions_all_keys(test_raw_predictions, selected_keys, objective, expected_predictions):
