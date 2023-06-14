@@ -125,6 +125,11 @@ class TestTrainUtils(unittest.TestCase):
 
         self.assertEqual(9, dmatrix.num_col())
         self.assertEqual(3548, dmatrix.num_row())
+ 
+        file_path = [os.path.join(data_path, path) for path in ["train_subdirs", "validation_subdirs"]]
+        dmatrix = data_utils.get_dmatrix(file_path, "libsvm", 0, False)
+        self.assertEqual(9, dmatrix.num_col())
+        self.assertEqual(3548, dmatrix.num_row())
 
     def test_parse_csv_dmatrix(self):
         csv_file_paths_and_weight = [("train.csv", 0), ("train.csv.weights", 1), ("csv_files", 0)]
