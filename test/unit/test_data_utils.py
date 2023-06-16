@@ -126,8 +126,13 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual(9, dmatrix.num_col())
         self.assertEqual(3548, dmatrix.num_row())
 
-        file_path = [os.path.join(data_path, path) for path in ["train_subdirs", "validation_subdirs"]]
+    def test_get_dmatrix_from_subdirs(self):
+        current_path = Path(os.path.abspath(__file__))
+        data_path = os.path.join(str(current_path.parent.parent), "resources", "abalone-subdirs")
+        file_path = [os.path.join(data_path, path) for path in ["train", "validation"]]
+
         dmatrix = data_utils.get_dmatrix(file_path, "libsvm", 0, False)
+
         self.assertEqual(9, dmatrix.num_col())
         self.assertEqual(3548, dmatrix.num_row())
 
