@@ -126,7 +126,8 @@ class TestTrainUtils(unittest.TestCase):
         self.assertEqual(9, dmatrix.num_col())
         self.assertEqual(3548, dmatrix.num_row())
 
-    def test_get_dmatrix_from_subdirs(self):
+    @patch("logging.warning")
+    def test_get_dmatrix_from_subdirs(self, mock_log_warning):
         current_path = Path(os.path.abspath(__file__))
         data_path = os.path.join(str(current_path.parent.parent), "resources", "abalone-subdirs")
         file_path = [os.path.join(data_path, path) for path in ["train", "validation"]]
@@ -135,6 +136,17 @@ class TestTrainUtils(unittest.TestCase):
 
         self.assertEqual(9, dmatrix.num_col())
         self.assertEqual(3548, dmatrix.num_row())
+        mock_log_warning.assert_not_called()
+
+    @patch("logging.warning")
+    def test_get_dmatrix_from_subdirs_negative(self, mock_log_warning):
+        current_path = Path(os.path.abspath(__file__))
+        data_path = os.path.join(str(current_path.parent.parent), "resources", "abalone-subdirs")
+        file_path = os.path.join(data_path, "dir1")
+
+        with self.assertRaises(exc.UserError):
+            data_utils.get_dmatrix(file_path, "libsvm", 0, False)
+            mock_log_warning.assert_called()
 
     def test_parse_csv_dmatrix(self):
         csv_file_paths_and_weight = [("train.csv", 0), ("train.csv.weights", 1), ("csv_files", 0)]
