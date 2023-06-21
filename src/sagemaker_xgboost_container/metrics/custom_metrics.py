@@ -21,7 +21,6 @@ from sklearn.metrics import (
     r2_score,
     recall_score,
 )
-import logging
 
 
 # From 1.2, custom evaluation metric receives raw prediction.
@@ -134,8 +133,6 @@ def rmse(preds, dtrain):
     :return: Metric name, root mean squared error
     """
     labels = dtrain.get_label()
-    logging.info(f"Here's the labels: {labels}")
-    logging.info(f"Here's the preds {preds}")
     return "rmse", mean_squared_error(labels, preds, squared=False)
 
 
