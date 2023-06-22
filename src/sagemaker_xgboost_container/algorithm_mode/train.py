@@ -216,17 +216,20 @@ def sagemaker_train(
             include_in_training = True
             if not train_dmatrix:
                 logging.warning(
-                    f"Host {sm_current_host} does not have training data. Will broadcast to cluster and this host {sm_current_host} "
-                    f"will not be used in distributed training. Please divide the training data across instances properly. "
-                    f"See https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html#Instance-XGBoost-distributed-training-divide-data. "
+                    f"Host {sm_current_host} does not have training data. Will broadcast to "
+                    f"cluster and this host {sm_current_host} will not be used in distributed training. "
+                    f"Please divide the training data across instances properly. See https://docs.aws.amazon.com/"
+                    f"sagemaker/latest/dg/xgboost.html#Instance-XGBoost-distributed-training-divide-data. "
                 )
                 include_in_training = False
-            elif missing_validation_data:
+            if missing_validation_data:
                 logging.warning(
-                    f"Host {sm_current_host} does not have validation data in the validation channel : {validation_channel}. "
-                    f"Will broadcast to cluster and this host {sm_current_host}  will not be used in distributed training. "
-                    f"Please divide the training data across instances properly. "
-                    f"See https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html#Instance-XGBoost-distributed-training-divide-data. "
+                    f"Host {sm_current_host} does not have validation data "
+                    f"in the validation channel : {validation_channel}. "
+                    f"Will broadcast to cluster and this host {sm_current_host} will not be used "
+                    f"in distributed training. Please divide the training data across instances properly. "
+                    f"See https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html"
+                    f"#Instance-XGBoost-distributed-training-divide-data. "
                 )
                 include_in_training = False
 
