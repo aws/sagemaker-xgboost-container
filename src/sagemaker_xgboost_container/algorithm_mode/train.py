@@ -227,7 +227,7 @@ def sagemaker_train(
                     f"Host {sm_current_host} does not have validation data "
                     f"in the validation channel : {validation_channel}. "
                     f"Will broadcast to cluster and this host {sm_current_host} will not be used "
-                    f"in distributed training. Please divide the training data across instances properly. "
+                    f"in distributed training. Please divide the validation data across instances properly. "
                     f"See https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html"
                     f"#Instance-XGBoost-distributed-training-divide-data. "
                 )
@@ -295,8 +295,6 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     logging.info(f"Train matrix has {train_dmatrix.num_row()} rows and {train_dmatrix.num_col()} columns")
     if val_dmatrix:
         logging.info(f"Validation matrix has {val_dmatrix.num_row()} rows")
-    else:
-        logging.info("No validation data is collected for this training job.")
 
     try:
         kfold = train_cfg.pop("_kfold", None)
