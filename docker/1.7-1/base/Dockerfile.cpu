@@ -48,7 +48,6 @@ RUN rm /etc/apt/sources.list.d/cuda.list && \
         apt-transport-https \
         ca-certificates \
         gnupg \
-        software-properties-common \
         && \
     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
         gpg --dearmor - | \
@@ -68,9 +67,6 @@ RUN rm /etc/apt/sources.list.d/cuda.list && \
         libssl-dev \
         libtool \
         ninja-build \
-        python3-dev \
-        python3-distutils \
-        python3-pip \
         zlib1g-dev \
         && \
     rm -rf /var/lib/apt/lists/*
