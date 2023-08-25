@@ -32,6 +32,7 @@ wheel==0.36.2
 jinja2==2.11.3
 MarkupSafe==1.1.1
 Werkzeug==0.15.6
+certifi==2023.7.22
 """.strip()
 
 
