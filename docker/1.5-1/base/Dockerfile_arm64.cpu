@@ -70,6 +70,9 @@ RUN cd /tmp && \
 
 ENV PATH=/miniconda3/bin:${PATH}
 
+# Install requests library
+RUN python3 -m pip install --no-cache -I requests==2.27.0
+
 # Install MLIO with Apache Arrow integration
 # We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
 # which increases training time. We build from source to minimize the image size.
@@ -79,7 +82,6 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda config --system --set show_channel_urls true && \
     echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
     conda install -c conda-forge python=${PYTHON_VERSION} && \
-    conda install requests==2.27.0 && \
     conda install conda=${CONDA_PKG_VERSION} && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} && \
