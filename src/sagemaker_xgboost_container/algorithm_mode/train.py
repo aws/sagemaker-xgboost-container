@@ -345,7 +345,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 cv_val_dmatrix = train_val_dmatrix.slice(val_idx)
                 watchlist = [(cv_train_dmatrix, "train")]
                 if val_dmatrix is not None:
-                    watchlist.append((cv_val_dmatrix, "validation"))
+                     watchlist.append((cv_val_dmatrix, "validation"))
 
                 xgb_model, iteration, callbacks = get_callbacks(
                     model_dir=model_dir,
