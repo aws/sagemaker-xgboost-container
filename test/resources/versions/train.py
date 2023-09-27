@@ -34,6 +34,7 @@ MarkupSafe==1.1.1
 Werkzeug==0.15.6
 certifi==2023.7.22
 pyopenssl==23.1.0
+gevent==23.9.1
 """.strip()
 
 
