@@ -85,6 +85,7 @@ RUN cd /tmp && \
 ENV PATH=/miniconda3/bin:${PATH}
 
 # Install MLIO with Apache Arrow integration
+
 # We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
 # which increases training time. We build from source to minimize the image size.
 RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
