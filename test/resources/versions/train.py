@@ -20,7 +20,6 @@ pandas==1.2.4
 psutil==5.6.7
 pyarrow==1.0.1
 python-dateutil==2.8.1
-requests==2.25.1
 retrying==1.3.3
 sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
@@ -34,6 +33,7 @@ MarkupSafe==1.1.1
 Werkzeug==0.15.6
 certifi==2023.7.22
 pyopenssl==23.1.0
+gevent==23.9.1
 """.strip()
 
 
