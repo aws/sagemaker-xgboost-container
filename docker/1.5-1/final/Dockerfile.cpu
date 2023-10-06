@@ -80,3 +80,5 @@ ENV SAGEMAKER_SERVING_MODULE sagemaker_xgboost_container.serving:main
 EXPOSE 8080
 ENV TEMP=/home/model-server/tmp
 LABEL com.amazonaws.sagemaker.capabilities.accept-bind-to-port=true
+
+# boo
