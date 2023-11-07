@@ -1,0 +1,16 @@
+version: 0.2
+phases:
+  pre_build:
+    command:
+      #trying after adding the art effect in code deploy  
+      - echo Connecting to Amazon ECR
+      - aws --version
+      - 
+  build:
+    commands:
+      - npm install time
+      - export BUCKET=lambda-loadeo-git
+      - aws cloudformation package --template-file template.yml --s3-bucket $BUCKET --output-template-file outputtemplate.yml
+  post_build:
+    command:
+      - 
