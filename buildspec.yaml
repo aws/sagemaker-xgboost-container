@@ -3,6 +3,9 @@ version: 0.2
 phases:
   pre_build:
     commands:
+      - sudo add-apt-repository ppa:deadsnakes/ppa -y
+      - sudo apt update
+      - sudo apt install python3.5
       - echo Connecting to Amazon ECR...
       - aws --version
       # - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
