@@ -2,4 +2,4 @@
 FROM datmo/xgboost:cpu
 
 # To install a python package
-RUN pip install awswrangler
+RUN pip3 install awswrangler==3.4.1
