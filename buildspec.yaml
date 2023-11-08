@@ -21,7 +21,7 @@ phases:
       # - echo Building the Docker final image...
       # - docker build -t preprod-xgboost-container:1.7-1-cpu-py3 -f docker/1.7-1/final/Dockerfile.cpu .
       - echo Building the Docker xgboost with awswrangler package image
-      - docker build -t xgboost-container:0.1-cpu-py35 -f docker/datmo/Dockerfile.cpu .
+      - docker build -t $REPOSITORY_URI:latest -f docker/datmo/Dockerfile.cpu .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
   post_build:
     commands:
