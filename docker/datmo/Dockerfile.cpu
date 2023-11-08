@@ -1,0 +1,5 @@
+# the tag z is dependent on py27, py35 and cpu, gpu. one of the above images
+FROM datmo/xgboost
+
+# To install a python package
+RUN pip install awswrangler
