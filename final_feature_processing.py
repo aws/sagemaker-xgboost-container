@@ -1,6 +1,9 @@
 import awswrangler as wr
 import pandas as pd
 import numpy as np
+import boto3
+
+boto3.setup_default_session(region_name="us-east-1")
 
 tables = ['p2p',
           'amm',

@@ -6,6 +6,4 @@ RUN pip install awswrangler==3.4.1
 
 COPY final_feature_processing.py /src/final_feature_processing.py
 
-RUN export AWS_DEFAULT_REGION=us-east-1
-
 ENTRYPOINT ["python3", "/src/final_feature_processing.py"]
