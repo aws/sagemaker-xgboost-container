@@ -74,8 +74,8 @@ def feature_processing(args=None):
                                             & (user_demographic_df.created_at <= '2022-10-31')
                                             & (user_demographic_df.status == 'active')]
 
-    campaign_feature_df = week_month_combination_df[(week_month_combination_dff.monthly_report >= '2022-06-01') 
-                                                    & (week_month_combination_dff.monthly_report <= '2022-10-31')]
+    campaign_feature_df = week_month_combination_df[(week_month_combination_df.monthly_report >= '2022-06-01') 
+                                                    & (week_month_combination_df.monthly_report <= '2022-10-31')]
 
     campaign_feature_df['weekly_rank_record'] = (campaign_feature_df
                                                 .groupby(['user_id', 'monthly_report'])['weekly_report']
@@ -95,21 +95,21 @@ def feature_processing(args=None):
     # final_df = campaign_feature_df[(campaign_feature_df.weekly_rank_record == 1)
     #                                & (campaign_feature_df.monthly_rank_record == 1)]
 
-    final_feature = pd.merge(campaign_feature_df,
+    final_features = pd.merge(campaign_feature_df,
                              campaign_users_df,
                              how='inner',
                              on=['user_id'])
 
-    cats_columns = final_feature.select_dtypes(exclude=np.number).columns.tolist()
+    cats_columns = final_features.select_dtypes(exclude=np.number).columns.tolist()
 
     for col in cats_columns:
-        final_feature[col].fillna('TBD', inplace=True)
-        final_feature[col] = final_feature[col].astype('category')
+        final_features[col].fillna('TBD', inplace=True)
+        final_features[col] = final_features[col].astype('category')
 
-    final_feature.fillna(0, inplace=True)
+    final_features.fillna(0, inplace=True)
     
     bucket = 's3://mlops-feature-stores/feature-ready/cloned-user-detection.parquet'
-    wr.s3.to_parquet(df=data_prepared, path=bucket, dtype={cat: 'string' for cat in cats})
+    wr.s3.to_parquet(df=final_features, path=bucket, dtype={cat: 'string' for cat in cats_columns})
 
     return
 
