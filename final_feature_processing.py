@@ -2,6 +2,9 @@ import awswrangler as wr
 import pandas as pd
 import numpy as np
 import boto3
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 boto3.setup_default_session(region_name="us-east-1")
 
