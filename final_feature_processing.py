@@ -52,10 +52,15 @@ def feature_processing(args=None):
         mdf = numeric_object_2_float32(mdf)
 
     monthly_combination_df = feature_combination(monthly_dfs, 'monthly')
+
+    monthly_combination_df.head()
+
     week_month_combination_df = feature_combination([weekly_combination_df,
                                                      monthly_combination_df],
                                                     'monthly',
                                                     'left')
+    
+    week_month_combination_df.head()
 
     query = """
             SELECT user_id,
@@ -72,6 +77,8 @@ def feature_processing(args=None):
     user_demographic_df = load_data(query, 'feature_stores')
 
     user_demographic_df['label'] = user_demographic_df['is_cloned'].astype(int)
+
+    user_demographic_df.head()
 
     campaign_users_df = user_demographic_df[(user_demographic_df.created_at >= '2022-06-01')
                                             & (user_demographic_df.created_at <= '2022-10-31')
@@ -102,6 +109,8 @@ def feature_processing(args=None):
                              campaign_users_df,
                              how='inner',
                              on=['user_id'])
+    
+    final_features.head()
 
     cats_columns = final_features.select_dtypes(exclude=np.number).columns.tolist()
 
@@ -110,6 +119,8 @@ def feature_processing(args=None):
         final_features[col] = final_features[col].astype('category')
 
     final_features.fillna(0, inplace=True)
+    
+    final_features.head()
     
     bucket = 's3://mlops-feature-stores/feature-ready/cloned-user-detection.parquet'
     wr.s3.to_parquet(df=final_features, path=bucket, dtype={cat: 'string' for cat in cats_columns})
