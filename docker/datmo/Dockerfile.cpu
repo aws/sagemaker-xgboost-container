@@ -3,3 +3,7 @@ FROM intel/intel-optimized-ml:latest
 
 # To install a python package
 RUN pip install awswrangler==3.4.1
+
+COPY final_feature_processing.py /src/final_feature_processing.py
+
+ENTRYPOINT ["python3", "/src/final_feature_processing.py"]
