@@ -27,6 +27,13 @@ def numeric_object_2_float32(df):
     return df.astype(type_dict)
 
 
+def int64_int32_2_uint8(df):
+    numeric_columns = df.select_dtypes(exclude=['object', 'string', 'datetime64']).columns.tolist()
+    numeric_columns_user_id_excluded = [col for col in numeric_columns if col != 'user_id']
+    type_dict = {col: 'uint8' for col in numeric_columns_user_id_excluded}
+    return df.astype(type_dict)
+
+
 def feature_combination(dfs, freq='weekly', how='outer'):
     left_df = dfs[0]
     for right_df in dfs[1:]:
@@ -42,6 +49,7 @@ def feature_processing(args=None):
     for wdf in weekly_dfs:
         wdf.drop(['week'], axis=1, inplace=True)
         wdf = numeric_object_2_float32(wdf)
+        wdf = int64_int32_2_uint8(wdf)
 
     weekly_combination_df = feature_combination(weekly_dfs)
     weekly_combination_df['monthly_report'] = weekly_combination_df['weekly_report'] - pd.offsets.MonthBegin(1)
@@ -50,6 +58,7 @@ def feature_processing(args=None):
     for mdf in monthly_dfs:
         mdf.drop(['month'], axis=1, inplace=True)
         mdf = numeric_object_2_float32(mdf)
+        mdf = int64_int32_2_uint8(mdf)
 
     monthly_combination_df = feature_combination(monthly_dfs, 'monthly')
 
