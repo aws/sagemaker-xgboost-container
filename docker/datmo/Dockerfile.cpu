@@ -1,5 +1,5 @@
 # the tag z is dependent on py27, py35 and cpu, gpu. one of the above images
-FROM intel/intel-optimized-ml:latest
+FROM amazonlinux:latest
 
 # To install a python package
 RUN pip install awswrangler==3.4.1
