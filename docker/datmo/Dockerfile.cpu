@@ -1,6 +1,20 @@
 # the tag z is dependent on py27, py35 and cpu, gpu. one of the above images
 FROM amazonlinux:latest
 
+# RUN sudo yum update && sudo yum install python3-pip
+RUN sudo yum -y update
+# RUN sudo yum -y groupinstall "Development Tools"
+RUN sudo yum -y install openssl11 openssl11-devel bzip2-devel libffi-devel
+
+RUN yum -y install python3 python3-setuptools python3-pip python3-dev py3-virtualenv
+
+# RUN wget https://www.python.org/ftp/python/3.10.0/Python-3.10.0.tgz
+# RUN tar xzf Python-3.10.0.tgz
+# RUN cd Python-3.10.0
+
+# RUN sudo ./configure --enable-optimizations
+# RUN sudo make altinstall
+
 # To install a python package
 RUN pip install awswrangler==3.4.1
 
