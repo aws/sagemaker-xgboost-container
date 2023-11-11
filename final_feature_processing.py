@@ -48,8 +48,8 @@ def feature_processing(args=None):
     weekly_dfs = [load_data(f'select * from weekly_{table}', 'feature_stores') for table in tables]
     for wdf in weekly_dfs:
         wdf.drop(['week'], axis=1, inplace=True)
-        wdf = numeric_object_2_float32(wdf)
         wdf = int64_int32_2_uint8(wdf)
+        wdf = numeric_object_2_float32(wdf)
 
     weekly_combination_df = feature_combination(weekly_dfs)
     weekly_combination_df['monthly_report'] = weekly_combination_df['weekly_report'] - pd.offsets.MonthBegin(1)
@@ -57,8 +57,8 @@ def feature_processing(args=None):
     monthly_dfs = [load_data(f'select * from monthly_{table}', 'feature_stores') for table in tables]
     for mdf in monthly_dfs:
         mdf.drop(['month'], axis=1, inplace=True)
-        mdf = numeric_object_2_float32(mdf)
         mdf = int64_int32_2_uint8(mdf)
+        mdf = numeric_object_2_float32(mdf)
 
     monthly_combination_df = feature_combination(monthly_dfs, 'monthly')
 
