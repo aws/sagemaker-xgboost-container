@@ -1,6 +1,6 @@
 # the tag z is dependent on py27, py35 and cpu, gpu. one of the above images
 # FROM 683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-xgboost:1.3-1
-FROM kubeflow/xgboost-operator
+FROM kubeflow/xgboost-operator:v0.2.0
 # RUN pip install awswrangler==3.4.1
 
 # COPY final_feature_processing.py /src/final_feature_processing.py
