@@ -10,6 +10,8 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 import boto3
 from botocore.exceptions import ClientError
 
+print('hello world!')
+
 data_prepared_df = pd.read_parquet('s3://mlops-feature-stores/data-prepared')
 
 data_prepared_df = data_prepared_df[(data_prepared_df.created_at >= '2022-06-01')
