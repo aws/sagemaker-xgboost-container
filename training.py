@@ -59,7 +59,7 @@ s3_path = 's3://mlops-feature-stores/models/cloned-user-detection'
 s3_client = boto3.client('s3', region_name='us-east-1')
 
 try:
-    response = s3_client.upload_file('cloned_user_detection.json', s3_path)
+    response = s3_client.upload_file('cloned_user_detection.json', 'mlops-feature-stores', 'models/cloned-user-detection/cloned_user_detection.json')
 except ClientError as e:
     print(e)
 
