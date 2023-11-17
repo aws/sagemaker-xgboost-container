@@ -1,5 +1,5 @@
 boto3
-botocore
+botocore==1.31.16
 pandas
 xgboost
 pyarrow
