@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 import xgboost as xgb
+import tarfile
+import os.path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from xgboost import XGBClassifier
 from sklearn.compose import ColumnTransformer
@@ -52,7 +54,16 @@ xgb_classifier = XGBClassifier(n_estimators=100,
 
 xgb_classifier.fit(X_train, y_train)
 
-xgb_classifier.save_model('cloned_user_detection.json')
+model_path = '/src/ml_model/cloned_user_detection.json'
+
+output_filename = 'cloned_user_detection.tar.gz'
+
+arcname = os.path.basename(model_path)
+
+xgb_classifier.save_model(model_path)
+
+with tarfile.open(output_filename, "w:gz") as tar:
+    tar.add(model_path, arcname=arcname)
 
 s3_path = 's3://mlops-feature-stores/models/cloned-user-detection'
 
