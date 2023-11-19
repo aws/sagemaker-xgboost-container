@@ -5,5 +5,4 @@ xgboost
 pyarrow
 fsspec
 s3fs
-gzip
 scikit-learn
