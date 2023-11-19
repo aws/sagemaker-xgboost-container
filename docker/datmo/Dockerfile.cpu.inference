@@ -1,0 +1,10 @@
+FROM python:3.8-slim
+
+COPY tanpv-requirements.txt /src/tanpv-requirements.txt
+
+RUN pip3 install --force-reinstall pip==20.0.2
+RUN pip install -r /src/tanpv-requirements.txt
+
+COPY inference.py /src/inference.py
+
+ENTRYPOINT ["python3", "/src/inference.py"]
