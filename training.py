@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 import xgboost as xgb
 import tarfile
-import os.path
+import os
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from xgboost import XGBClassifier
 from sklearn.compose import ColumnTransformer
@@ -54,7 +54,11 @@ xgb_classifier = XGBClassifier(n_estimators=100,
 
 xgb_classifier.fit(X_train, y_train)
 
-model_path = '/src/ml_model/cloned_user_detection.json'
+model_path_basename = '/src/ml_model'
+if not os.path.exists(model_path_basename):
+    os.makedirs(model_path_basename)
+
+model_path = os.path.join(model_path_basename, 'cloned_user_detection.json')
 
 output_filename = 'cloned_user_detection.tar.gz'
 
