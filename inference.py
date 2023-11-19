@@ -2,7 +2,6 @@ import xgboost as xgb
 import os
 
 model_xgb_2 = xgb.Booster()
-model_xgb_2.load_model("model.json")
 
 model_path = '/opt/ml/model'
 
