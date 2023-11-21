@@ -5,4 +5,7 @@ xgboost
 pyarrow
 fsspec
 s3fs
+fastapi
+pydantic
+awswrangler
 scikit-learn
