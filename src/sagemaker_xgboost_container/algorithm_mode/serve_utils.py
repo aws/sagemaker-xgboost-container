@@ -105,8 +105,8 @@ def _get_sparse_matrix_from_libsvm(payload):
                 data.append(val)
 
     row = np.array(row)
-    col = np.array(col).astype(np.int)
-    data = np.array(data).astype(np.float)
+    col = np.array(col).astype(int)
+    data = np.array(data).astype(float)
     if not (len(row) == len(col) and len(col) == len(data)):
         raise RuntimeError("Dimension checking failed when transforming sparse matrix.")
 
