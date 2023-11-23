@@ -122,7 +122,7 @@ def parse_content_data(input_data, input_content_type):
     if content_type == CSV:
         try:
             decoded_payload = payload.strip().decode("utf-8")
-            dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=np.float)
+            dtest = encoder.csv_to_dmatrix(decoded_payload, dtype=float)
         except Exception as e:
             raise RuntimeError(
                 "Loading csv data failed with Exception, "
