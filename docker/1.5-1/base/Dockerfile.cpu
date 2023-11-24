@@ -4,13 +4,13 @@ ARG IMAGE_DIGEST=ed4b2e8703ed3f94029ce0823c44fe57b2800108953cf81f97781d6a2a5535f
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
-ARG MINICONDA_VERSION=4.9.2
+ARG MINICONDA_VERSION=23.10.0-1
 ARG CONDA_PY_VERSION=39
-ARG CONDA_CHECKSUM="b4e46fcc8029e2cfa731b788f25b1d36"
-ARG CONDA_PKG_VERSION=4.10.1
+ARG CONDA_CHECKSUM="47ffa3b193e156fe54e5497d8e9b3b2e"
+ARG CONDA_PKG_VERSION=23.10.0
 ARG PYTHON_VERSION=3.8.13
-ARG PYARROW_VERSION=1.0
-ARG MLIO_VERSION=0.7.0
+ARG PYARROW_VERSION=14.0.1
+ARG MLIO_VERSION=0.9.0
 ARG XGBOOST_VERSION=1.5.2
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -44,6 +44,8 @@ RUN rm /etc/apt/sources.list.d/cuda.list && \
     # MLIO build dependencies
     # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
     # Kitware contains the latest version of CMake.
+    wget http://es.archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi7_3.3-4_amd64.deb && \
+    dpkg -i libffi7_3.3-4_amd64.deb && \
     apt-get -y install --no-install-recommends \
         apt-transport-https \
         ca-certificates \
@@ -115,7 +117,7 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     python3 -m pip install typing && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install dist/*.whl && \
-    cp -r /tmp/mlio/build/third-party/lib/intel64/gcc4.7/* /usr/local/lib/ && \
+    cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig && \
     rm -rf /tmp/mlio
 
