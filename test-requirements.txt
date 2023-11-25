@@ -1,4 +1,4 @@
-Flask==1.1.1  # sagemaker-containers requires flask 1.1.1
+Flask==2.3.2  # sagemaker-containers requires flask 1.1.1
 black
 coverage
 docker-compose
