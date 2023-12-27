@@ -431,8 +431,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
 
 def print_cv_metric(num_round, evals_results):
     cv_eval_report = f"[{num_round}]"
-    for metric_name in evals_results[0]["train"]:
-        for data_name in ["train", "validation"]:
+    data_names = evals_results[0].keys()
+    metric_names = evals_results[0]["train"].keys()
+    for metric_name in metric_names:
+        for data_name in data_names:
             metric_val = [evals_result[data_name][metric_name][-1] for evals_result in evals_results]
             cv_eval_report += f"\t{data_name}-{metric_name}:{np.mean(metric_val):.5f}"
     print(cv_eval_report)

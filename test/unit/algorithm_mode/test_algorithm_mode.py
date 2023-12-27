@@ -226,6 +226,18 @@ class TestAlgorithmModeChannels(unittest.TestCase):
         cs = cv.initialize()
         cs.validate(input_data_config)
 
+    def test_channels_train_only(self):
+        input_data_config = {
+            "train": {
+                "ContentType": "csv",
+                "TrainingInputMode": "File",
+                "S3DistributionType": "FullyReplicated",
+                "RecordWrapperType": "None",
+            },
+        }
+        cs = cv.initialize()
+        cs.validate(input_data_config)
+
 
 class TestAlgorithmModeMetrics(unittest.TestCase):
     def setUp(self):
