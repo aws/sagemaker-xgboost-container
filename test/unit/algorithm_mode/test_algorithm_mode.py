@@ -238,6 +238,7 @@ class TestAlgorithmModeChannels(unittest.TestCase):
         cs = cv.initialize()
         cs.validate(input_data_config)
 
+
 class TestAlgorithmModeMetrics(unittest.TestCase):
     def setUp(self):
         self.training_environment = basic_training_environment()
