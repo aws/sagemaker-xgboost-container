@@ -226,7 +226,7 @@ class TestAlgorithmModeChannels(unittest.TestCase):
         cs = cv.initialize()
         cs.validate(input_data_config)
 
-def test_channels_train_only(self):
+    def test_channels_train_only(self):
         input_data_config = {
             "train": {
                 "ContentType": "csv",
