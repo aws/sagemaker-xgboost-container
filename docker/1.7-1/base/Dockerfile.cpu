@@ -61,8 +61,8 @@ RUN apt-key del 7fa2af80 && \
         autoconf \
         automake \
         build-essential \
-        cmake=3.18.4-0kitware1 \
-        cmake-data=3.18.4-0kitware1 \
+        cmake \
+        cmake-data \
         doxygen \
         kitware-archive-keyring \
         libcurl4-openssl-dev \
