@@ -1,6 +1,6 @@
-ARG UBUNTU_VERSION=18.04
-ARG CUDA_VERSION=10.2
-ARG IMAGE_DIGEST=ed4b2e8703ed3f94029ce0823c44fe57b2800108953cf81f97781d6a2a5535fc
+ARG UBUNTU_VERSION=20.04
+ARG CUDA_VERSION=11.6.1
+ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
@@ -23,8 +23,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING='utf-8'
 
-RUN rm /etc/apt/sources.list.d/cuda.list && \
-        apt-key del 7fa2af80 && \
+RUN apt-key del 7fa2af80 && \
         apt-get update && apt-get install -y --no-install-recommends wget && \
         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb && \
         dpkg -i cuda-keyring_1.0-1_all.deb && \
@@ -62,8 +61,8 @@ RUN rm /etc/apt/sources.list.d/cuda.list && \
         autoconf \
         automake \
         build-essential \
-        cmake=3.18.4-0kitware1 \
-        cmake-data=3.18.4-0kitware1 \
+        cmake \
+        cmake-data \
         doxygen \
         kitware-archive-keyring \
         libcurl4-openssl-dev \
