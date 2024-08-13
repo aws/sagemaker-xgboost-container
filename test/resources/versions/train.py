@@ -21,8 +21,8 @@ psutil==5.6.7
 pyarrow==14.0.1
 python-dateutil==2.8.1
 retrying==1.3.3
-sagemaker-containers==2.8.6.post2
-sagemaker-inference==1.5.5
+sagemaker-training==4.7.4
+sagemaker-inference==1.10.1
 scikit-learn==0.24.1
 scipy==1.8.0
 smdebug==1.0.29
