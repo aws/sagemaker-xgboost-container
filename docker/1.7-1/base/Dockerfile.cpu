@@ -23,83 +23,55 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING='utf-8'
 
-RUN apt-key del 7fa2af80 && \
-        apt-get update && apt-get install -y --no-install-recommends wget && \
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb && \
-        dpkg -i cuda-keyring_1.0-1_all.deb && \
-        apt-get update && \
-    apt-get -y upgrade && \
-    apt-get -y install --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
         build-essential \
         curl \
         git \
-        jq \
+        ca-certificates \
         libatlas-base-dev \
-        nginx \
         openjdk-8-jdk-headless \
         unzip \
         wget \
-        && \
-    # MLIO build dependencies
-    # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
-    # Kitware contains the latest version of CMake.
-    wget http://es.archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi7_3.3-4_amd64.deb && \
-    dpkg -i libffi7_3.3-4_amd64.deb && \
-    apt-get -y install --no-install-recommends \
-        apt-transport-https \
-        ca-certificates \
-        gnupg \
-        software-properties-common \
-        && \
-    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
-        gpg --dearmor - | \
-        tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
-    echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
-    apt-get update && \
-    rm /usr/share/keyrings/kitware-archive-keyring.gpg && \
-    apt-get install -y --no-install-recommends \
-        autoconf \
-        automake \
-        build-essential \
-        cmake \
-        cmake-data \
-        doxygen \
-        kitware-archive-keyring \
-        libcurl4-openssl-dev \
-        libssl-dev \
-        libtool \
         ninja-build \
+        cmake \
+        zlib1g-dev \
         python3-dev \
         python3-distutils \
         python3-pip \
-        zlib1g-dev \
-        && \
-    rm -rf /var/lib/apt/lists/*
+        # && \
+        # Add Kitware repository for the latest version of CMake
+        # wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
+        # gpg --dearmor - | \
+        # tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
+        # echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | \
+        # tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
+        # apt-get update && apt-get install -y --no-install-recommends cmake && \
+        && rm -rf /var/lib/apt/lists/*
 
-# Install conda
+
+# Install Miniconda
 RUN cd /tmp && \
     curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-Linux-x86_64.sh && \
-    echo "${CONDA_CHECKSUM} /tmp/Miniconda3.sh" | md5sum -c - && \
-    bash /tmp/Miniconda3.sh -bfp /miniconda3 && \
+    echo "${CONDA_CHECKSUM}  /tmp/Miniconda3.sh" | md5sum -c - && \
+    bash Miniconda3.sh -bfp /miniconda3 && \
     rm /tmp/Miniconda3.sh
 
 ENV PATH=/miniconda3/bin:${PATH}
 
-# Install MLIO with Apache Arrow integration
-
-# We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
-# which increases training time. We build from source to minimize the image size.
+# Install Conda and MLIO dependencies in a single step
 RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
-    # Conda configuration see https://conda.io/projects/conda/en/latest/configuration.html
     conda config --system --set auto_update_conda false && \
     conda config --system --set show_channel_urls true && \
     echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
-    conda install -c conda-forge python=${PYTHON_VERSION} && \
-    pip install requests==2.27.0 && \
-    conda install conda=${CONDA_PKG_VERSION} && \
+    conda install -c conda-forge python=${PYTHON_VERSION} requests==2.27.0 conda=${CONDA_PKG_VERSION} pyarrow=${PYARROW_VERSION} && \
     conda update -y conda && \
-    conda install -c conda-forge pyarrow=${PYARROW_VERSION} && \
-    cd /tmp && \
+    pip install --upgrade pip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Build MLIO from source, clean up build tools afterward to reduce size
+RUN cd /tmp && \
     git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
     cd mlio && \
     build-tools/build-dependency build/third-party all && \
@@ -114,12 +86,15 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     cmake --build . --target mlio-arrow && \
     cd ../../src/mlio-py && \
     python3 setup.py bdist_wheel && \
-    python3 -m pip install typing && \
-    python3 -m pip install --upgrade pip && \
     python3 -m pip install dist/*.whl && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig && \
-    rm -rf /tmp/mlio
+    # Remove unnecessary files and dependencies to minimize the image
+    rm -rf /tmp/mlio /tmp/mlio/build && \
+    apt-get remove --purge -y cmake ninja-build build-essential && \
+    apt-get autoremove -y && \
+    apt-get clean
+
 
 # Install latest version of XGBoost
 RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION}
