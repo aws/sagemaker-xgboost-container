@@ -41,6 +41,9 @@ RUN apt-get update && \
         python3-distutils \
         python3-pip \
         libssl-dev \
+        libcurl4-openssl-dev \
+        doxygen \
+        libtool \
         && rm -rf /var/lib/apt/lists/* && \
     cd /tmp && \
     curl -L --output Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-Linux-x86_64.sh && \
