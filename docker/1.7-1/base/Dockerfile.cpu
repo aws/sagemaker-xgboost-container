@@ -4,6 +4,7 @@ ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032e
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
+# Argument Variables
 ARG MINICONDA_VERSION=4.9.2
 ARG CONDA_PY_VERSION=39
 ARG CONDA_CHECKSUM="b4e46fcc8029e2cfa731b788f25b1d36"
@@ -13,16 +14,16 @@ ARG PYARROW_VERSION=14.0.1
 ARG MLIO_VERSION=0.9.0
 ARG XGBOOST_VERSION=1.7.4
 
+# Environment Variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
-
-# Python won’t try to write .pyc or .pyo files on the import of source modules
-# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING='utf-8'
+ENV PATH=/miniconda3/bin:${PATH}
 
+# Install system dependencies, clean up, and install Miniconda in a single RUN
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -39,33 +40,17 @@ RUN apt-get update && \
         python3-dev \
         python3-distutils \
         python3-pip \
-        # This package provides the OpenSSL headers and libraries necessary to build applications that depend on OpenSSL.
         libssl-dev \
-        # Required for handling compressed files and is often needed alongside OpenSSL.
-        zlib1g-dev && \
-        # && \
-        # Add Kitware repository for the latest version of CMake
-        # wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
-        # gpg --dearmor - | \
-        # tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
-        # echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | \
-        # tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
-        # apt-get update && apt-get install -y --no-install-recommends cmake && \
-        && rm -rf /var/lib/apt/lists/*
-
-
-# Install Miniconda
-RUN cd /tmp && \
-    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-Linux-x86_64.sh && \
-    echo "${CONDA_CHECKSUM}  /tmp/Miniconda3.sh" | md5sum -c - && \
+        && rm -rf /var/lib/apt/lists/* && \
+    cd /tmp && \
+    curl -L --output Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-Linux-x86_64.sh && \
+    echo "${CONDA_CHECKSUM}  Miniconda3.sh" | md5sum -c - && \
     bash Miniconda3.sh -bfp /miniconda3 && \
-    rm /tmp/Miniconda3.sh
+    rm Miniconda3.sh && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV PATH=/miniconda3/bin:${PATH}
-
-# Install Conda and MLIO dependencies in a single step
-RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
-    conda config --system --set auto_update_conda false && \
+# Install Conda dependencies and Python packages
+RUN conda config --system --set auto_update_conda false && \
     conda config --system --set show_channel_urls true && \
     echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
     conda install -c conda-forge python=${PYTHON_VERSION} requests==2.27.0 conda=${CONDA_PKG_VERSION} pyarrow=${PYARROW_VERSION} && \
@@ -74,7 +59,7 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Build MLIO from source, clean up build tools afterward to reduce size
+# Build MLIO and clean up build tools afterward
 RUN cd /tmp && \
     git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
     cd mlio && \
@@ -93,12 +78,9 @@ RUN cd /tmp && \
     python3 -m pip install dist/*.whl && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
     ldconfig && \
-    # Remove unnecessary files and dependencies to minimize the image
-    rm -rf /tmp/mlio /tmp/mlio/build && \
     apt-get remove --purge -y cmake ninja-build build-essential && \
     apt-get autoremove -y && \
-    apt-get clean
+    rm -rf /tmp/mlio /tmp/mlio/build /var/lib/apt/lists/*
 
-
-# Install latest version of XGBoost
+# Install XGBoost
 RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION}
