@@ -35,6 +35,7 @@ RUN apt-key del 7fa2af80 && \
         git \
         jq \
         libatlas-base-dev \
+        expat \
         nginx \
         openjdk-8-jdk-headless \
         unzip \
