@@ -40,6 +40,7 @@ RUN apt-key del 7fa2af80 && \
         openjdk-8-jdk-headless \
         unzip \
         wget \
+        apparmor \
         && \
     # MLIO build dependencies
     # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
