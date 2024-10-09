@@ -27,7 +27,7 @@ import requests
 import yaml
 from botocore.exceptions import ClientError
 from sagemaker import fw_utils, utils
-from sagemaker_containers.beta.framework import content_types
+from sagemaker_training import content_types
 
 CYAN_COLOR = "\033[36m"
 END_COLOR = "\033[0m"
