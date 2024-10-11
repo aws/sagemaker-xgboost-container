@@ -30,6 +30,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
     install_requires=read("requirements.txt"),
     extras_require={"test": read("test-requirements.txt")},
@@ -38,5 +39,5 @@ setup(
             "serve=sagemaker_xgboost_container.serving:serving_entrypoint",
         ]
     },
-    python_requires=">=3.6",
+    python_requires=">=3.9",
 )
