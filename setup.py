@@ -39,5 +39,5 @@ setup(
             "serve=sagemaker_xgboost_container.serving:serving_entrypoint",
         ]
     },
-    python_requires=">=3.9",
+    python_requires=">=3.8",
 )
