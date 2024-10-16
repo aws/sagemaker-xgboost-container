@@ -3,14 +3,14 @@ import sys
 import pkg_resources
 
 PYTHON_MAJOR_VERSION = 3
-PYTHON_MINOR_VERSION = 8
+PYTHON_MINOR_VERSION = 9
 REQUIREMENTS = """\
 Flask==1.1.1
 Pillow==9.1.1
 PyYAML==5.4.1
 boto3==1.17.52
 botocore==1.20.52
-conda==4.10.1
+conda==24.7.1
 cryptography==39.0.1
 gunicorn==19.10.0
 matplotlib==3.4.1
