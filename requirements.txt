@@ -29,4 +29,4 @@ MarkupSafe==1.1.1
 Werkzeug==0.15.6
 certifi==2023.7.22
 gevent==23.9.1
-numba==0.59.1
+numba==0.58.1
