@@ -392,11 +392,11 @@ class RabitTracker(object):
         self.thread.start()
 
     def join(self):
-        while self.thread.isAlive():
+        while self.thread.is_alive():
             self.thread.join(1)
 
     def alive(self):
-        return self.thread.isAlive()
+        return self.thread.is_alive()
 
 
 class PSTracker(object):
@@ -437,7 +437,7 @@ class PSTracker(object):
 
     def join(self):
         if self.cmd is not None:
-            while self.thread.isAlive():
+            while self.thread.is_alive():
                 self.thread.join(100)
 
     def slave_envs(self):
