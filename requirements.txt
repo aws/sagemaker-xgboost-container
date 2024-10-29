@@ -22,7 +22,7 @@ sagemaker-training==4.7.4
 sagemaker-inference==1.10.1
 scikit-learn==1.2.1
 scipy==1.8.0
-urllib3==1.26.5
+urllib3==2.2.3
 wheel==0.38.1
 jinja2==3.1.4
 MarkupSafe==1.1.1
