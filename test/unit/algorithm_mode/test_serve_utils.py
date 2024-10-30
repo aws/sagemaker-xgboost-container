@@ -19,8 +19,8 @@ import os
 import numpy as np
 import pytest
 from mock import MagicMock, patch
-from sagemaker_containers._recordio import _read_recordio
-from sagemaker_containers.record_pb2 import Record
+from sagemaker_training.recordio import _read_recordio
+from sagemaker_training.record_pb2 import Record
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container import data_utils

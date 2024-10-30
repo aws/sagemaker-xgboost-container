@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 import xgboost as xgb
 from mock import MagicMock, patch
-from sagemaker_containers.beta.framework import content_types, encoders, errors
+from sagemaker_inference import content_types, encoders, errors
 
 from sagemaker_algorithm_toolkit.exceptions import UserError
 from sagemaker_xgboost_container import serving
