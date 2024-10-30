@@ -22,8 +22,7 @@ sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
 scikit-learn==0.24.1
 scipy==1.8.0
-urllib3==1.26.17
-pyopenssl==23.2.0
+urllib3==1.26.5
 wheel==0.38.1
 jinja2==2.11.3
 MarkupSafe==1.1.1
