@@ -41,6 +41,7 @@ RUN apt-key del 7fa2af80 && \
         unzip \
         wget \
         apparmor \
+        libgstreamer \
         && \
     # MLIO build dependencies
     # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
