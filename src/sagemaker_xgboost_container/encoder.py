@@ -26,7 +26,7 @@ import numpy as np
 import xgboost as xgb
 from mlio.integ.numpy import as_numpy
 from mlio.integ.scipy import to_coo_matrix
-from sagemaker_containers import _content_types, _errors
+from sagemaker_training import content_types, errors
 from scipy.sparse import vstack as scipy_vstack
 
 from sagemaker_xgboost_container.constants import xgb_content_types
@@ -103,7 +103,7 @@ def recordio_protobuf_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
 
 
 _dmatrix_decoders_map = {
-    _content_types.CSV: csv_to_dmatrix,
+    content_types.CSV: csv_to_dmatrix,
     xgb_content_types.LIBSVM: libsvm_to_dmatrix,
     xgb_content_types.X_LIBSVM: libsvm_to_dmatrix,
     xgb_content_types.X_RECORDIO_PROTOBUF: recordio_protobuf_to_dmatrix,
@@ -142,4 +142,4 @@ def decode(obj, content_type):
         decoder = _dmatrix_decoders_map[media_content_type]
         return decoder(obj)
     except KeyError:
-        raise _errors.UnsupportedFormatError(media_content_type)
+        raise errors.UnsupportedFormatError(media_content_type)
