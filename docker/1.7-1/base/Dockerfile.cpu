@@ -102,6 +102,7 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda install conda=${CONDA_PKG_VERSION} --solver classic  && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
+    conda update -c conda-forge libgrpc --no-pin && \
     cd /tmp && \
     git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
     cd mlio && \
