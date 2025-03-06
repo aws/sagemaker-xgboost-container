@@ -10,7 +10,7 @@ Pillow==9.1.1
 PyYAML==5.4.1
 boto3==1.17.52
 botocore==1.20.52
-conda==25.1.1
+conda==24.7.1
 cryptography==39.0.1
 gunicorn==19.10.0
 matplotlib==3.4.1

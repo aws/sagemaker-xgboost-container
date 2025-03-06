@@ -4,10 +4,10 @@ ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032e
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
-ARG MINICONDA_VERSION=25.1.1
-ARG CONDA_CHECKSUM=13a5870ab5b5c75f23a54eac2ba8dbff38bd4bd33d52aecbc6154ca0ff488e10
+ARG MINICONDA_VERSION=24.7.1
+ARG CONDA_CHECKSUM=874aca52f79ae5f8258faff03e10ce99ae836f6e7d2df6ecd3da5c1cad3a912b
 ARG CONDA_PY_VERSION=39
-ARG CONDA_PKG_VERSION=25.1.1
+ARG CONDA_PKG_VERSION=24.7.1
 ARG PYTHON_VERSION=3.9
 ARG PYARROW_VERSION=14.0.1
 ARG MLIO_VERSION=0.9.0
@@ -78,6 +78,18 @@ RUN apt-key del 7fa2af80 && \
         python3-pip \
         zlib1g-dev \
         && \
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install --upgrade certifi && \
+    apt-get clean && \
+    # Node.js setup
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | \
+        gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | \
+        tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest && \
     rm -rf /var/lib/apt/lists/*
 
 # Install conda
@@ -103,6 +115,18 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda install conda=${CONDA_PKG_VERSION} --solver classic  && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
+    cd /miniconda3/pkgs/libgrpc-*/info/test/examples/node && \
+    npm install minimist@latest protobufjs@latest && \
+    # Remove Node.js, npm, and their dependencies
+    apt-get purge -y nodejs npm && \
+    apt-get autoremove -y && \
+    # Final cleanup
+    rm -rf /etc/apt/sources.list.d/nodesource.list \
+           /etc/apt/keyrings/nodesource.gpg \
+           /etc/apt/sources.list.d/kitware.list && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Continue with the rest of the build process
     cd /tmp && \
     git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
     cd mlio && \
