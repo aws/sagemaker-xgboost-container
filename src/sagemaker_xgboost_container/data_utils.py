@@ -25,7 +25,7 @@ import xgboost as xgb
 from mlio.integ.arrow import as_arrow_file
 from mlio.integ.numpy import as_numpy
 from mlio.integ.scipy import to_coo_matrix
-from sagemaker_containers import _content_types
+from sagemaker_training import content_types
 from scipy.sparse import vstack as scipy_vstack
 
 from sagemaker_algorithm_toolkit import exceptions as exc
@@ -45,7 +45,7 @@ VALID_CONTENT_TYPES = [
     LIBSVM,
     PARQUET,
     RECORDIO_PROTOBUF,
-    _content_types.CSV,
+    content_types.CSV,
     xgb_content_types.LIBSVM,
     xgb_content_types.X_LIBSVM,
     xgb_content_types.X_PARQUET,
@@ -56,7 +56,7 @@ VALID_PIPED_CONTENT_TYPES = [
     CSV,
     PARQUET,
     RECORDIO_PROTOBUF,
-    _content_types.CSV,
+    content_types.CSV,
     xgb_content_types.X_PARQUET,
     xgb_content_types.X_RECORDIO_PROTOBUF,
 ]
@@ -102,7 +102,7 @@ def get_content_type(content_type_cfg_val):
         # the tuple ('text/csv', {'label_size': '1', 'charset': 'utf8'})
         content_type, params = cgi.parse_header(content_type_cfg_val.lower())
 
-        if content_type in [CSV, _content_types.CSV]:
+        if content_type in [CSV, content_types.CSV]:
             # CSV content type allows a label_size parameter
             # that should be 1 for XGBoost
             if params and "label_size" in params and params["label_size"] != "1":
