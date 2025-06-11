@@ -20,7 +20,7 @@ import sys
 
 import flask
 import gunicorn.app.base
-from gunicorn.six import iteritems
+from six import iteritems
 from sagemaker_containers import _content_types
 from sagemaker_containers.beta.framework import encoders
 
