@@ -77,6 +77,13 @@ RUN apt-key del 7fa2af80 && \
         python3-distutils \
         python3-pip \
         zlib1g-dev \
+        zlib \
+        libarchive \
+        libcurl \
+        libxml2 \
+        setuptools \
+        sqlite \
+        zstd \
         && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install --upgrade certifi && \
