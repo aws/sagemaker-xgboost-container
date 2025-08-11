@@ -81,6 +81,7 @@ RUN apt-key del 7fa2af80 && \
         libxml2 \
         sqlite \
         zstd \
+        libsqlite3-0 \
         && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install --upgrade certifi && \
