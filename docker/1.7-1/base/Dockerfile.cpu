@@ -105,9 +105,6 @@ RUN cd /tmp && \
     ldconfig && \
     cd / && \
     rm -rf /tmp/sqlite-autoconf-3500200 /tmp/sqlite-autoconf-3500200.tar.gz && \
-    apt-get purge -y wget tar && \
-    apt-get autoremove -y && \
-    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install conda
