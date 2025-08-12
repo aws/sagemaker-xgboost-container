@@ -1,6 +1,6 @@
-ARG UBUNTU_VERSION=20.04
-ARG CUDA_VERSION=11.6.1
-ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
+ARG UBUNTU_VERSION=22.04
+ARG CUDA_VERSION=12.6.3
+ARG IMAGE_DIGEST=a10f328daee4e6797838a34d5eab69618b907f6313f5e6370dc6ea0105ae9628
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
@@ -43,7 +43,7 @@ RUN apt-key del 7fa2af80 && \
         apparmor \
         libgstreamer1.0-0 \
         linux-libc-dev \
-        libsqlite3-0=3.50.2* \
+        libsqlite3-0 \
         && \
     # MLIO build dependencies
     # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
@@ -81,7 +81,7 @@ RUN apt-key del 7fa2af80 && \
         libxml2 \
         sqlite \
         zstd \
-        libsqlite3-0=3.50.2* \
+        libsqlite3-0 \
         && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install --upgrade certifi && \
