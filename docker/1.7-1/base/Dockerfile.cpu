@@ -1,6 +1,6 @@
-ARG UBUNTU_VERSION=24.04
-ARG CUDA_VERSION=13.0.0
-ARG IMAGE_DIGEST=6e43a6b02e5f16e4a715953be8b29c40acbe84aed11a61357ef0fc899967fbd9
+ARG UBUNTU_VERSION=20.04
+ARG CUDA_VERSION=11.6.1
+ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
 
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
@@ -42,7 +42,6 @@ RUN apt-key del 7fa2af80 && \
         wget \
         apparmor \
         libgstreamer1.0-0 \
-        libsqlite3-0 \
         linux-libc-dev \
         && \
     # MLIO build dependencies
@@ -79,7 +78,7 @@ RUN apt-key del 7fa2af80 && \
         python3-pip \
         zlib1g-dev \
         libxml2 \
-        libsqlite3-0 \
+        sqlite \
         zstd \
         && \
     python3 -m pip install --upgrade pip && \
@@ -94,6 +93,21 @@ RUN apt-key del 7fa2af80 && \
     apt-get update && \
     apt-get install -y nodejs && \
     npm install -g npm@latest && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+RUN wget https://www.sqlite.org/2024/sqlite-autoconf-3500200.tar.gz && \
+    tar xzf sqlite-autoconf-3500200.tar.gz && \
+    cd sqlite-autoconf-3500200 && \
+    ./configure --prefix=/usr && \
+    make && \
+    make install && \
+    ldconfig && \
+    cd / && \
+    rm -rf /tmp/sqlite-autoconf-3500200 /tmp/sqlite-autoconf-3500200.tar.gz && \
+    apt-get purge -y wget tar && \
+    apt-get autoremove -y && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install conda
