@@ -2,6 +2,27 @@ ARG UBUNTU_VERSION=20.04
 ARG CUDA_VERSION=11.6.1
 ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
 
+# Build stage for SQLite compilation
+FROM ubuntu:${UBUNTU_VERSION} as sqlite-builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        wget \
+        ca-certificates \
+        && \
+    cd /tmp && \
+    wget https://www.sqlite.org/2025/sqlite-autoconf-3500200.tar.gz && \
+    tar xzf sqlite-autoconf-3500200.tar.gz && \
+    cd sqlite-autoconf-3500200 && \
+    ./configure --prefix=/usr/local && \
+    make && \
+    make install && \
+    ldconfig && \
+    cd / && \
+    rm -rf /tmp/sqlite-autoconf-3500200 /tmp/sqlite-autoconf-3500200.tar.gz && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Main image
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
 
 ARG MINICONDA_VERSION=24.7.1
@@ -151,19 +172,17 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     ldconfig && \
     rm -rf /tmp/mlio
 
-# Install SQLite 3.50 from source (removing any existing sqlite package first)
-RUN apt-get remove -y sqlite3 libsqlite3-0 libsqlite3-dev 2>/dev/null || true && \
-    cd /tmp && \
-    wget https://www.sqlite.org/2025/sqlite-autoconf-3500200.tar.gz && \
-    tar xzf sqlite-autoconf-3500200.tar.gz && \
-    cd sqlite-autoconf-3500200 && \
-    ./configure && \
-    make && \
-    make install && \
-    ldconfig && \
-    cd / && \
-    rm -rf /tmp/sqlite-autoconf-3500200 /tmp/sqlite-autoconf-3500200.tar.gz && \
-    rm -rf /var/lib/apt/lists/*
+# Copy compiled SQLite from builder stage
+COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
+COPY --from=sqlite-builder /usr/local/lib/libsqlite3.* /usr/local/lib/
+COPY --from=sqlite-builder /usr/local/include/sqlite3*.h /usr/local/include/
+
+# Update library cache and ensure /usr/local/bin is in PATH
+RUN ldconfig && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/sqlite3.conf && \
+    ldconfig
+
+ENV PATH="/usr/local/bin:${PATH}"
 
 RUN echo "sqlite3 " 
 # This command will check the version and print it to the build logs
