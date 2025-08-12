@@ -95,8 +95,8 @@ RUN apt-key del 7fa2af80 && \
     npm install -g npm@latest && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /tmp
-RUN wget https://www.sqlite.org/2024/sqlite-autoconf-3500200.tar.gz && \
+RUN cd /tmp && \
+    wget https://www.sqlite.org/2025/sqlite-autoconf-3500200.tar.gz && \
     tar xzf sqlite-autoconf-3500200.tar.gz && \
     cd sqlite-autoconf-3500200 && \
     ./configure --prefix=/usr && \
