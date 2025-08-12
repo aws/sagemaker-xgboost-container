@@ -42,7 +42,7 @@ RUN apt-key del 7fa2af80 && \
         wget \
         apparmor \
         libgstreamer1.0-0 \
-        libsqlite3 \
+        libsqlite3-0 \
         linux-libc-dev \
         && \
     # MLIO build dependencies
@@ -79,7 +79,7 @@ RUN apt-key del 7fa2af80 && \
         python3-pip \
         zlib1g-dev \
         libxml2 \
-        libsqlite3 \
+        libsqlite3-0 \
         zstd \
         && \
     python3 -m pip install --upgrade pip && \
