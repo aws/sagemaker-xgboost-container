@@ -78,7 +78,6 @@ RUN apt-key del 7fa2af80 && \
         python3-pip \
         zlib1g-dev \
         libxml2 \
-        sqlite \
         zstd \
         && \
     python3 -m pip install --upgrade pip && \
