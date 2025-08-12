@@ -157,7 +157,7 @@ RUN apt-get remove -y sqlite3 libsqlite3-0 libsqlite3-dev 2>/dev/null || true &&
     wget https://www.sqlite.org/2025/sqlite-autoconf-3500200.tar.gz && \
     tar xzf sqlite-autoconf-3500200.tar.gz && \
     cd sqlite-autoconf-3500200 && \
-    ./configure --prefix=/usr && \
+    ./configure && \
     make && \
     make install && \
     ldconfig && \
