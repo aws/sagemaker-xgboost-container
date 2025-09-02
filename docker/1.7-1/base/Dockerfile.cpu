@@ -193,9 +193,9 @@ RUN sqlite3 --version
 
 RUN apt list --installed
 
-# Ensure libxml2 is updated to patch CVE-2025-49796
+# Ensure libxml2 and linux-libc-dev is updated to patch CVE-2025-49796
 RUN apt-get update && \
-    apt-get -y install --only-upgrade libxml2 && \
+    apt-get -y install --only-upgrade libxml2 linux-libc-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
