@@ -1,9 +1,10 @@
 ARG UBUNTU_VERSION=20.04
 ARG CUDA_VERSION=11.6.1
 ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
+ARG LIBXML2_VERSION=2.12.7
 
-# Build stage for SQLite compilation
-FROM ubuntu:${UBUNTU_VERSION} as sqlite-builder
+# Build stage for SQLite and libxml2 compilation
+FROM ubuntu:${UBUNTU_VERSION} as builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         wget \
@@ -19,6 +20,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ldconfig && \
     cd / && \
     rm -rf /tmp/sqlite-autoconf-3500200 /tmp/sqlite-autoconf-3500200.tar.gz && \
+    # Build libxml2 from source to fix CVE-2025-49796
+    apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        automake \
+        libtool \
+        autoconf \
+        pkg-config \
+        python3 \
+        zlib1g-dev && \
+    cd /tmp && \
+    git clone --depth 1 --branch v${LIBXML2_VERSION} https://github.com/GNOME/libxml2.git && \
+    cd libxml2 && \
+    ./autogen.sh --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd / && \
+    rm -rf /tmp/libxml2 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -175,10 +194,15 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     ldconfig && \
     rm -rf /tmp/mlio
 
-# Copy compiled SQLite from builder stage
-COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
-COPY --from=sqlite-builder /usr/local/lib/libsqlite3.* /usr/local/lib/
-COPY --from=sqlite-builder /usr/local/include/sqlite3*.h /usr/local/include/
+# Copy compiled SQLite and libxml2 from builder stage
+COPY --from=builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
+COPY --from=builder /usr/local/lib/libsqlite3.* /usr/local/lib/
+COPY --from=builder /usr/local/include/sqlite3*.h /usr/local/include/
+
+# Copy compiled libxml2 from builder stage to fix CVE-2025-49796
+COPY --from=builder /usr/local/lib/libxml2* /usr/local/lib/
+COPY --from=builder /usr/local/include/libxml2 /usr/local/include/
+COPY --from=builder /usr/local/bin/xml* /usr/local/bin/
 
 # Update library cache and ensure /usr/local/bin is in PATH
 RUN ldconfig && \
@@ -193,11 +217,11 @@ RUN sqlite3 --version
 
 RUN apt list --installed
 
-# Ensure libxml2 and linux-libc-dev is updated to patch CVE-2025-49796
-RUN apt-get update && \
-    apt-get -y install --only-upgrade libxml2 linux-libc-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Set up library config to ensure our custom-built libxml2 is used instead of system version
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/libxml2.conf && \
+    # Verify the libxml2 version that will be used
+    ldconfig && \
+    xml2-config --version
 
 # Install latest version of XGBoost
 RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION}
