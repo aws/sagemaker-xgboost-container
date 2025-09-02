@@ -1,7 +1,7 @@
 ARG UBUNTU_VERSION=20.04
 ARG CUDA_VERSION=11.6.1
 ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
-ARG LIBXML2_VERSION=2.12.7
+ARG LIBXML2_VERSION=2.9.14
 
 # Build stage for SQLite and libxml2 compilation
 FROM ubuntu:${UBUNTU_VERSION} as builder
@@ -31,10 +31,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zlib1g-dev && \
     cd /tmp && \
     # Use direct tarball download instead of git to avoid branch/tag issues
-    wget https://download.gnome.org/sources/libxml2/2.12/libxml2-${LIBXML2_VERSION}.tar.xz && \
+    wget https://download.gnome.org/sources/libxml2/2.9/libxml2-${LIBXML2_VERSION}.tar.xz && \
     tar -xf libxml2-${LIBXML2_VERSION}.tar.xz && \
     cd libxml2-${LIBXML2_VERSION} && \
-    ./autogen.sh --prefix=/usr/local --without-python && \
+    ./configure --prefix=/usr/local --without-python && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
