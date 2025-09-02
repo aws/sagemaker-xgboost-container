@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         zlib1g-dev && \
     cd /tmp && \
-    git clone --depth 1 --branch v${LIBXML2_VERSION} https://github.com/GNOME/libxml2.git && \
+    git clone --depth 1 --branch ${LIBXML2_VERSION} https://gitlab.gnome.org/GNOME/libxml2.git && \
     cd libxml2 && \
     ./autogen.sh --prefix=/usr/local && \
     make -j$(nproc) && \
