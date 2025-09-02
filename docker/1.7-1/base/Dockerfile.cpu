@@ -5,6 +5,7 @@ ARG LIBXML2_VERSION=2.12.7
 
 # Build stage for SQLite and libxml2 compilation
 FROM ubuntu:${UBUNTU_VERSION} as builder
+ARG LIBXML2_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         wget \
@@ -22,7 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /tmp/sqlite-autoconf-3500200 /tmp/sqlite-autoconf-3500200.tar.gz && \
     # Build libxml2 from source to fix CVE-2025-49796
     apt-get update && apt-get install -y --no-install-recommends \
-        git \
         automake \
         libtool \
         autoconf \
@@ -30,14 +30,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         zlib1g-dev && \
     cd /tmp && \
-    git clone --depth 1 --branch ${LIBXML2_VERSION} https://gitlab.gnome.org/GNOME/libxml2.git && \
-    cd libxml2 && \
+    # Use direct tarball download instead of git to avoid branch/tag issues
+    wget https://download.gnome.org/sources/libxml2/2.12/libxml2-${LIBXML2_VERSION}.tar.xz && \
+    tar -xf libxml2-${LIBXML2_VERSION}.tar.xz && \
+    cd libxml2-${LIBXML2_VERSION} && \
     ./autogen.sh --prefix=/usr/local && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
     cd / && \
-    rm -rf /tmp/libxml2 && \
+    rm -rf /tmp/libxml2-${LIBXML2_VERSION} /tmp/libxml2-${LIBXML2_VERSION}.tar.xz && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
