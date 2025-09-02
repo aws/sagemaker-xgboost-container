@@ -27,14 +27,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libtool \
         autoconf \
         pkg-config \
-        python3 \
+        python3-dev \
         zlib1g-dev && \
     cd /tmp && \
     # Use direct tarball download instead of git to avoid branch/tag issues
     wget https://download.gnome.org/sources/libxml2/2.12/libxml2-${LIBXML2_VERSION}.tar.xz && \
     tar -xf libxml2-${LIBXML2_VERSION}.tar.xz && \
     cd libxml2-${LIBXML2_VERSION} && \
-    ./autogen.sh --prefix=/usr/local && \
+    ./autogen.sh --prefix=/usr/local --without-python && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
