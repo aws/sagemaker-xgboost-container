@@ -26,7 +26,7 @@ sagemaker-inference==1.5.5
 scikit-learn==0.24.1
 scipy==1.8.0
 smdebug==1.0.29
-urllib3==1.26.5
+urllib3==1.26.17
 wheel==0.36.2
 jinja2==2.11.3
 MarkupSafe==1.1.1
