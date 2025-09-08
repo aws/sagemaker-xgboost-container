@@ -1,7 +1,7 @@
-ARG SAGEMAKER_XGBOOST_VERSION=1.7-1
-ARG PYTHON_VERSION=3.9
+ARG SAGEMAKER_XGBOOST_VERSION=1.7-1-1
+ARG PYTHON_VERSION=3.10
 
-FROM xgboost-container-base:${SAGEMAKER_XGBOOST_VERSION}-cpu-py3
+FROM xgboost-container-base:${SAGEMAKER_XGBOOST_VERSION}
 
 ARG SAGEMAKER_XGBOOST_VERSION
 
@@ -10,6 +10,14 @@ ARG SAGEMAKER_XGBOOST_VERSION
 ########################
 COPY requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
+
+# Fix Python 3.10 compatibility for sagemaker-containers
+RUN python3 -c "import sys; sys.path.insert(0, '/miniconda3/lib/python3.10/site-packages'); \
+    import sagemaker_containers._mapping as m; \
+    import collections.abc; \
+    setattr(collections, 'Mapping', collections.abc.Mapping); \
+    exec(open('/miniconda3/lib/python3.10/site-packages/sagemaker_containers/_mapping.py').read().replace('collections.Mapping', 'collections.abc.Mapping'))" || \
+    sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python3.10/site-packages/sagemaker_containers/_mapping.py
 
 # Install smdebug from source
 RUN python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git@1.0.29
@@ -20,7 +28,8 @@ RUN python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git
 ###########################
 COPY dist/sagemaker_xgboost_container-2.0-py2.py3-none-any.whl /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
 RUN rm -rf /miniconda3/lib/python${PYTHON_VERSION}/site-packages/numpy-1.21.2.dist-info && \
-    python3 -m pip install --no-cache /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
+    python3 -m pip install --force-reinstall PyYAML==6.0.1 && \
+    python3 -m pip install --no-cache --no-deps /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
     python3 -m pip uninstall -y typing && \
     rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
 
