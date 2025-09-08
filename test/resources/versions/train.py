@@ -3,28 +3,28 @@ import sys
 import pkg_resources
 
 PYTHON_MAJOR_VERSION = 3
-PYTHON_MINOR_VERSION = 9
+PYTHON_MINOR_VERSION = 10
 REQUIREMENTS = """\
 Flask==1.1.1
 Pillow==9.1.1
-PyYAML==5.4.1
+PyYAML==6.0.1
 boto3==1.17.52
 botocore==1.20.52
 conda==24.7.1
 cryptography==39.0.1
 gunicorn==23.0.0
-matplotlib==3.4.1
+matplotlib==3.6.3
 multi-model-server==1.1.2
 numpy==1.24.1
-pandas==1.2.4
+pandas==1.4.4
 psutil==5.6.7
 pyarrow==14.0.1
 python-dateutil==2.8.1
 retrying==1.3.3
 sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
-scikit-learn==0.24.1
-scipy==1.8.0
+scikit-learn==1.0.2
+scipy==1.9.3
 smdebug==1.0.29
 urllib3==1.26.5
 wheel==0.36.2

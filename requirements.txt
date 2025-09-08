@@ -8,7 +8,7 @@ dask==2022.11.1
 dask-cuda==22.12.0
 gunicorn==23.0.0
 itsdangerous==2.0.1
-matplotlib==3.4.1
+matplotlib==3.6.3
 multi-model-server==1.1.2
 numpy==1.24.1
 pandas==1.4.4
@@ -21,7 +21,7 @@ requests==2.29.0
 sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
 scikit-learn==1.0.2
-scipy==1.8.0
+scipy==1.9.3
 urllib3==1.26.5
 wheel==0.36.2
 jinja2==2.11.3
