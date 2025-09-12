@@ -27,7 +27,7 @@ scipy==1.15.0
 scikit-learn==1.5.2
 smdebug==1.0.29
 urllib3==1.26.5
-wheel==0.36.2
+wheel==0.45.1
 jinja2==2.11.3
 MarkupSafe==1.1.1
 Werkzeug==0.15.6
