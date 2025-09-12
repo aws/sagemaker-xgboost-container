@@ -23,7 +23,7 @@ python-dateutil==2.8.1
 retrying==1.3.3
 sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
-scikit-learn==1.5.0
+scikit-learn==1.4.2
 scipy==1.13.0
 smdebug==1.0.29
 urllib3==1.26.5
