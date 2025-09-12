@@ -194,4 +194,4 @@ RUN sqlite3 --version
 RUN apt list --installed
 
 # Install latest version of XGBoost
-RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION} numpy==2.1.0
+RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION} numpy==2.1.0 pyarrow==17.0.0 pandas==2.2.3 protobuf==5.26.0
