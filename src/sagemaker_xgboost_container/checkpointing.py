@@ -7,7 +7,7 @@ import threading
 
 import xgboost as xgb
 from typing import Optional
-from xgboost import rabit
+from xgboost.dask import DaskDMatrix, train
 from xgboost.callback import EvaluationMonitor
 from xgboost.core import XGBoostError
 
