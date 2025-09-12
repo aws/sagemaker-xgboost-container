@@ -15,7 +15,7 @@ cryptography==39.0.1
 gunicorn==23.0.0
 matplotlib==3.4.1
 multi-model-server==1.1.2
-numpy==2.0.0
+numpy==2.1.0
 pandas==1.5.0
 psutil==5.6.7
 pyarrow==14.0.1
@@ -23,8 +23,8 @@ python-dateutil==2.8.1
 retrying==1.3.3
 sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
-scipy==1.10.0
-scikit-learn==1.4.2
+scipy==1.15.0
+scikit-learn==1.5.2
 smdebug==1.0.29
 urllib3==1.26.5
 wheel==0.36.2
