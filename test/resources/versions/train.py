@@ -16,7 +16,7 @@ gunicorn==23.0.0
 matplotlib==3.4.1
 multi-model-server==1.1.2
 numpy==2.1.0
-pandas==1.5.0
+pandas==2.2.0
 psutil==5.6.7
 pyarrow==14.0.1
 python-dateutil==2.8.1
