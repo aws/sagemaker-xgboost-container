@@ -18,7 +18,7 @@ multi-model-server==1.1.2
 numpy==2.1.0
 pandas==2.2.3
 psutil==5.6.7
-pyarrow==14.0.1
+pyarrow==17.0.0
 python-dateutil==2.8.2
 retrying==1.3.3
 sagemaker-containers==2.8.6.post2

@@ -30,7 +30,7 @@ ARG CONDA_CHECKSUM=684cda724bc37e3bbbb342e440fc4cac515c92e91a489eb4359feca353828
 ARG CONDA_PY_VERSION=310
 ARG CONDA_PKG_VERSION=24.7.1
 ARG PYTHON_VERSION=3.10
-ARG PYARROW_VERSION=14.0.1
+ARG PYARROW_VERSION=17.0.0
 ARG MLIO_VERSION=0.9.0
 ARG XGBOOST_VERSION=2.1.0
 
@@ -194,4 +194,4 @@ RUN sqlite3 --version
 RUN apt list --installed
 
 # Install latest version of XGBoost
-RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION}
+RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION} numpy==2.1.0
