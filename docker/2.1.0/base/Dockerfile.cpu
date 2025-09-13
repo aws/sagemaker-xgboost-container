@@ -128,7 +128,54 @@ RUN cd /tmp && \
 ENV PATH=/miniconda3/bin:${PATH}
 
 # Install MLIO with Apache Arrow integration
-RUN conda install -c mlio -c conda-forge mlio-py
+
+# We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
+# which increases training time. We build from source to minimize the image size.
+RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
+    # Conda configuration see https://conda.io/projects/conda/en/latest/configuration.html
+    conda config --system --set auto_update_conda false && \
+    conda config --system --set show_channel_urls true && \
+    echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
+    conda install -c conda-forge python=${PYTHON_VERSION} --solver classic && \
+    pip install requests==2.32.3 && \
+    conda install conda=${CONDA_PKG_VERSION} --solver classic  && \
+    conda update -y conda && \
+    conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
+    cd /miniconda3/pkgs/libgrpc-*/info/test/examples/node && \
+    npm install minimist@latest protobufjs@latest && \
+    # Remove Node.js, npm, and their dependencies
+    apt-get purge -y nodejs npm && \
+    apt-get autoremove -y && \
+    # Final cleanup
+    rm -rf /etc/apt/sources.list.d/nodesource.list \
+           /etc/apt/keyrings/nodesource.gpg \
+           /etc/apt/sources.list.d/kitware.list && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Continue with the rest of the build process
+    cd /tmp && \
+    git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
+    cd mlio && \
+    sed -i 's/find_package(Arrow 14.0.1 REQUIRED)/find_package(Arrow 17.0.0 REQUIRED)/' CMakeLists.txt && \
+    sed -i 's/pyarrow==14.0.1/pyarrow>=17.0.0/' src/mlio-py/setup.py && \
+    build-tools/build-dependency build/third-party all && \
+    mkdir -p build/release && \
+    cd build/release && \
+    cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../.. && \
+    cmake --build . && \
+    cmake --build . --target install && \
+    cmake -DMLIO_INCLUDE_PYTHON_EXTENSION=ON -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
+        -DMLIO_INCLUDE_ARROW_INTEGRATION=ON ../.. && \
+    cmake --build . --target mlio-py && \
+    cmake --build . --target mlio-arrow && \
+    cd ../../src/mlio-py && \
+    python3 setup.py bdist_wheel && \
+    python3 -m pip install typing && \
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install dist/*.whl && \
+    cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
+    ldconfig && \
+    rm -rf /tmp/mlio
 
 # Copy compiled SQLite from builder stage
 COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
