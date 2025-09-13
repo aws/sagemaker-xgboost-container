@@ -17,7 +17,7 @@ matplotlib==3.4.1
 multi-model-server==1.1.2
 numpy==2.1.0
 pandas==2.2.3
-psutil==5.6.7
+psutil==5.8.0
 pyarrow==17.0.0
 python-dateutil==2.8.2
 retrying==1.3.3
