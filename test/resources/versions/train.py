@@ -3,7 +3,7 @@ import sys
 import pkg_resources
 
 PYTHON_MAJOR_VERSION = 3
-PYTHON_MINOR_VERSION = 9
+PYTHON_MINOR_VERSION = 10
 REQUIREMENTS = """\
 Flask==1.1.1
 Pillow==9.1.1
