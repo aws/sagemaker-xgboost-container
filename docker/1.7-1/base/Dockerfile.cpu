@@ -1,6 +1,6 @@
-ARG UBUNTU_VERSION=20.04
-ARG CUDA_VERSION=11.6.1
-ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
+ARG UBUNTU_VERSION=22.04
+ARG CUDA_VERSION=13.0.1
+ARG IMAGE_DIGEST=5543ce69b0d2d65b0c4ad978bd26f4cd67e4fccc629c262902ced0502e23cd7f
 
 # Build stage for SQLite compilation
 FROM ubuntu:${UBUNTU_VERSION} as sqlite-builder
@@ -62,11 +62,17 @@ RUN apt-key del 7fa2af80 && \
         unzip \
         wget \
         apparmor \
+        libgstreamer1.0-0 \
+        && \
+    # Install and update vulnerable packages to latest versions
+    apt-get -y install --no-install-recommends \
         linux-libc-dev \
         libxml2 \
-        libgstreamer1.0-0 \
-        linux-libc-dev \
         && \
+    # Force update to latest versions and remove old cached packages
+    apt-get -y install --only-upgrade linux-libc-dev libxml2 && \
+    apt-get -y autoremove && \
+    apt-get -y autoclean && \
     # MLIO build dependencies
     # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
     # Kitware contains the latest version of CMake.
@@ -81,7 +87,7 @@ RUN apt-key del 7fa2af80 && \
     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
         gpg --dearmor - | \
         tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
-    echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
+    echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
     apt-get update && \
     rm /usr/share/keyrings/kitware-archive-keyring.gpg && \
     apt-get install -y --no-install-recommends \
@@ -156,7 +162,11 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     cd /tmp && \
     git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
     cd mlio && \
-    build-tools/build-dependency build/third-party all && \
+    # Fix CMake compatibility issues for newer CMake versions and compiler warnings
+    export CMAKE_POLICY_VERSION_MINIMUM=3.5 && \
+    export CFLAGS="-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-error=deprecated-declarations -Wno-deprecated-declarations -Wno-error=nonnull -Wno-nonnull" && \
+    export CXXFLAGS="-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-error=deprecated-declarations -Wno-deprecated-declarations -Wno-error=nonnull -Wno-nonnull" && \
+    CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_C_FLAGS='-Wno-error=maybe-uninitialized -Wno-error=deprecated-declarations -Wno-error=nonnull' -DCMAKE_CXX_FLAGS='-Wno-error=maybe-uninitialized -Wno-error=deprecated-declarations -Wno-error=nonnull'" build-tools/build-dependency build/third-party all && \
     mkdir -p build/release && \
     cd build/release && \
     cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../.. && \
