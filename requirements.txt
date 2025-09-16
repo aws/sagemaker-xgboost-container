@@ -10,10 +10,10 @@ gunicorn==23.0.0
 itsdangerous==2.0.1
 matplotlib==3.4.1
 multi-model-server==1.1.2
-numpy==2.1.0
-pandas==2.2.3
+numpy==2.0.2
+pandas==2.0.3
 protobuf==3.20.1
-pyarrow==17.0.0
+pyarrow==15.0.2
 psutil==5.6.7  # sagemaker-containers requires psutil 5.6.7
 pynvml==11.4.1
 python-dateutil>=2.8.2
