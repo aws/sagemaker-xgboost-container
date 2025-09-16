@@ -13,7 +13,7 @@ botocore==1.20.52
 conda==24.7.1
 cryptography==45.0.5
 gunicorn==23.0.0
-matplotlib==3.4.1
+matplotlib==3.6.3
 multi-model-server==1.1.2
 numpy==2.1.0
 pandas==2.2.3
