@@ -7,7 +7,7 @@ PYTHON_MINOR_VERSION = 10
 REQUIREMENTS = """\
 Flask==1.1.1
 Pillow==9.1.1
-PyYAML==5.4.1
+PyYAML==6.0.1
 boto3==1.17.52
 botocore==1.20.52
 conda==24.7.1
