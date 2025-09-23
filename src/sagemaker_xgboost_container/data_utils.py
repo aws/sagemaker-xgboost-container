@@ -395,7 +395,7 @@ def get_libsvm_dmatrix(files_path, is_pipe=False):
         raise exc.UserError("Pipe mode not supported for LibSVM.")
 
     try:
-        dmatrix = xgb.DMatrix(files_path)
+        dmatrix = xgb.DMatrix(f"{files_path}?format=libsvm")
     except Exception as e:
         raise exc.UserError("Failed to load libsvm data with exception:\n{}".format(e))
 
