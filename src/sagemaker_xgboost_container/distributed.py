@@ -21,7 +21,7 @@ import sys
 import time
 
 from retrying import retry
-from xgboost.dask import DaskDMatrix, train
+from xgboost import rabit
 
 # This should point to xgb when the tracker is updated upstream
 from sagemaker_xgboost_container.dmlc_patch import tracker
