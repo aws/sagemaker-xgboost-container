@@ -16,18 +16,12 @@ This is heavily inspired by the Dask version of XGBoost.
 Some of this code should be made simpler once the XGBoost library is improved.
 """
 import logging
-import os
 import socket
 import sys
 import time
 
 from retrying import retry
-from xgboost.rabit import (
-    init,
-    get_rank, 
-    get_world_size, 
-    broadcast, 
-    finalize)
+from xgboost import rabit
 
 # This should point to xgb when the tracker is updated upstream
 from sagemaker_xgboost_container.dmlc_patch import tracker
@@ -137,7 +131,7 @@ class RabitHelper(object):
         :param master_port:
         """
         self.is_master = is_master
-        self.rank = get_rank()
+        self.rank = rabit.get_rank()
         self.current_host = current_host
         self.master_port = master_port
 
@@ -151,14 +145,14 @@ class RabitHelper(object):
         :return: aggregated data from the all the nodes in the cluster
         """
         results = []
-        for i in range(get_world_size()):
+        for i in range(rabit.get_world_size()):
             if self.rank == i:
                 logging.debug("Broadcasting data from self ({}) to others".format(self.rank))
-                broadcast(data, i)
+                rabit.broadcast(data, i)
                 results.append(data)
             else:
                 logging.debug("Receiving data from {}".format(i))
-                message = broadcast(None, i)
+                message = rabit.broadcast(None, i)
                 results.append(message)
         return results
 
@@ -294,16 +288,18 @@ class Rabit(object):
         else:
             self.logger.info("Connected to RabitTracker.")
 
-        os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
-        os.environ["DMLC_TRACKER_URI"] = str(self.master_host)
-        os.environ["DMLC_TRACKER_PORT"] = str(self.port)
-
-        init()
+        rabit.init(
+            [
+                "DMLC_NUM_WORKER={}".format(self.n_workers).encode(),
+                "DMLC_TRACKER_URI={}".format(self.master_host).encode(),
+                "DMLC_TRACKER_PORT={}".format(self.port).encode(),
+            ]
+        )
 
         # We can check that the rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).
         # This should be unique for each instance.
-        self.logger.debug("Rabit started - Rank {}".format(get_rank()))
+        self.logger.debug("Rabit started - Rank {}".format(rabit.get_rank()))
         self.logger.debug("Executing user code")
 
         # We can now run user-code. Since XGBoost runs in the same process space
@@ -326,7 +322,7 @@ class Rabit(object):
         # This is the call that actually shuts down the rabit server; and when
         # all of the slaves have been shut down then the RabitTracker will close
         # /shutdown itself.
-        finalize()
+        rabit.finalize()
         if self.is_master_host:
             self.rabit_context.join()
 
