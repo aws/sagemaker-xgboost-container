@@ -22,6 +22,7 @@ import time
 
 from retrying import retry
 from xgboost.collective import (
+    init,
     get_rank, 
     get_world_size, 
     broadcast, 
@@ -292,7 +293,7 @@ class Rabit(object):
         else:
             self.logger.info("Connected to RabitTracker.")
 
-        rabit.init(
+        init(
             [
                 "DMLC_NUM_WORKER={}".format(self.n_workers).encode(),
                 "DMLC_TRACKER_URI={}".format(self.master_host).encode(),

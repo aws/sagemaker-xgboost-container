@@ -116,8 +116,8 @@ class PrintCheckpoint(xgb.callback.TrainingCallback):
                         score = log[-1]
                     msg += evaluation_monitor._fmt_metric(data, metric_name, score, stdv)
             msg += "\n"
-            with collective.CommunicatorContext():
-                track_print("[%d]\t%s\n" % (i + self.start_iteration, msg))
+            if collective.get_rank() == 0:
+                print("[%d]\t%s\n" % (i + self.start_iteration, msg))
 
 
 def print_checkpointed_evaluation(end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
