@@ -22,7 +22,7 @@ import sys
 import time
 
 from retrying import retry
-from xgboost.collective import (
+from xgboost.rabit import (
     init,
     get_rank, 
     get_world_size, 
