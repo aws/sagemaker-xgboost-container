@@ -21,7 +21,11 @@ import sys
 import time
 
 from retrying import retry
-from xgboost import rabit
+from xgboost.collective import (
+    get_rank, 
+    get_world_size, 
+    broadcast, 
+    finalize)
 
 # This should point to xgb when the tracker is updated upstream
 from sagemaker_xgboost_container.dmlc_patch import tracker
@@ -131,7 +135,7 @@ class RabitHelper(object):
         :param master_port:
         """
         self.is_master = is_master
-        self.rank = rabit.get_rank()
+        self.rank = get_rank()
         self.current_host = current_host
         self.master_port = master_port
 
@@ -145,14 +149,14 @@ class RabitHelper(object):
         :return: aggregated data from the all the nodes in the cluster
         """
         results = []
-        for i in range(rabit.get_world_size()):
+        for i in range(get_world_size()):
             if self.rank == i:
                 logging.debug("Broadcasting data from self ({}) to others".format(self.rank))
-                rabit.broadcast(data, i)
+                broadcast(data, i)
                 results.append(data)
             else:
                 logging.debug("Receiving data from {}".format(i))
-                message = rabit.broadcast(None, i)
+                message = broadcast(None, i)
                 results.append(message)
         return results
 
@@ -299,7 +303,7 @@ class Rabit(object):
         # We can check that the rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).
         # This should be unique for each instance.
-        self.logger.debug("Rabit started - Rank {}".format(rabit.get_rank()))
+        self.logger.debug("Rabit started - Rank {}".format(get_rank()))
         self.logger.debug("Executing user code")
 
         # We can now run user-code. Since XGBoost runs in the same process space
@@ -322,7 +326,7 @@ class Rabit(object):
         # This is the call that actually shuts down the rabit server; and when
         # all of the slaves have been shut down then the RabitTracker will close
         # /shutdown itself.
-        rabit.finalize()
+        finalize()
         if self.is_master_host:
             self.rabit_context.join()
 
