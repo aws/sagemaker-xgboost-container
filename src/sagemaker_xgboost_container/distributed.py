@@ -294,9 +294,9 @@ class Rabit(object):
         else:
             self.logger.info("Connected to RabitTracker.")
 
-        os.environ["DMLC_NUM_WORKER"] = self.n_workers
-        os.environ["DMLC_TRACKER_URI"] = self.master_host
-        os.environ["DMLC_TRACKER_PORT"] = self.port
+        os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
+        os.environ["DMLC_TRACKER_URI"] = str(self.master_host)
+        os.environ["DMLC_TRACKER_PORT"] = str(self.port)
 
         init()
 
