@@ -16,6 +16,7 @@ This is heavily inspired by the Dask version of XGBoost.
 Some of this code should be made simpler once the XGBoost library is improved.
 """
 import logging
+import os
 import socket
 import sys
 import time
@@ -293,13 +294,11 @@ class Rabit(object):
         else:
             self.logger.info("Connected to RabitTracker.")
 
-        init(
-            [
-                "DMLC_NUM_WORKER={}".format(self.n_workers).encode(),
-                "DMLC_TRACKER_URI={}".format(self.master_host).encode(),
-                "DMLC_TRACKER_PORT={}".format(self.port).encode(),
-            ]
-        )
+        os.environ["DMLC_NUM_WORKER"] = self.n_workers
+        os.environ["DMLC_TRACKER_URI"] = self.master_host
+        os.environ["DMLC_TRACKER_PORT"] = self.port
+
+        init()
 
         # We can check that the rabit instance has successfully connected to the
         # server by getting the rank of the server (e.g. its position in the ring).
