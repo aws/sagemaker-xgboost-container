@@ -130,20 +130,20 @@ def rabit_run(
 
 
 class RabitHelper(object):
-    def __init__(self, is_master, current_host, master_port, communicator_context=None):
+    def __init__(self, is_master, current_host, master_port, is_collective_initialized=False):
         """This is returned by the Rabit context manager for useful cluster information and data synchronization.
 
         :param is_master:
         :param current_host:
         :param master_port:
-        :param communicator_context: XGBoost collective CommunicatorContext
+        :param is_collective_initialized: Whether XGBoost collective communication is initialized
         """
         self.is_master = is_master
         self.current_host = current_host
         self.master_port = master_port
-        self._communicator_context = communicator_context
+        self._is_collective_initialized = is_collective_initialized
         
-        if communicator_context:
+        if is_collective_initialized:
             self.rank = collective.get_rank()
         else:
             self.rank = 0
@@ -156,7 +156,7 @@ class RabitHelper(object):
         
         :param msg: Message to print to tracker log
         """
-        if self._communicator_context:
+        if self._is_collective_initialized:
             # Use collective.print for distributed case
             collective.print(msg)
         else:
@@ -172,7 +172,7 @@ class RabitHelper(object):
         :param data: data to send to the cluster
         :return: aggregated data from all the nodes in the cluster
         """
-        if not self._communicator_context:
+        if not self._is_collective_initialized:
             # Single node case
             return [data]
             
@@ -307,7 +307,6 @@ class Rabit(object):
         self.connect_retry_timeout = connect_retry_timeout
         
         self.tracker = None
-        self.communicator_context = None
 
     def start(self):
         """Start the collective communication process.
@@ -357,35 +356,32 @@ class Rabit(object):
         else:
             self.logger.info("Connected to Tracker.")
 
-        # Initialize XGBoost collective communication
-        collective_config = {
-            'xgboost_communicator': 'rabit',
-            'rabit_tracker_uri': self.master_host,
-            'rabit_tracker_port': self.port,
-            'rabit_world_size': self.n_workers,
-        }
+        # Initialize XGBoost collective communication using environment variables
+        import os
+        os.environ['DMLC_NUM_WORKER'] = str(self.n_workers)
+        os.environ['DMLC_TRACKER_URI'] = self.master_host
+        os.environ['DMLC_TRACKER_PORT'] = str(self.port)
         
-        # Create communicator context
-        self.communicator_context = CommunicatorContext(**collective_config)
-        self.communicator_context.__enter__()
+        # Initialize collective communication
+        collective.init()
 
         # Get rank information
         rank = collective.get_rank() if self.n_workers > 1 else 0
         self.logger.debug("Collective started - Rank {}".format(rank))
         self.logger.debug("Executing user code")
 
-        return RabitHelper(self.is_master_host, self.current_host, self.port, self.communicator_context)
+        return RabitHelper(self.is_master_host, self.current_host, self.port, True)
 
     def stop(self):
         """Shutdown parameter server and tracker."""
         self.logger.debug("Shutting down parameter server.")
 
-        # Clean up communicator context
-        if self.communicator_context:
+        # Clean up collective communication
+        if self.n_workers > 1:
             try:
-                self.communicator_context.__exit__(None, None, None)
+                collective.finalize()
             except Exception as e:
-                self.logger.debug(f"Error closing communicator context: {e}")
+                self.logger.debug(f"Error finalizing collective: {e}")
             
         if self.is_master_host and self.tracker:
             self.tracker.join()
