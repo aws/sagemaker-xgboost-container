@@ -39,11 +39,11 @@ RUN rm -rf /miniconda3/lib/python${PYTHON_VERSION}/site-packages/numpy-1.21.2.di
 # DMLC PATCH #
 ##############
 # TODO: remove after making contributions back to xgboost for tracker.py
-COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
-   /miniconda3/lib/python${PYTHON_VERSION}/site-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
+# COPY src/sagemaker_xgboost_container/dmlc_patch/tracker.py \
+#    /miniconda3/lib/python${PYTHON_VERSION}/site-packages/xgboost/dmlc-core/tracker/dmlc_tracker/tracker.py
 
-# Include DMLC python code in PYTHONPATH to use RabitTracker
-ENV PYTHONPATH=$PYTHONPATH:/miniconda3/lib/python${PYTHON_VERSION}/site-packages/xgboost/dmlc-core/tracker
+# # Include DMLC python code in PYTHONPATH to use RabitTracker
+# ENV PYTHONPATH=$PYTHONPATH:/miniconda3/lib/python${PYTHON_VERSION}/site-packages/xgboost/dmlc-core/tracker
 
 #######
 # MMS #
