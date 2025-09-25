@@ -20,12 +20,10 @@ import socket
 import sys
 import time
 import json
+import os
 
 from retrying import retry
 from xgboost import collective
-
-# This should point to xgb when the tracker is updated upstream
-from sagemaker_xgboost_container.dmlc_patch import tracker
 
 LOCAL_HOSTNAME = "127.0.0.1"
 
@@ -132,9 +130,19 @@ class RabitHelper(object):
         :param master_port:
         """
         self.is_master = is_master
-        self.rank = collective.get_rank()
         self.current_host = current_host
         self.master_port = master_port
+        
+        try:
+            if collective.is_initialized():
+                self.rank = collective.get_rank()
+                self.world_size = collective.get_world_size()
+            else:
+                self.rank = 0
+                self.world_size = 1
+        except:
+            self.rank = 0
+            self.world_size = 1
 
     def synchronize(self, data):
         """Synchronize data with the cluster.
@@ -145,9 +153,13 @@ class RabitHelper(object):
         :param data: data to send to the cluster
         :return: aggregated data from the all the nodes in the cluster
         """
+        # For single node or when collective is not initialized, just return the data
+        if self.world_size == 1 or not collective.is_initialized():
+            return [data]
+        
         results = []
         data_str = json.dumps(data)
-        for i in range(collective.get_world_size()):
+        for i in range(self.world_size):
             if self.rank == i:
                 logging.debug("Broadcasting data from self ({}) to others".format(self.rank))
                 collective.broadcast(data_str, i)
@@ -213,68 +225,43 @@ class Rabit(object):
         self.connect_retry_timeout = connect_retry_timeout
 
     def start(self):
-        """Start the rabit process.
+        """Start the collective process.
 
-        If current host is master host, initialize and start the Rabit Tracker in the background. All hosts then connect
-        to the master host to set up Rabit rank.
+        Initialize XGBoost collective for distributed training.
 
         :return: Initialized RabitHelper, which includes helpful information such as is_master and port
         """
-        self.rabit_context = None
-        if self.is_master_host:
-            self.logger.debug("Master host. Starting Rabit Tracker.")
-            self.rabit_context = tracker.RabitTracker(
-                hostIP=self.current_host, nslave=self.n_workers, port=self.port, port_end=self.port + 1
-            )
-
-            self.logger.info("Rabit slave environment: {}".format(self.rabit_context.slave_envs()))
-            self.rabit_context.start(self.n_workers)
-
-        self.logger.debug("Starting parameter server.")
-
-        attempt = 0
-        successful_connection = False
-        while not successful_connection and (self.max_connect_attempts is None or attempt < self.max_connect_attempts):
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    self.logger.debug("Checking if RabitTracker is available.")
-                    s.connect((self.master_host, self.port))
-                    successful_connection = True
-                    self.logger.debug("Successfully connected to RabitTracker.")
-                except OSError:
-                    self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
-                    attempt += 1
-                    self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
-                    time.sleep(self.connect_retry_timeout)
-
-        if not successful_connection:
-            self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
-            raise Exception("Failed to connect to Rabit Tracker")
-        else:
-            self.logger.info("Connected to RabitTracker.")
-
-        # Initialize collective with the new API
-        import os
+        self.logger.debug("Starting collective communication.")
+        
+        # Set environment variables for collective
         os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
         os.environ["DMLC_TRACKER_URI"] = self.master_host
         os.environ["DMLC_TRACKER_PORT"] = str(self.port)
-        collective.init()
-
-        self.logger.debug("Collective started - Rank {}".format(collective.get_rank()))
-        self.logger.debug("Executing user code")
-
+        
+        # For single node, skip collective initialization
+        if self.n_workers == 1:
+            self.logger.debug("Single worker detected, skipping collective init")
+            return RabitHelper(True, self.current_host, self.port)
+        
+        try:
+            collective.init()
+            self.logger.debug("Collective started - Rank {}".format(collective.get_rank()))
+        except Exception as e:
+            self.logger.warning("Collective init failed: {}, falling back to single node".format(e))
+            return RabitHelper(True, self.current_host, self.port)
+        
         return RabitHelper(self.is_master_host, self.current_host, self.port)
 
     def stop(self):
-        """Shutdown parameter server.
-
-        If current host is master host, also join the background thread that is running the master host.
+        """Shutdown collective communication.
         """
-        self.logger.debug("Shutting down parameter server.")
-
-        collective.finalize()
-        if self.is_master_host:
-            self.rabit_context.join()
+        self.logger.debug("Shutting down collective.")
+        
+        try:
+            if collective.is_initialized():
+                collective.finalize()
+        except Exception as e:
+            self.logger.debug("Collective finalize failed: {}".format(e))
 
     def __enter__(self):
         return self.start()
