@@ -254,11 +254,11 @@ class Rabit(object):
             self.logger.info("Connected to RabitTracker.")
 
         # Initialize collective with the new API
-        collective.init({
-            "DMLC_NUM_WORKER": str(self.n_workers),
-            "DMLC_TRACKER_URI": self.master_host,
-            "DMLC_TRACKER_PORT": str(self.port),
-        })
+        import os
+        os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
+        os.environ["DMLC_TRACKER_URI"] = self.master_host
+        os.environ["DMLC_TRACKER_PORT"] = str(self.port)
+        collective.init()
 
         self.logger.debug("Collective started - Rank {}".format(collective.get_rank()))
         self.logger.debug("Executing user code")
