@@ -82,7 +82,7 @@ def get_callbacks(
     if checkpoint_dir:
         save_checkpoint = xgb.callback.TrainingCheckPoint(
             directory=checkpoint_dir, iterations=iteration, name=checkpointing.CHECKPOINT_FILENAME
-         )
+        )
         callbacks.append(save_checkpoint)
 
     if save_model_on_termination == "true":

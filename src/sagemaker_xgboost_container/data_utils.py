@@ -531,7 +531,7 @@ def _get_pipe_mode_files_path(data_path: Union[List[str], str]) -> List[str]:
 
 
 def _make_symlinks_from_a_folder(dest_path: str, data_path: str, depth: int):
-    if (depth > MAX_FOLDER_DEPTH):
+    if depth > MAX_FOLDER_DEPTH:
         raise exc.UserError(f"Folder depth exceed the limit: {MAX_FOLDER_DEPTH}.")
 
     if os.path.isfile(data_path):
@@ -560,7 +560,7 @@ def _make_symlinks_from_a_folder_with_warning(dest_path: str, data_path: str):
     if (not os.path.exists(dest_path)) or (not os.path.exists(data_path)):
         raise exc.AlgorithmError(f"Unable to create symlinks as {data_path} or {dest_path} doesn't exist ")
 
-    if (not os.path.isdir(dest_path)):
+    if not os.path.isdir(dest_path):
         raise exc.AlgorithmError(f"Unable to create symlinks as dest_path {dest_path} is not a dir")
 
     try:
@@ -571,7 +571,7 @@ def _make_symlinks_from_a_folder_with_warning(dest_path: str, data_path: str):
                 f"The depth of folder {data_path} exceed the limit {MAX_FOLDER_DEPTH}."
                 f" Files in deeper sub dirs won't be loaded."
                 f" Please adjust the folder structure accordingly."
-                )
+            )
 
 
 def _get_file_mode_files_path(data_path: Union[List[str], str]) -> List[str]:

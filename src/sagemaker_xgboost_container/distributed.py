@@ -18,7 +18,6 @@ Some of this code should be made simpler once the XGBoost library is improved.
 import logging
 import socket
 import sys
-import time
 import json
 import os
 
@@ -83,7 +82,9 @@ def rabit_run(
         max_connect_attempts=max_connect_attempts,
         connect_retry_timeout=connect_retry_timeout,
     ) as rabit_ctx:
-        hosts_with_data = rabit_ctx.synchronize({"host": rabit_ctx.current_host, "include_in_training": include_in_training})
+        hosts_with_data = rabit_ctx.synchronize(
+            {"host": rabit_ctx.current_host, "include_in_training": include_in_training}
+        )
         hosts_with_data = [record["host"] for record in hosts_with_data if record["include_in_training"]]
 
         # Keep track of port used, so that hosts trying to shutdown know when server is not available
@@ -132,7 +133,7 @@ class RabitHelper(object):
         self.is_master = is_master
         self.current_host = current_host
         self.master_port = master_port
-        
+
         try:
             if collective.is_initialized():
                 self.rank = collective.get_rank()
@@ -140,7 +141,7 @@ class RabitHelper(object):
             else:
                 self.rank = 0
                 self.world_size = 1
-        except:
+        except Exception:
             self.rank = 0
             self.world_size = 1
 
@@ -156,7 +157,7 @@ class RabitHelper(object):
         # For single node or when collective is not initialized, just return the data
         if self.world_size == 1 or not collective.is_initialized():
             return [data]
-        
+
         results = []
         data_str = json.dumps(data)
         for i in range(self.world_size):
@@ -232,31 +233,30 @@ class Rabit(object):
         :return: Initialized RabitHelper, which includes helpful information such as is_master and port
         """
         self.logger.debug("Starting collective communication.")
-        
+
         # Set environment variables for collective
         os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
         os.environ["DMLC_TRACKER_URI"] = self.master_host
         os.environ["DMLC_TRACKER_PORT"] = str(self.port)
-        
+
         # For single node, skip collective initialization
         if self.n_workers == 1:
             self.logger.debug("Single worker detected, skipping collective init")
             return RabitHelper(True, self.current_host, self.port)
-        
+
         try:
             collective.init()
             self.logger.debug("Collective started - Rank {}".format(collective.get_rank()))
         except Exception as e:
             self.logger.warning("Collective init failed: {}, falling back to single node".format(e))
             return RabitHelper(True, self.current_host, self.port)
-        
+
         return RabitHelper(self.is_master_host, self.current_host, self.port)
 
     def stop(self):
-        """Shutdown collective communication.
-        """
+        """Shutdown collective communication."""
         self.logger.debug("Shutting down collective.")
-        
+
         try:
             if collective.is_initialized():
                 collective.finalize()

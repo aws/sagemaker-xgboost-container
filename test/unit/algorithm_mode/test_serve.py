@@ -28,7 +28,7 @@ def test_default_execution_parameters():
     assert parsed_exec_params_response["BatchStrategy"] == "MULTI_RECORD"
 
 
-@patch("sagemaker_xgboost_container.algorithm_mode.serve.PARSED_MAX_CONTENT_LENGTH", 19 * 1024 ** 2)
+@patch("sagemaker_xgboost_container.algorithm_mode.serve.PARSED_MAX_CONTENT_LENGTH", 19 * 1024**2)
 def test_max_execution_parameters():
     execution_parameters_response = serve.execution_parameters()
 

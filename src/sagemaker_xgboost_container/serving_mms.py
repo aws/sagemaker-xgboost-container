@@ -31,8 +31,8 @@ ALGO_HANDLER_SERVICE = algo_handler_service.__name__
 USER_HANDLER_SERVICE = user_module_handler_service.__name__
 
 PORT = 8080
-DEFAULT_MAX_CONTENT_LEN = 6 * 1024 ** 2
-MAX_CONTENT_LEN_LIMIT = 20 * 1024 ** 2
+DEFAULT_MAX_CONTENT_LEN = 6 * 1024**2
+MAX_CONTENT_LEN_LIMIT = 20 * 1024**2
 MMS_NUM_MODEL_WORKERS_INIT = 1
 MMS_MODEL_JOB_QUEUE_SIZE_DEFAULT = 100
 
@@ -85,7 +85,7 @@ def _set_mms_configs(is_multi_model, handler):
     max_job_queue_size = 2 * max_workers
 
     # Max heap size = (max workers + max job queue size) * max payload size * 1.2 (20% buffer) + 128 (base amount)
-    max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024 ** 2) * 1.2) + 128
+    max_heap_size = ceil((max_workers + max_job_queue_size) * (int(max_content_length) / 1024**2) * 1.2) + 128
 
     os.environ["SAGEMAKER_MMS_MODEL_STORE"] = "/"
     os.environ["SAGEMAKER_MMS_LOAD_MODELS"] = ""
@@ -104,8 +104,10 @@ def _set_mms_configs(is_multi_model, handler):
     _set_default_if_not_exist("SAGEMAKER_MAX_DIRECT_MEMORY_SIZE", os.environ["SAGEMAKER_MAX_HEAP_SIZE"])
 
     disable_container_support_flag = ""
-    if "SAGEMAKER_DISABLE_CONTAINER_SUPPORT" in os.environ \
-            and os.environ["SAGEMAKER_DISABLE_CONTAINER_SUPPORT"] == "true":
+    if (
+        "SAGEMAKER_DISABLE_CONTAINER_SUPPORT" in os.environ
+        and os.environ["SAGEMAKER_DISABLE_CONTAINER_SUPPORT"] == "true"
+    ):
         disable_container_support_flag = " -XX:-UseContainerSupport"
 
     MMS_CONFIG_FILE_PATH = get_mms_config_file_path()
