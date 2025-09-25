@@ -29,7 +29,14 @@ from retrying import retry
 try:
     import xgboost as xgb
     from xgboost import collective
-    from xgboost.collective import CommunicatorContext
+    # Try to import the built-in tracker if available
+    try:
+        from xgboost.tracker import RabitTracker
+        HAS_BUILTIN_TRACKER = True
+    except ImportError:
+        # Fallback for older versions or different installations
+        HAS_BUILTIN_TRACKER = False
+        
 except ImportError:
     raise ImportError("XGBoost 2.1.0 or later is required")
 
@@ -201,6 +208,8 @@ class SimpleTracker:
         self.server_socket = None
         self.server_thread = None
         self._shutdown = threading.Event()
+        self._workers_connected = 0
+        self._worker_sockets = []
         
     def start(self, n_workers: int):
         """Start the tracker server"""
@@ -213,29 +222,83 @@ class SimpleTracker:
         self.server_thread = threading.Thread(target=self._server_loop, daemon=True)
         self.server_thread.start()
         
+        # Give the server a moment to start
+        time.sleep(0.1)
+        
     def _server_loop(self):
-        """Simple server loop to accept connections"""
-        connected_clients = 0
-        while not self._shutdown.is_set() and connected_clients < self.n_workers:
+        """DMLC tracker protocol server loop"""
+        try:
+            while not self._shutdown.is_set() and self._workers_connected < self.n_workers:
+                try:
+                    client_socket, addr = self.server_socket.accept()
+                    self._workers_connected += 1
+                    logging.debug(f"Tracker accepted connection {self._workers_connected}/{self.n_workers} from {addr}")
+                    
+                    # Handle the DMLC tracker protocol
+                    self._handle_worker(client_socket, self._workers_connected - 1)
+                    
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    if not self._shutdown.is_set():
+                        logging.debug(f"Tracker server error: {e}")
+                    break
+                    
+            # Keep server alive until shutdown
+            while not self._shutdown.is_set():
+                time.sleep(0.1)
+                
+        except Exception as e:
+            logging.debug(f"Tracker server loop error: {e}")
+        finally:
+            for sock in self._worker_sockets:
+                try:
+                    sock.close()
+                except:
+                    pass
+                    
+    def _handle_worker(self, client_socket, worker_rank):
+        """Handle DMLC tracker protocol for a worker"""
+        try:
+            self._worker_sockets.append(client_socket)
+            
+            # Send worker configuration following DMLC protocol
+            # Format: "start rank world_size\n"
+            config_msg = f"start {worker_rank} {self.n_workers}\n".encode()
+            client_socket.send(config_msg)
+            
+            # Keep connection alive for the worker
+            client_socket.settimeout(1.0)
+            while not self._shutdown.is_set():
+                try:
+                    data = client_socket.recv(1024)
+                    if not data:
+                        break
+                    # Echo back any messages (simple heartbeat)
+                    client_socket.send(b"ok\n")
+                except socket.timeout:
+                    continue
+                except:
+                    break
+                    
+        except Exception as e:
+            logging.debug(f"Worker {worker_rank} handler error: {e}")
+        finally:
             try:
-                client_socket, addr = self.server_socket.accept()
-                connected_clients += 1
-                logging.debug(f"Tracker accepted connection from {addr}")
                 client_socket.close()
-            except socket.timeout:
-                continue
-            except Exception as e:
-                if not self._shutdown.is_set():
-                    logging.debug(f"Tracker server error: {e}")
-                break
+            except:
+                pass
                 
     def join(self):
         """Wait for the server thread to finish"""
         self._shutdown.set()
         if self.server_thread:
-            self.server_thread.join()
+            self.server_thread.join(timeout=5.0)
         if self.server_socket:
-            self.server_socket.close()
+            try:
+                self.server_socket.close()
+            except:
+                pass
             
     def slave_envs(self):
         """Return environment configuration for slaves"""
@@ -323,13 +386,26 @@ class Rabit(object):
             
         if self.is_master_host:
             self.logger.debug("Master host. Starting Tracker.")
-            self.tracker = SimpleTracker(
-                host_ip=self.current_host,
-                n_workers=self.n_workers,
-                port=self.port
-            )
+            
+            if HAS_BUILTIN_TRACKER:
+                # Use XGBoost's built-in tracker if available
+                self.tracker = RabitTracker(
+                    hostIP=self.current_host,
+                    nslave=self.n_workers,
+                    port=self.port,
+                    port_end=self.port + 1
+                )
+                self.tracker.start(self.n_workers)
+            else:
+                # Fallback to our simple tracker
+                self.tracker = SimpleTracker(
+                    host_ip=self.current_host,
+                    n_workers=self.n_workers,
+                    port=self.port
+                )
+                self.tracker.start(self.n_workers)
+                
             self.logger.info("Tracker slave environment: {}".format(self.tracker.slave_envs()))
-            self.tracker.start(self.n_workers)
 
         # Start parameter server that connects to the master
         self.logger.debug("Starting parameter server.")
