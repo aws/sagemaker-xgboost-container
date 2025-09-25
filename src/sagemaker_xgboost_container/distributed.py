@@ -19,26 +19,13 @@ import logging
 import socket
 import sys
 import time
-import threading
-from typing import List, Dict, Any, Optional
+import json
 
-import numpy as np
 from retrying import retry
+from xgboost import collective
 
-# XGBoost 2.1.0 uses collective communication instead of rabit
-try:
-    import xgboost as xgb
-    from xgboost import collective
-    # Try to import the built-in tracker if available
-    try:
-        from xgboost.tracker import RabitTracker
-        HAS_BUILTIN_TRACKER = True
-    except ImportError:
-        # Fallback for older versions or different installations
-        HAS_BUILTIN_TRACKER = False
-        
-except ImportError:
-    raise ImportError("XGBoost 2.1.0 or later is required")
+# This should point to xgb when the tracker is updated upstream
+from sagemaker_xgboost_container.dmlc_patch import tracker
 
 LOCAL_HOSTNAME = "127.0.0.1"
 
@@ -70,25 +57,25 @@ def rabit_run(
     connect_retry_timeout=3,
     update_rabit_args=False,
 ):
-    """Run execution function after initializing xgboost collective communication.
+    """Run execution function after initializing dmlc/rabit.
 
-    This method initializes collective communication twice:
+    This method initializes rabit twice:
         1. To broadcast to all hosts which hosts should be included in training.
         2. Run distributed xgb train() with just the hosts from above.
 
-    :param exec_fun: Function to run while collective is initialized. xgb.train() must run in the same process space
-                    in order to utilize collective initialization. Note that the execution function must also take the args
+    :param exec_fun: Function to run while rabit is initialized. xgb.train() must run in the same process space
+                    in order to utilize rabit initialization. Note that the execution function must also take the args
                     'is_distributed' and 'is_master'.
     :param args: Arguments to run execution function.
     :param include_in_training: Boolean if the current hosts should be used in training. This is done here so that
                                 all the hosts in the cluster know which hosts to include during training.
     :param hosts:
     :param current_host:
-    :param first_port: Port to use for the initial collective initialization. If None, defaults to 9099
-    :param second_port: Port to use for second collective initialization. If None, this increments previous port by 1
+    :param first_port: Port to use for the initial rabit initialization. If None, rabit defaults this to 9099
+    :param second_port: Port to use for second rabit initialization. If None, this increments previous port by 1
     :param max_connect_attempts
     :param connect_retry_timeout
-    :param update_rabit_args: Boolean to include collective information to args. If True, the following is added:
+    :param update_rabit_args: Boolean to include rabit information to args. If True, the following is added:
                                 is_master
     """
     with Rabit(
@@ -97,12 +84,12 @@ def rabit_run(
         port=first_port,
         max_connect_attempts=max_connect_attempts,
         connect_retry_timeout=connect_retry_timeout,
-    ) as rabit_helper:
-        hosts_with_data = rabit_helper.synchronize({"host": rabit_helper.current_host, "include_in_training": include_in_training})
+    ) as rabit:
+        hosts_with_data = rabit.synchronize({"host": rabit.current_host, "include_in_training": include_in_training})
         hosts_with_data = [record["host"] for record in hosts_with_data if record["include_in_training"]]
 
         # Keep track of port used, so that hosts trying to shutdown know when server is not available
-        previous_port = rabit_helper.master_port
+        previous_port = rabit.master_port
 
     if not include_in_training:
         logging.warning("Host {} not being used for distributed training.".format(current_host))
@@ -111,8 +98,8 @@ def rabit_run(
     second_rabit_port = second_port if second_port else previous_port + 1
 
     if len(hosts_with_data) > 1:
-        # Set up collective with nodes that have data and an unused port so that previous slaves don't confuse it
-        # with the previous collective configuration
+        # Set up rabit with nodes that have data and an unused port so that previous slaves don't confuse it
+        # with the previous rabit configuration
         with Rabit(
             hosts=hosts_with_data,
             current_host=current_host,
@@ -137,38 +124,17 @@ def rabit_run(
 
 
 class RabitHelper(object):
-    def __init__(self, is_master, current_host, master_port, is_collective_initialized=False):
+    def __init__(self, is_master, current_host, master_port):
         """This is returned by the Rabit context manager for useful cluster information and data synchronization.
 
         :param is_master:
         :param current_host:
         :param master_port:
-        :param is_collective_initialized: Whether XGBoost collective communication is initialized
         """
         self.is_master = is_master
+        self.rank = collective.get_rank()
         self.current_host = current_host
         self.master_port = master_port
-        self._is_collective_initialized = is_collective_initialized
-        
-        if is_collective_initialized:
-            self.rank = collective.get_rank()
-        else:
-            self.rank = 0
-
-    def tracker_print(self, msg: str):
-        """Print message to tracker log.
-        
-        Equivalent to rabit.tracker_print() - prints a message to the centralized 
-        logging facility for tracking progress across the distributed cluster.
-        
-        :param msg: Message to print to tracker log
-        """
-        if self._is_collective_initialized:
-            # Use collective.print for distributed case
-            collective.print(msg)
-        else:
-            # For single node case, just use regular logging
-            logging.info(f"[Tracker] {msg}")
 
     def synchronize(self, data):
         """Synchronize data with the cluster.
@@ -177,166 +143,48 @@ class RabitHelper(object):
         This allows things like determining which nodes have data or not.
 
         :param data: data to send to the cluster
-        :return: aggregated data from all the nodes in the cluster
+        :return: aggregated data from the all the nodes in the cluster
         """
-        if not self._is_collective_initialized:
-            # Single node case
-            return [data]
-            
         results = []
-        world_size = collective.get_world_size()
-        
-        for i in range(world_size):
+        data_str = json.dumps(data)
+        for i in range(collective.get_world_size()):
             if self.rank == i:
                 logging.debug("Broadcasting data from self ({}) to others".format(self.rank))
-                collective.broadcast(data, i)
+                collective.broadcast(data_str, i)
                 results.append(data)
             else:
                 logging.debug("Receiving data from {}".format(i))
-                message = collective.broadcast(None, i)
+                message_str = collective.broadcast("", i)
+                message = json.loads(message_str) if message_str else None
                 results.append(message)
         return results
-
-
-class SimpleTracker:
-    """Simple tracker implementation for XGBoost collective communication"""
-    
-    def __init__(self, host_ip: str, n_workers: int, port: int):
-        self.host_ip = host_ip
-        self.n_workers = n_workers
-        self.port = port
-        self.server_socket = None
-        self.server_thread = None
-        self._shutdown = threading.Event()
-        self._workers_connected = 0
-        self._worker_sockets = []
-        
-    def start(self, n_workers: int):
-        """Start the tracker server"""
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind((self.host_ip, self.port))
-        self.server_socket.listen(n_workers)
-        self.server_socket.settimeout(1.0)  # Non-blocking accept
-        
-        self.server_thread = threading.Thread(target=self._server_loop, daemon=True)
-        self.server_thread.start()
-        
-        # Give the server a moment to start
-        time.sleep(0.1)
-        
-    def _server_loop(self):
-        """DMLC tracker protocol server loop"""
-        try:
-            while not self._shutdown.is_set() and self._workers_connected < self.n_workers:
-                try:
-                    client_socket, addr = self.server_socket.accept()
-                    self._workers_connected += 1
-                    logging.debug(f"Tracker accepted connection {self._workers_connected}/{self.n_workers} from {addr}")
-                    
-                    # Handle the DMLC tracker protocol
-                    self._handle_worker(client_socket, self._workers_connected - 1)
-                    
-                except socket.timeout:
-                    continue
-                except Exception as e:
-                    if not self._shutdown.is_set():
-                        logging.debug(f"Tracker server error: {e}")
-                    break
-                    
-            # Keep server alive until shutdown
-            while not self._shutdown.is_set():
-                time.sleep(0.1)
-                
-        except Exception as e:
-            logging.debug(f"Tracker server loop error: {e}")
-        finally:
-            for sock in self._worker_sockets:
-                try:
-                    sock.close()
-                except:
-                    pass
-                    
-    def _handle_worker(self, client_socket, worker_rank):
-        """Handle DMLC tracker protocol for a worker"""
-        try:
-            self._worker_sockets.append(client_socket)
-            
-            # Send worker configuration following DMLC protocol
-            # Format: "start rank world_size\n"
-            config_msg = f"start {worker_rank} {self.n_workers}\n".encode()
-            client_socket.send(config_msg)
-            
-            # Keep connection alive for the worker
-            client_socket.settimeout(1.0)
-            while not self._shutdown.is_set():
-                try:
-                    data = client_socket.recv(1024)
-                    if not data:
-                        break
-                    # Echo back any messages (simple heartbeat)
-                    client_socket.send(b"ok\n")
-                except socket.timeout:
-                    continue
-                except:
-                    break
-                    
-        except Exception as e:
-            logging.debug(f"Worker {worker_rank} handler error: {e}")
-        finally:
-            try:
-                client_socket.close()
-            except:
-                pass
-                
-    def join(self):
-        """Wait for the server thread to finish"""
-        self._shutdown.set()
-        if self.server_thread:
-            self.server_thread.join(timeout=5.0)
-        if self.server_socket:
-            try:
-                self.server_socket.close()
-            except:
-                pass
-            
-    def slave_envs(self):
-        """Return environment configuration for slaves"""
-        return {
-            'DMLC_NUM_WORKER': str(self.n_workers),
-            'DMLC_TRACKER_URI': self.host_ip,
-            'DMLC_TRACKER_PORT': str(self.port)
-        }
 
 
 class Rabit(object):
     @staticmethod
     def _get_logger(current_host):
-        logging.basicConfig(format="%(name)s [{}]: %(message)s".format(current_host))
+        logging.basicConfig(format="%(name) [{}]: %(message)s".format(current_host))
         return logging.getLogger("RabitContextManager")
 
     def __init__(
-        self, 
-        hosts: List[str], 
-        current_host: Optional[str] = None, 
-        master_host: Optional[str] = None, 
-        port: Optional[int] = None, 
-        max_connect_attempts: Optional[int] = None, 
-        connect_retry_timeout: int = 3
+        self, hosts, current_host=None, master_host=None, port=None, max_connect_attempts=None, connect_retry_timeout=3
     ):
-        """Context manager for XGBoost collective communication initialization.
+        """Context manager for rabit initialization.
 
         :param hosts: List of hostnames
         :param current_host: Current hostname. If not provided, use 127.0.0.1.
         :param master_host: Master host hostname. If not provided, use alphabetically first hostname amongst hosts
                             to ensure determinism in choosing master node.
         :param port: Port to connect to master, if not specified use 9099.
-        :param max_connect_attempts: Number of times to try connecting to tracker. If this arg is set
+        :param max_connect_attempts: Number of times to try connecting to RabitTracker. If this arg is set
                             to None, try indefinitely.
-        :param connect_retry_timeout: Timeout value when attempting to connect to tracker.
+        :param connect_retry_timeout: Timeout value when attempting to connect to RabitTracker.
                             This will be ignored if max_connect_attempt is None
         """
-        # Get the host information
+        # Get the host information. This is used to identify the master host
+        # that will run the RabitTracker and also to work out how many clients/slaves
+        # exist (this will ensure that all-reduce is set up correctly and that
+        # it blocks whilst waiting for those hosts to process the data).
         if not current_host:
             current_host = LOCAL_HOSTNAME
         self.current_host = current_host
@@ -347,7 +195,7 @@ class Rabit(object):
         self.n_workers = len(self.hosts)
         self.logger.debug("Found hosts: {} [{}]".format(self.hosts, self.n_workers))
 
-        # Use the first lexicographically named host as the master if not indicated otherwise
+        # We use the first lexicographically named host as the master if not indicated otherwise
         if not master_host:
             master_host = self.hosts[0]
         self.master_host = master_host
@@ -356,6 +204,9 @@ class Rabit(object):
         self.logger.debug("Is Master: {}".format(self.is_master_host))
         self.logger.debug("Master: {}".format(self.master_host))
 
+        # We start the RabitTracker on a known port on the first host. We can
+        # do this since SageMaker Training instances are single tenent and we
+        # don't need to worry about port contention.
         if port is None:
             port = 9099
             self.logger.debug("No port specified using: {}".format(port))
@@ -368,103 +219,117 @@ class Rabit(object):
         else:
             raise ValueError("max_connect_attempts must be None or an integer greater than 0.")
         self.connect_retry_timeout = connect_retry_timeout
-        
-        self.tracker = None
 
     def start(self):
-        """Start the collective communication process.
+        """Start the rabit process.
 
-        If current host is master host, initialize and start the tracker in the background. 
-        All hosts then connect to the master host to set up collective communication.
+        If current host is master host, initialize and start the Rabit Tracker in the background. All hosts then connect
+        to the master host to set up Rabit rank.
 
         :return: Initialized RabitHelper, which includes helpful information such as is_master and port
         """
-        if self.n_workers == 1:
-            # Single node case - no need for collective communication
-            self.logger.debug("Single node training - skipping collective communication setup")
-            return RabitHelper(True, self.current_host, self.port)
-            
+        self.rabit_context = None
         if self.is_master_host:
-            self.logger.debug("Master host. Starting Tracker.")
-            
-            if HAS_BUILTIN_TRACKER:
-                # Use XGBoost's built-in tracker if available
-                self.tracker = RabitTracker(
-                    hostIP=self.current_host,
-                    nslave=self.n_workers,
-                    port=self.port,
-                    port_end=self.port + 1
-                )
-                self.tracker.start(self.n_workers)
-            else:
-                # Fallback to our simple tracker
-                self.tracker = SimpleTracker(
-                    host_ip=self.current_host,
-                    n_workers=self.n_workers,
-                    port=self.port
-                )
-                self.tracker.start(self.n_workers)
-                
-            self.logger.info("Tracker slave environment: {}".format(self.tracker.slave_envs()))
+            self.logger.debug("Master host. Starting Rabit Tracker.")
+            # The Rabit Tracker is a Python script that is responsible for
+            # allowing each instance of rabit to find its peers and organize
+            # itself in to a ring for all-reduce. It supports primitive failure
+            # recovery modes.
+            #
+            # It runs on a master node that each of the individual Rabit instances
+            # talk to.
+            self.rabit_context = tracker.RabitTracker(
+                hostIP=self.current_host, nslave=self.n_workers, port=self.port, port_end=self.port + 1
+            )
 
-        # Start parameter server that connects to the master
+            # Useful logging to ensure that the tracker has started.
+            # These are the key-value config pairs that each of the rabit slaves
+            # should be initialized with. Since we have deterministically allocated
+            # the master host, its port, and the number of workers, we don't need
+            # to pass these out-of-band to each slave; but rely on the fact
+            # that each slave will calculate the exact same config as the server.
+            #
+            # TODO: should probably check that these match up what we pass below.
+            self.logger.info("Rabit slave environment: {}".format(self.rabit_context.slave_envs()))
+
+            # This actually starts the RabitTracker in a background/daemon thread
+            # that will automatically exit when the main process has finished.
+            self.rabit_context.start(self.n_workers)
+
+        # Start each parameter server that connects to the master.
         self.logger.debug("Starting parameter server.")
 
-        # Wait for tracker to be available
+        # Rabit runs as an in-process singleton library that can be configured once.
+        # Calling this multiple times will cause a seg-fault (without calling finalize).
+        # We pass it the environment variables that match up with the RabitTracker
+        # so that this instance can discover its peers (and recover from failure).
+        #
+        # First we check that the RabitTracker is up and running. Rabit actually
+        # breaks (at least on Mac OS X) if the server is not running before it
+        # begins to try to connect (its internal retries fail because they reuse
+        # the same socket instead of creating a new one).
+        #
+        # if self.max_connect_attempts is None, this will loop indefinitely.
         attempt = 0
         successful_connection = False
         while not successful_connection and (self.max_connect_attempts is None or attempt < self.max_connect_attempts):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
-                    self.logger.debug("Checking if Tracker is available.")
+                    self.logger.debug("Checking if RabitTracker is available.")
                     s.connect((self.master_host, self.port))
                     successful_connection = True
-                    self.logger.debug("Successfully connected to Tracker.")
+                    self.logger.debug("Successfully connected to RabitTracker.")
                 except OSError:
-                    self.logger.info("Failed to connect to Tracker on attempt {}".format(attempt))
+                    self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
                     attempt += 1
                     self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
                     time.sleep(self.connect_retry_timeout)
 
         if not successful_connection:
-            self.logger.error("Failed to connect to Tracker after %s attempts", self.max_connect_attempts)
-            raise Exception("Failed to connect to Tracker")
+            self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
+            raise Exception("Failed to connect to Rabit Tracker")
         else:
-            self.logger.info("Connected to Tracker.")
+            self.logger.info("Connected to RabitTracker.")
 
-        # Initialize XGBoost collective communication using environment variables
-        import os
-        os.environ['DMLC_NUM_WORKER'] = str(self.n_workers)
-        os.environ['DMLC_TRACKER_URI'] = self.master_host
-        os.environ['DMLC_TRACKER_PORT'] = str(self.port)
-        
-        # Initialize collective communication
-        collective.init()
+        # Initialize collective with the new API
+        collective.init({
+            "DMLC_NUM_WORKER": str(self.n_workers),
+            "DMLC_TRACKER_URI": self.master_host,
+            "DMLC_TRACKER_PORT": str(self.port),
+        })
 
-        # Get rank information
-        rank = collective.get_rank() if self.n_workers > 1 else 0
-        self.logger.debug("Collective started - Rank {}".format(rank))
+        # We can check that the collective instance has successfully connected to the
+        # server by getting the rank of the server (e.g. its position in the ring).
+        # This should be unique for each instance.
+        self.logger.debug("Collective started - Rank {}".format(collective.get_rank()))
         self.logger.debug("Executing user code")
 
-        return RabitHelper(self.is_master_host, self.current_host, self.port, True)
+        # We can now run user-code. Since XGBoost runs in the same process space
+        # it will use the same instance of collective that we have configured. It has
+        # a number of checks throughout the learning process to see if it is running
+        # in distributed mode by calling collective APIs. If it is it will do the
+        # synchronization automatically.
+        #
+        # Hence we can now execute any XGBoost specific training code and it
+        # will be distributed automatically.
+        return RabitHelper(self.is_master_host, self.current_host, self.port)
 
     def stop(self):
-        """Shutdown parameter server and tracker."""
+        """Shutdown parameter server.
+
+        If current host is master host, also join the background thread that is running the master host.
+        """
         self.logger.debug("Shutting down parameter server.")
 
-        # Clean up collective communication
-        if self.n_workers > 1:
-            try:
-                collective.finalize()
-            except Exception as e:
-                self.logger.debug(f"Error finalizing collective: {e}")
-            
-        if self.is_master_host and self.tracker:
-            self.tracker.join()
+        # This is the call that actually shuts down the collective server; and when
+        # all of the slaves have been shut down then the RabitTracker will close
+        # /shutdown itself.
+        collective.finalize()
+        if self.is_master_host:
+            self.rabit_context.join()
 
     def __enter__(self):
         return self.start()
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.stop()
-        return False
+        return self.stop()
