@@ -224,18 +224,19 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
     def _predict_with_compat(booster, dtest):
         """Predict with compatibility for both old and new XGBoost versions."""
         best_iteration = getattr(booster, "best_ntree_limit", 0)
-        
+
         # Handle MagicMock objects in tests
         try:
             best_iteration = int(best_iteration) if best_iteration is not None else 0
         except (TypeError, ValueError):
             best_iteration = 0
-        
+
         # Check XGBoost version to determine which API to use
         import inspect
+
         predict_signature = inspect.signature(booster.predict)
-        
-        if 'ntree_limit' in predict_signature.parameters:
+
+        if "ntree_limit" in predict_signature.parameters:
             # Old XGBoost API (< 2.0)
             return booster.predict(dtest, ntree_limit=best_iteration, validate_features=False)
         else:
@@ -244,7 +245,7 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
                 return booster.predict(dtest, iteration_range=(0, best_iteration), validate_features=False)
             else:
                 return booster.predict(dtest, validate_features=False)
-    
+
     if isinstance(model, list):
         ensemble = [_predict_with_compat(booster, dtest) for booster in model]
 
