@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     # Train and save the model
     xg_reg.fit(X_train, y_train)
-    model_path = os.path.join(args.model_dir, "xgb-california.model")
+    model_path = os.path.join(args.model_dir, "xgb-boston.model")
     xg_reg.get_booster().save_model(model_path)
 
     # Make predictions and calculate RMSE
