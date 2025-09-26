@@ -18,7 +18,7 @@ import os
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.datasets import load_boston
+from sklearn.datasets import fetch_california_housing
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
@@ -37,11 +37,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Load the Boston housing data into pandas data frame
-    boston = load_boston()
-    data = pd.DataFrame(boston.data)
-    data.columns = boston.feature_names
-    data["PRICE"] = boston.target
+    # Load the California housing data into pandas data frame (replacement for deprecated Boston dataset)
+    california = fetch_california_housing()
+    data = pd.DataFrame(california.data)
+    data.columns = california.feature_names
+    data["PRICE"] = california.target
 
     # Convert Pandas dataframe to XGBoost DMatrix for better performance (used later).
     X, y = data.iloc[:, :-1], data.iloc[:, -1]
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     # Train and save the model
     xg_reg.fit(X_train, y_train)
-    model_path = os.path.join(args.model_dir, "xgb-boston.model")
+    model_path = os.path.join(args.model_dir, "xgb-california.model")
     xg_reg.get_booster().save_model(model_path)
 
     # Make predictions and calculate RMSE
