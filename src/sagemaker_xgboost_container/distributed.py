@@ -254,10 +254,14 @@ class Rabit(object):
 
         # Determine master based on collective rank, fallback to hostname comparison
         try:
-            is_master = collective.get_rank() == 0
-        except Exception:
-            # Fallback: only the first host alphabetically should be master
-            is_master = self.current_host == sorted(self.hosts)[0]
+            rank = collective.get_rank()
+            is_master = rank == 0
+            self.logger.debug(f"Using collective rank {rank}, is_master={is_master}")
+        except Exception as e:
+            # Fallback: use the explicitly set master_host
+            is_master = self.current_host == self.master_host
+            self.logger.info(f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. All hosts: {self.hosts}, current: {self.current_host}, master_host: {self.master_host}, is_master={is_master}")
+            print(f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. All hosts: {self.hosts}, current: {self.current_host}, master_host: {self.master_host}, is_master={is_master}")
         return RabitHelper(is_master, self.current_host, self.port)
 
     def stop(self):
