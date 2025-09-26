@@ -260,8 +260,12 @@ class Rabit(object):
         except Exception as e:
             # Fallback: use the explicitly set master_host
             is_master = self.current_host == self.master_host
-            self.logger.info(f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. All hosts: {self.hosts}, current: {self.current_host}, master_host: {self.master_host}, is_master={is_master}")
-            print(f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. All hosts: {self.hosts}, current: {self.current_host}, master_host: {self.master_host}, is_master={is_master}")
+            self.logger.info(
+                f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. All hosts: {self.hosts}, current: {self.current_host}, master_host: {self.master_host}, is_master={is_master}"
+            )
+            print(
+                f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. All hosts: {self.hosts}, current: {self.current_host}, master_host: {self.master_host}, is_master={is_master}"
+            )
         return RabitHelper(is_master, self.current_host, self.port)
 
     def stop(self):
