@@ -74,10 +74,13 @@ if __name__ == "__main__":
     if not os.path.exists(args.output_data_dir):
         os.makedirs(args.output_data_dir)
 
-    ax = xgb.plot_importance(xg_reg)
-    fig = ax.figure
-    fig.set_size_inches(5, 5)
-    fig.savefig(os.path.join(args.output_data_dir, "feature-importance-plot.png"))
+    try:
+        ax = xgb.plot_importance(xg_reg)
+        fig = ax.figure
+        fig.set_size_inches(5, 5)
+        fig.savefig(os.path.join(args.output_data_dir, "feature-importance-plot.png"))
+    except Exception as e:
+        print(f"Warning: Could not create feature importance plot: {e}")
 
     # Finally, lets do a bit of cross-validation by using native XGB functionality (keeping some parameters constant, so
     # that we don't have a huge input list for this simple example.
