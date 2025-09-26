@@ -251,7 +251,9 @@ class Rabit(object):
             self.logger.warning("Collective init failed: {}, falling back to single node".format(e))
             return RabitHelper(True, self.current_host, self.port)
 
-        return RabitHelper(self.is_master_host, self.current_host, self.port)
+        # Determine master based on collective rank, not hostname comparison
+        is_master = collective.get_rank() == 0 if collective.is_initialized() else self.is_master_host
+        return RabitHelper(is_master, self.current_host, self.port)
 
     def stop(self):
         """Shutdown collective communication."""
