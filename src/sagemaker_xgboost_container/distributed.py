@@ -135,12 +135,8 @@ class RabitHelper(object):
         self.master_port = master_port
 
         try:
-            if collective.is_initialized():
-                self.rank = collective.get_rank()
-                self.world_size = collective.get_world_size()
-            else:
-                self.rank = 0
-                self.world_size = 1
+            self.rank = collective.get_rank()
+            self.world_size = collective.get_world_size()
         except Exception:
             self.rank = 0
             self.world_size = 1
@@ -155,7 +151,12 @@ class RabitHelper(object):
         :return: aggregated data from the all the nodes in the cluster
         """
         # For single node or when collective is not initialized, just return the data
-        if self.world_size == 1 or not collective.is_initialized():
+        if self.world_size == 1:
+            return [data]
+
+        try:
+            collective.get_rank()  # Test if collective is initialized
+        except Exception:
             return [data]
 
         results = []
@@ -252,7 +253,10 @@ class Rabit(object):
             return RabitHelper(True, self.current_host, self.port)
 
         # Determine master based on collective rank, not hostname comparison
-        is_master = collective.get_rank() == 0 if collective.is_initialized() else self.is_master_host
+        try:
+            is_master = collective.get_rank() == 0
+        except Exception:
+            is_master = self.is_master_host
         return RabitHelper(is_master, self.current_host, self.port)
 
     def stop(self):
@@ -260,8 +264,7 @@ class Rabit(object):
         self.logger.debug("Shutting down collective.")
 
         try:
-            if collective.is_initialized():
-                collective.finalize()
+            collective.finalize()
         except Exception as e:
             self.logger.debug("Collective finalize failed: {}".format(e))
 
