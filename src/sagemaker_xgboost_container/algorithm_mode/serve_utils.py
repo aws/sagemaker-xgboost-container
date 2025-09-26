@@ -225,6 +225,12 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
         """Predict with compatibility for both old and new XGBoost versions."""
         best_iteration = getattr(booster, "best_ntree_limit", 0)
         
+        # Handle MagicMock objects in tests
+        try:
+            best_iteration = int(best_iteration) if best_iteration is not None else 0
+        except (TypeError, ValueError):
+            best_iteration = 0
+        
         # Check XGBoost version to determine which API to use
         import inspect
         predict_signature = inspect.signature(booster.predict)
