@@ -98,7 +98,7 @@ def get_callbacks(
             data_name=early_stopping_data_name,
             metric_name=early_stopping_metric,
             maximize=maximize,
-            save_best=True,
+            save_best=is_master,
         )
         callbacks.append(early_stop)
 
