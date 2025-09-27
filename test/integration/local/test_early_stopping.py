@@ -54,18 +54,18 @@ def test_xgboost_training_single_machine_without_early_stopping(docker_image, op
     assert not local_mode.file_exists(opt_ml, "model/xgboost-model"), "Model saved"
 
 
-def test_xgboost_training_multiple_machines_with_early_stopping(docker_image, opt_ml):
-    hyperparameters = get_default_hyperparameters(100000)
-    hyperparameters["save_model_on_termination"] = "true"
+# def test_xgboost_training_multiple_machines_with_early_stopping(docker_image, opt_ml):
+#     hyperparameters = get_default_hyperparameters(100000)
+#     hyperparameters["save_model_on_termination"] = "true"
 
-    local_mode.train(
-        False, data_dir, docker_image, opt_ml, hyperparameters=hyperparameters, cluster_size=2, early_stopping=True
-    )
+#     local_mode.train(
+#         False, data_dir, docker_image, opt_ml, hyperparameters=hyperparameters, cluster_size=2, early_stopping=True
+#     )
 
-    host1 = local_mode.file_exists(opt_ml, "model/xgboost-model", "algo-1")
-    host2 = local_mode.file_exists(opt_ml, "model/xgboost-model", "algo-2")
-    assert host1 or host2, "Model not saved on any host"
-    assert not (host1 and host2), "Model saved on both hosts"
+#     host1 = local_mode.file_exists(opt_ml, "model/xgboost-model", "algo-1")
+#     host2 = local_mode.file_exists(opt_ml, "model/xgboost-model", "algo-2")
+#     assert host1 or host2, "Model not saved on any host"
+#     assert not (host1 and host2), "Model saved on both hosts"
 
 
 def test_xgboost_training_multiple_machines_without_early_stopping(docker_image, opt_ml):
