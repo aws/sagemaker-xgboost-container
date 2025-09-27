@@ -85,7 +85,7 @@ def get_callbacks(
         )
         callbacks.append(save_checkpoint)
 
-    if save_model_on_termination == "true" and is_master:
+    if save_model_on_termination == "true":
         model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
         save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(model_dir, model_name, is_master)
         callbacks.append(save_intermediate_model)
@@ -98,7 +98,7 @@ def get_callbacks(
             data_name=early_stopping_data_name,
             metric_name=early_stopping_metric,
             maximize=maximize,
-            save_best=is_master,
+            save_best=True,
         )
         callbacks.append(early_stop)
 

@@ -146,7 +146,7 @@ def train(
     entrypoint=None,
     source_dir=None,
     early_stopping=False,
-    train_time=30,
+    train_time=20,
 ):
     additional_env_vars = additional_env_vars or []
     additional_volumes = additional_volumes or []
