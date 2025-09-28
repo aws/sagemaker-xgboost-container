@@ -421,8 +421,8 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     print(f"FINAL_MODEL_DEBUG: is_master={is_master}, model_dir={model_dir}")
 
     if is_master:
-        logging.info(f"FINAL_MODEL_SAVE: Saving final model as master")
-        print(f"FINAL_MODEL_SAVE: Saving final model as master")
+        logging.info("FINAL_MODEL_SAVE: Saving final model as master")
+        print("FINAL_MODEL_SAVE: Saving final model as master")
         if type(bst) is not list:
             model_location = os.path.join(model_dir, MODEL_NAME)
             bst.save_model(model_location)
