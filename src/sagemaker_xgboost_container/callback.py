@@ -5,7 +5,8 @@ import xgboost as xgb
 
 from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.algorithm_mode import train_utils
-from sagemaker_xgboost_container.constants.xgb_constants import MODEL_NAME, XGB_MAXIMIZE_METRICS
+from sagemaker_xgboost_container.constants.xgb_constants import MODEL_NAME
+#from sagemaker_xgboost_container.constants.xgb_constants import MODEL_NAME, XGB_MAXIMIZE_METRICS
 from smdebug.xgboost import Hook
 
 logger = logging.getLogger(__name__)
