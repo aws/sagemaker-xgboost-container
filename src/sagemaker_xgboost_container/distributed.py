@@ -252,29 +252,25 @@ class Rabit(object):
             self.logger.warning("Collective init failed: {}, falling back to single node".format(e))
             return RabitHelper(True, self.current_host, self.port)
 
-        # Determine master based on collective rank, fallback to hostname comparison
+        # Use hostname-based master selection instead of buggy collective rank
+        # Both hosts incorrectly get rank 0, so we can't trust collective.get_rank()
+        is_master = self.current_host == self.master_host
+
+        # Debug logging
         try:
             rank = collective.get_rank()
-            is_master = rank == 0
-
-            # Debug: Check actual hostname and environment
-            import socket
-
-            actual_hostname = socket.gethostname()
-            sm_current_host = os.environ.get("SM_CURRENT_HOST", "NOT_SET")
-
             self.logger.info(
-                f"MASTER_DEBUG_SUCCESS: Collective rank {rank}, is_master={is_master}. \
-                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
-                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
-                all_hosts: {self.hosts}"
+                f"MASTER_DEBUG_FIXED: Ignoring collective rank {rank}. \
+                Using hostname logic: current_host={self.current_host}, \
+                master_host={self.master_host}, is_master={is_master}"
             )
             print(
-                f"MASTER_DEBUG_SUCCESS: Collective rank {rank}, is_master={is_master}. \
-                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
-                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
-                all_hosts: {self.hosts}"
+                f"MASTER_DEBUG_FIXED: Ignoring collective rank {rank}. \
+                Using hostname logic: current_host={self.current_host}, \
+                master_host={self.master_host}, is_master={is_master}"
             )
+        except Exception:
+            pass
         except Exception as e:
             # Debug: Check actual hostname and environment
             import socket
