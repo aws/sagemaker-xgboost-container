@@ -91,15 +91,15 @@ def get_callbacks(
         callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)
 
-    if early_stopping_data_name and early_stopping_metric and early_stopping_rounds:
-        maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
-        early_stop = xgb.callback.EarlyStopping(
-            rounds=early_stopping_rounds,
-            data_name=early_stopping_data_name,
-            metric_name=early_stopping_metric,
-            maximize=maximize,
-            save_best=is_master,
-        )
-        callbacks.append(early_stop)
+    # if early_stopping_data_name and early_stopping_metric and early_stopping_rounds:
+    #     maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
+    #     early_stop = xgb.callback.EarlyStopping(
+    #         rounds=early_stopping_rounds,
+    #         data_name=early_stopping_data_name,
+    #         metric_name=early_stopping_metric,
+    #         maximize=maximize,
+    #         save_best=is_master,
+    #     )
+    #     callbacks.append(early_stop)
 
     return xgb_model, iteration, callbacks
