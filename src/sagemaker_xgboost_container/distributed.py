@@ -256,19 +256,51 @@ class Rabit(object):
         try:
             rank = collective.get_rank()
             is_master = rank == 0
-            self.logger.debug(f"Using collective rank {rank}, is_master={is_master}")
-        except Exception as e:
-            # Fallback: use the explicitly set master_host
-            is_master = self.current_host == self.master_host
+
+            # Debug: Check actual hostname and environment
+            import socket
+
+            actual_hostname = socket.gethostname()
+            sm_current_host = os.environ.get("SM_CURRENT_HOST", "NOT_SET")
+
             self.logger.info(
-                f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. \
-                    All hosts: {self.hosts}, current: {self.current_host}, \
-                    master_host: {self.master_host}, is_master={is_master}"
+                f"MASTER_DEBUG_SUCCESS: Collective rank {rank}, is_master={is_master}. \
+                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
+                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
+                all_hosts: {self.hosts}"
             )
             print(
-                f"MASTER_DEBUG: Collective failed ({e}), using master_host fallback. \
-                    All hosts: {self.hosts}, current: {self.current_host}, \
-                    master_host: {self.master_host}, is_master={is_master}"
+                f"MASTER_DEBUG_SUCCESS: Collective rank {rank}, is_master={is_master}. \
+                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
+                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
+                all_hosts: {self.hosts}"
+            )
+        except Exception as e:
+            # Debug: Check actual hostname and environment
+            import socket
+
+            actual_hostname = socket.gethostname()
+            sm_current_host = os.environ.get("SM_CURRENT_HOST", "NOT_SET")
+
+            # Fallback: use hostname-based logic
+            if "algo-1" in self.current_host:
+                is_master = True
+            elif "algo-2" in self.current_host:
+                is_master = False
+            else:
+                is_master = self.current_host == self.master_host
+
+            self.logger.info(
+                f"MASTER_DEBUG: Collective failed ({e}). \
+                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
+                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
+                all_hosts: {self.hosts}, is_master: {is_master}"
+            )
+            print(
+                f"MASTER_DEBUG: Collective failed ({e}). \
+                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
+                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
+                all_hosts: {self.hosts}, is_master: {is_master}"
             )
         return RabitHelper(is_master, self.current_host, self.port)
 
