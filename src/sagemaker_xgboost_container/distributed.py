@@ -289,7 +289,7 @@ class Rabit(object):
             )
         except Exception:
             pass
-        
+
         self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
         print(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
         return RabitHelper(is_master, self.current_host, self.port)
