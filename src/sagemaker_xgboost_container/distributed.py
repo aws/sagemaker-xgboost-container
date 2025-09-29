@@ -107,6 +107,17 @@ def rabit_run(
             connect_retry_timeout=connect_retry_timeout,
         ) as cluster:
             if update_rabit_args:
+                logging.info(
+                    f"RABIT_DEBUG: \
+                             cluster.is_master={cluster.is_master}, \
+                            current_host={current_host}"
+                )
+                print(
+                    f"RABIT_DEBUG: \
+                      cluster.is_master={cluster.is_master}, \
+                      current_host={current_host}"
+                )
+
                 args.update({"is_master": cluster.is_master})
             exec_fun(**args)
 

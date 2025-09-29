@@ -267,6 +267,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     :param model_dir: Directory where model will be saved
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
+    logging.info(f"TRAIN_JOB_DEBUG: Received is_master={is_master}")
+    print(f"TRAIN_JOB_DEBUG: Received is_master={is_master}")
+
     # Parse arguments for train() API
     num_round = train_cfg.pop("num_round")
     # Parse arguments for intermediate model callback
