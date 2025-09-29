@@ -99,6 +99,8 @@ def rabit_run(
     if len(hosts_with_data) > 1:
         # Set up rabit with nodes that have data and an unused port so that previous slaves don't confuse it
         # with the previous rabit configuration
+        logging.info(f"SECOND_RABIT_DEBUG: hosts_with_data={hosts_with_data}, current_host={current_host}")
+        print(f"SECOND_RABIT_DEBUG: hosts_with_data={hosts_with_data}, current_host={current_host}")
         with Rabit(
             hosts=hosts_with_data,
             current_host=current_host,
@@ -141,9 +143,16 @@ class RabitHelper(object):
         :param current_host:
         :param master_port:
         """
+        import time
+
         self._is_master = is_master  # Store hostname-based master determination
         self.current_host = current_host
         self.master_port = master_port
+        self._id = int(time.time() * 1000000) % 1000000  # Unique ID for debugging
+        logging.info(
+            f"RABIT_HELPER_INIT: Created RabitHelper {self._id} with is_master={is_master} for host={current_host}"
+        )
+        print(f"RABIT_HELPER_INIT: Created RabitHelper {self._id} with is_master={is_master} for host={current_host}")
 
         try:
             self.rank = collective.get_rank()
@@ -155,8 +164,12 @@ class RabitHelper(object):
     @property
     def is_master(self):
         """Return hostname-based master determination, ignoring collective rank."""
-        logging.info(f"RABIT_HELPER_DEBUG: Returning is_master={self._is_master} for host={self.current_host}")
-        print(f"RABIT_HELPER_DEBUG: Returning is_master={self._is_master} for host={self.current_host}")
+        logging.info(
+            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} returning is_master={self._is_master} for host={self.current_host}"
+        )
+        print(
+            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} returning is_master={self._is_master} for host={self.current_host}"
+        )
         return self._is_master
 
     def synchronize(self, data):
@@ -181,11 +194,11 @@ class RabitHelper(object):
         data_str = json.dumps(data)
         for i in range(self.world_size):
             if self.rank == i:
-                logging.debug("Broadcasting data from self ({}) to others".format(self.rank))
+                logging.info("Broadcasting data from self ({}) to others".format(self.rank))
                 collective.broadcast(data_str, i)
                 results.append(data)
             else:
-                logging.debug("Receiving data from {}".format(i))
+                logging.info("Receiving data from {}".format(i))
                 message_str = collective.broadcast("", i)
                 message = json.loads(message_str) if message_str else None
                 results.append(message)
