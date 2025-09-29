@@ -158,6 +158,7 @@ class RabitHelper(object):
             self.rank = collective.get_rank()
             self.world_size = collective.get_world_size()
         except Exception:
+            logging.error("collective init failed", exc_info=True)
             self.rank = 0
             self.world_size = 1
 
@@ -192,6 +193,7 @@ class RabitHelper(object):
         try:
             collective.get_rank()  # Test if collective is initialized
         except Exception:
+            logging.error("collective get_rank failed", exc_info=True)
             return [data]
 
         results = []
