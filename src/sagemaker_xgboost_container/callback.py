@@ -92,19 +92,15 @@ def get_callbacks(
     print(f"CALLBACK_SETUP_DEBUG: save_model_on_termination={save_model_on_termination}, is_master={is_master}")
 
     if save_model_on_termination == "true" and is_master:
-        logging.info(f"CALLBACK_ADDING: Adding SaveIntermediateModelCallBack on master")
-        print(f"CALLBACK_ADDING: Adding SaveIntermediateModelCallBack on master")
+        logging.info("CALLBACK_ADDING: Adding SaveIntermediateModelCallBack on master")
+        print("CALLBACK_ADDING: Adding SaveIntermediateModelCallBack on master")
         model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
         save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(model_dir, model_name, is_master)
         callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)
     else:
-        logging.info(
-            f"CALLBACK_SKIPPING: NOT adding SaveIntermediateModelCallBack (save_model_on_termination={save_model_on_termination}, is_master={is_master})"
-        )
-        print(
-            f"CALLBACK_SKIPPING: NOT adding SaveIntermediateModelCallBack (save_model_on_termination={save_model_on_termination}, is_master={is_master})"
-        )
+        logging.info(f"CALLBACK_SKIPPING save_model_on_termination={save_model_on_termination}, is_master={is_master})")
+        print(f"CALLBACK_SKIPPING: save_model_on_termination={save_model_on_termination}, is_master={is_master})")
 
     # if early_stopping_data_name and early_stopping_metric and early_stopping_rounds:
     #     maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
