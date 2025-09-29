@@ -130,7 +130,7 @@ class RabitHelper(object):
         :param current_host:
         :param master_port:
         """
-        self.is_master = is_master
+        self._is_master = is_master  # Store hostname-based master determination
         self.current_host = current_host
         self.master_port = master_port
 
@@ -140,6 +140,11 @@ class RabitHelper(object):
         except Exception:
             self.rank = 0
             self.world_size = 1
+
+    @property
+    def is_master(self):
+        """Return hostname-based master determination, ignoring collective rank."""
+        return self._is_master
 
     def synchronize(self, data):
         """Synchronize data with the cluster.
