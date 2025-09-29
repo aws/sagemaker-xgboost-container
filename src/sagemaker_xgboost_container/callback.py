@@ -81,17 +81,18 @@ def get_callbacks(
 
     callbacks = []
     callbacks.append(xgb.callback.EvaluationMonitor())
-    # if checkpoint_dir:
-    #     save_checkpoint = xgb.callback.TrainingCheckPoint(
-    #         directory=checkpoint_dir, iterations=iteration, name=checkpointing.CHECKPOINT_FILENAME
-    #     )
-    #     callbacks.append(save_checkpoint)
 
-    # if save_model_on_termination == "true" and is_master:
-    #     model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
-    #     save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(model_dir, model_name, is_master)
-    #     callbacks.append(save_intermediate_model)
-    #     add_sigterm_handler(model_dir, is_master)
+    if checkpoint_dir and is_master:
+        save_checkpoint = xgb.callback.TrainingCheckPoint(
+            directory=checkpoint_dir, iterations=iteration, name=checkpointing.CHECKPOINT_FILENAME
+        )
+        callbacks.append(save_checkpoint)
+
+    if save_model_on_termination == "true" and is_master:
+        model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
+        save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(model_dir, model_name, is_master)
+        callbacks.append(save_intermediate_model)
+        add_sigterm_handler(model_dir, is_master)
 
     # if early_stopping_data_name and early_stopping_metric and early_stopping_rounds:
     #     maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
