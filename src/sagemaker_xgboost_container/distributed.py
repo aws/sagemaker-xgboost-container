@@ -155,6 +155,8 @@ class RabitHelper(object):
     @property
     def is_master(self):
         """Return hostname-based master determination, ignoring collective rank."""
+        logging.info(f"RABIT_HELPER_DEBUG: Returning is_master={self._is_master} for host={self.current_host}")
+        print(f"RABIT_HELPER_DEBUG: Returning is_master={self._is_master} for host={self.current_host}")
         return self._is_master
 
     def synchronize(self, data):
@@ -287,33 +289,9 @@ class Rabit(object):
             )
         except Exception:
             pass
-        except Exception as e:
-            # Debug: Check actual hostname and environment
-            import socket
-
-            actual_hostname = socket.gethostname()
-            sm_current_host = os.environ.get("SM_CURRENT_HOST", "NOT_SET")
-
-            # Fallback: use hostname-based logic
-            if "algo-1" in self.current_host:
-                is_master = True
-            elif "algo-2" in self.current_host:
-                is_master = False
-            else:
-                is_master = self.current_host == self.master_host
-
-            self.logger.info(
-                f"MASTER_DEBUG: Collective failed ({e}). \
-                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
-                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
-                all_hosts: {self.hosts}, is_master: {is_master}"
-            )
-            print(
-                f"MASTER_DEBUG: Collective failed ({e}). \
-                current_host: {self.current_host}, actual_hostname: {actual_hostname}, \
-                SM_CURRENT_HOST: {sm_current_host}, master_host: {self.master_host}, \
-                all_hosts: {self.hosts}, is_master: {is_master}"
-            )
+        
+        self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
+        print(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
         return RabitHelper(is_master, self.current_host, self.port)
 
     def stop(self):
