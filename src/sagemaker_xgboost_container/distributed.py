@@ -165,10 +165,14 @@ class RabitHelper(object):
     def is_master(self):
         """Return hostname-based master determination, ignoring collective rank."""
         logging.info(
-            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} returning is_master={self._is_master} for host={self.current_host}"
+            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} \
+                returning is_master={self._is_master} \
+                    for host={self.current_host}"
         )
         print(
-            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} returning is_master={self._is_master} for host={self.current_host}"
+            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} \
+                returning is_master={self._is_master} \
+                    for host={self.current_host}"
         )
         return self._is_master
 
