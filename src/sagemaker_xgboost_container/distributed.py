@@ -276,6 +276,7 @@ class Rabit(object):
         os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
         os.environ["DMLC_TRACKER_URI"] = self.master_host
         os.environ["DMLC_TRACKER_PORT"] = str(self.port)
+        os.environ["DMLC_TASK_ID"] = str(self.hosts.index(self.current_host))
 
         # For single node, skip collective initialization
         if self.n_workers == 1:
