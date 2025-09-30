@@ -20,6 +20,7 @@ import socket
 import sys
 import json
 import os
+import time
 
 from retrying import retry
 from xgboost.tracker import RabitTracker
@@ -153,7 +154,6 @@ class RabitHelper(object):
         logging.info(
             f"RABIT_HELPER_INIT: Created RabitHelper {self._id} with is_master={is_master} for host={current_host}"
         )
-        print(f"RABIT_HELPER_INIT: Created RabitHelper {self._id} with is_master={is_master} for host={current_host}")
 
         try:
             self.rank = collective.get_rank()
@@ -272,6 +272,7 @@ class Rabit(object):
         :return: Initialized RabitHelper, which includes helpful information such as is_master and port
         """
         self.logger.debug("Starting collective communication.")
+        self.tracker = None
 
         # Set environment variables for collective
         os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
@@ -285,37 +286,65 @@ class Rabit(object):
             return RabitHelper(True, self.current_host, self.port)
 
         try:
-            # Launch tracker on master, register on workers
+            # Launch tracker on master only
             if self.current_host == self.master_host:
-                self.tracker = RabitTracker(host_ip=self.master_host, n_workers=self.n_workers, port=self.port)
+                self.tracker = RabitTracker(
+                    host_ip=self.master_host, n_workers=self.n_workers, port=self.port, sortby="task"
+                )
                 self.tracker.start()
-                self.tracker.wait_for(self.connect_retry_timeout)
+
+            # Rabit runs as an in-process singleton library that can be configured once.
+            # Calling this multiple times will cause a seg-fault (without calling finalize).
+            # We pass it the environment variables that match up with the RabitTracker
+            # so that this instance can discover its peers (and recover from failure).
+            #
+            # First we check that the RabitTracker is up and running. Rabit actually
+            # breaks (at least on Mac OS X) if the server is not running before it
+            # begins to try to connect (its internal retries fail because they reuse
+            # the same socket instead of creating a new one).
+            #
+            # if self.max_connect_attempts is None, this will loop indefinitely.
+            attempt = 0
+            successful_connection = False
+            while not successful_connection and (
+                self.max_connect_attempts is None or attempt < self.max_connect_attempts
+            ):
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    try:
+                        self.logger.debug("Checking if RabitTracker is available.")
+                        s.connect((self.master_host, self.port))
+                        successful_connection = True
+                        self.logger.debug("Successfully connected to RabitTracker.")
+                    except OSError:
+                        self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
+                        attempt += 1
+                        self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
+                        time.sleep(self.connect_retry_timeout)
+
+            if not successful_connection:
+                self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
+                raise Exception("Failed to connect to Rabit Tracker")
+            else:
+                self.logger.info("Connected to RabitTracker.")
 
             # Initialize collective for synchronization
             collective.init()
 
-            # Use hostname-based master selection instead of buggy collective rank
-            # Both hosts incorrectly get rank 0, so we can't trust collective.get_rank()
+            # Use hostname-based master selection
             is_master = self.current_host == self.master_host
 
-            # Debug logging
-            rank = collective.get_rank()
             self.logger.info(
-                f"MASTER_DEBUG_FIXED: Ignoring collective rank {rank}. \
-                Using hostname logic: current_host={self.current_host}, \
-                master_host={self.master_host}, is_master={is_master}"
-            )
-            print(
-                f"MASTER_DEBUG_FIXED: Ignoring collective rank {rank}. \
-                Using hostname logic: current_host={self.current_host}, \
-                master_host={self.master_host}, is_master={is_master}"
+                f"MASTER_DEBUG_FIXED: Using hostname logic: \
+                    current_host={self.current_host}, \
+                        master_host={self.master_host}, \
+                            is_master={is_master}"
             )
         except Exception as e:
-            self.logger.warning("Collective init failed: {}, falling back to single node".format(e))
+            self.logger.warning("Collective init failed: {}, " "falling back to single node".format(e))
+            self._cleanup_tracker()
             return RabitHelper(True, self.current_host, self.port)
 
         self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
-        print(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
         return RabitHelper(is_master, self.current_host, self.port)
 
     def stop(self):
@@ -326,6 +355,18 @@ class Rabit(object):
             collective.finalize()
         except Exception as e:
             self.logger.debug("Collective finalize failed: {}".format(e))
+
+        self._cleanup_tracker()
+
+    def _cleanup_tracker(self):
+        """Clean up tracker safely."""
+        if hasattr(self, "tracker") and self.tracker is not None:
+            try:
+                self.tracker.free()
+            except Exception as e:
+                self.logger.debug("Tracker cleanup failed: {}".format(e))
+            finally:
+                self.tracker = None
 
     def __enter__(self):
         return self.start()
