@@ -24,6 +24,8 @@ import os
 from retrying import retry
 from xgboost import collective
 
+from sagemaker_xgboost_container.dmlc_patch import tracker
+
 LOCAL_HOSTNAME = "127.0.0.1"
 
 
@@ -264,6 +266,76 @@ class Rabit(object):
         self.connect_retry_timeout = connect_retry_timeout
 
     def start(self):
+        """Start the rabit process.
+
+        If current host is master host, initialize and start the Rabit Tracker in the background. All hosts then connect
+        to the master host to set up Rabit rank.
+
+        :return: Initialized RabitHelper, which includes helpful information such as is_master and port
+        """
+        self.rabit_context = None
+        if self.is_master_host:
+            self.logger.debug("Master host. Starting Rabit Tracker.")
+            # The Rabit Tracker is a Python script that is responsible for
+            # allowing each instance of rabit to find its peers and organize
+            # itself in to a ring for all-reduce. It supports primitive failure
+            # recovery modes.
+            #
+            # It runs on a master node that each of the individual Rabit instances
+            # talk to.
+            self.rabit_context = tracker.RabitTracker(
+                hostIP=self.current_host, nslave=self.n_workers, port=self.port, port_end=self.port + 1
+            )
+
+            # Useful logging to ensure that the tracker has started.
+            # These are the key-value config pairs that each of the rabit slaves
+            # should be initialized with. Since we have deterministically allocated
+            # the master host, its port, and the number of workers, we don't need
+            # to pass these out-of-band to each slave; but rely on the fact
+            # that each slave will calculate the exact same config as the server.
+            #
+            # TODO: should probably check that these match up what we pass below.
+            self.logger.info("Rabit slave environment: {}".format(self.rabit_context.slave_envs()))
+
+            # This actually starts the RabitTracker in a background/daemon thread
+            # that will automatically exit when the main process has finished.
+            self.rabit_context.start(self.n_workers)
+
+        # Start each parameter server that connects to the master.
+        self.logger.debug("Starting parameter server.")
+
+        # Rabit runs as an in-process singleton library that can be configured once.
+        # Calling this multiple times will cause a seg-fault (without calling finalize).
+        # We pass it the environment variables that match up with the RabitTracker
+        # so that this instance can discover its peers (and recover from failure).
+        #
+        # First we check that the RabitTracker is up and running. Rabit actually
+        # breaks (at least on Mac OS X) if the server is not running before it
+        # begins to try to connect (its internal retries fail because they reuse
+        # the same socket instead of creating a new one).
+        #
+        # if self.max_connect_attempts is None, this will loop indefinitely.
+        attempt = 0
+        successful_connection = False
+        while not successful_connection and (self.max_connect_attempts is None or attempt < self.max_connect_attempts):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    self.logger.debug("Checking if RabitTracker is available.")
+                    s.connect((self.master_host, self.port))
+                    successful_connection = True
+                    self.logger.debug("Successfully connected to RabitTracker.")
+                except OSError:
+                    self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
+                    attempt += 1
+                    self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
+                    time.sleep(self.connect_retry_timeout)
+
+        if not successful_connection:
+            self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
+            raise Exception("Failed to connect to Rabit Tracker")
+        else:
+            self.logger.info("Connected to RabitTracker.")
+
         """Start the collective process.
 
         Initialize XGBoost collective for distributed training.
@@ -319,6 +391,8 @@ class Rabit(object):
 
         try:
             collective.finalize()
+            if self.is_master_host:
+                self.rabit_context.join()
         except Exception as e:
             self.logger.debug("Collective finalize failed: {}".format(e))
 
