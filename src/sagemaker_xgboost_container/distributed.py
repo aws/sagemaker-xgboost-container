@@ -22,6 +22,7 @@ import json
 import os
 
 from retrying import retry
+from xgboost.tracker import RabitTracker
 from xgboost import collective
 
 LOCAL_HOSTNAME = "127.0.0.1"
@@ -284,18 +285,20 @@ class Rabit(object):
             return RabitHelper(True, self.current_host, self.port)
 
         try:
+            # Launch tracker on master, register on workers
+            if self.current_host == self.master_host:
+                self.tracker = RabitTracker(host_ip=self.master_host, n_workers=self.n_workers, port=self.port)
+                self.tracker.start()
+                self.tracker.wait_for(self.connect_retry_timeout)
+
+            # Initialize collective for synchronization
             collective.init()
-            self.logger.debug("Collective started - Rank {}".format(collective.get_rank()))
-        except Exception as e:
-            self.logger.warning("Collective init failed: {}, falling back to single node".format(e))
-            return RabitHelper(True, self.current_host, self.port)
 
-        # Use hostname-based master selection instead of buggy collective rank
-        # Both hosts incorrectly get rank 0, so we can't trust collective.get_rank()
-        is_master = self.current_host == self.master_host
+            # Use hostname-based master selection instead of buggy collective rank
+            # Both hosts incorrectly get rank 0, so we can't trust collective.get_rank()
+            is_master = self.current_host == self.master_host
 
-        # Debug logging
-        try:
+            # Debug logging
             rank = collective.get_rank()
             self.logger.info(
                 f"MASTER_DEBUG_FIXED: Ignoring collective rank {rank}. \
@@ -307,8 +310,9 @@ class Rabit(object):
                 Using hostname logic: current_host={self.current_host}, \
                 master_host={self.master_host}, is_master={is_master}"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.warning("Collective init failed: {}, falling back to single node".format(e))
+            return RabitHelper(True, self.current_host, self.port)
 
         self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
         print(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
