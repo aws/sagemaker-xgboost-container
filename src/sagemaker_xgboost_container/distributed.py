@@ -299,6 +299,7 @@ class Rabit(object):
                 thread = Thread(target=self.tracker.wait_for)
                 thread.daemon = True
                 thread.start()
+                self.logger.info(f"RabitTracker worker_args: {self.tracker.worker_args()}")
 
             attempt = 0
             successful_connection = False
