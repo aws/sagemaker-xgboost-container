@@ -287,7 +287,7 @@ class Rabit(object):
             collective.init(
                 dmlc_tracker_uri=self.master_host,
                 dmlc_tracker_port=self.port,
-                dmlc_task_id=self.hosts.index(self.current_host),
+                dmlc_task_id=str(self.hosts.index(self.current_host)),
                 dmlc_retry=self.max_connect_attempts,
                 dmlc_timeout=self.connect_retry_timeout,
             )
