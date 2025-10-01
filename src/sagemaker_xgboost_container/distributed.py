@@ -290,7 +290,9 @@ class Rabit(object):
         try:
             # Launch tracker on master only
             if self.is_master_host:
-                self.tracker = RabitTracker(host_ip="0.0.0.0", n_workers=self.n_workers, port=self.port, sortby="task")
+                self.tracker = RabitTracker(
+                    host_ip=self.master_host, n_workers=self.n_workers, port=self.port, sortby="task"
+                )
                 self.tracker.start()
                 self.logger.info("RabitTracker start listen on %s:%d", self.current_host, self.port)
 
