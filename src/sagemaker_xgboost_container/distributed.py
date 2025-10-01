@@ -283,33 +283,14 @@ class Rabit(object):
             os.environ["DMLC_TRACKER_PORT"] = str(self.port)
             os.environ["DMLC_TASK_ID"] = str(self.hosts.index(self.current_host))
 
-            # Wait for RabitTracker to be available before initializing collective
-            if not self.is_master_host:
-                attempt = 0
-                successful_connection = False
-                while not successful_connection and (
-                    self.max_connect_attempts is None or attempt < self.max_connect_attempts
-                ):
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        try:
-                            self.logger.debug("Checking if RabitTracker is available.")
-                            s.connect((self.master_host, self.port))
-                            successful_connection = True
-                            self.logger.debug("Successfully connected to RabitTracker.")
-                        except OSError:
-                            self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
-                            attempt += 1
-                            self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
-                            time.sleep(self.connect_retry_timeout)
-
-                if not successful_connection:
-                    self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
-                    raise Exception("Failed to connect to Rabit Tracker")
-                else:
-                    self.logger.info("Connected to RabitTracker.")
-
             # Initialize collective for synchronization
-            collective.init()
+            collective.init(
+                dmlc_tracker_uri=self.master_host,
+                dmlc_tracker_port=self.port,
+                dmlc_task_id=self.hosts.index(self.current_host),
+                dmlc_retry=self.max_connect_attempts,
+                dmlc_timeout=self.connect_retry_timeout,
+            )
 
             self.logger.info(
                 f"MASTER_DEBUG_FIXED: Using hostname logic: \
