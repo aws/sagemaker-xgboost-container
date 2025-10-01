@@ -289,9 +289,11 @@ class Rabit(object):
         try:
             # Launch tracker on master only
             if self.is_master_host:
-                self.tracker = RabitTracker(host_ip="0.0.0.0", n_workers=self.n_workers, port=self.port, sortby="task")
+                self.tracker = RabitTracker(
+                    host_ip=self.current_host, n_workers=self.n_workers, port=self.port, sortby="task"
+                )
                 self.tracker.start()
-                self.logger.info("RabitTracker started")
+                self.logger.info("RabitTracker start listen on %s:%d", self.current_host, self.port)
 
                 thread = Thread(target=self.tracker.wait_for)
                 thread.daemon = True
@@ -299,7 +301,7 @@ class Rabit(object):
 
             # Set environment variables for collective
             os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
-            os.environ["DMLC_TRACKER_URI"] = get_host_ip(self.master_host)
+            os.environ["DMLC_TRACKER_URI"] = self.master_host
             os.environ["DMLC_TRACKER_PORT"] = str(self.port)
             os.environ["DMLC_TASK_ID"] = str(self.hosts.index(self.current_host))
 
