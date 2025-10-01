@@ -44,6 +44,28 @@ def wait_hostname_resolution(sm_hosts):
         _dns_lookup(host)
 
 
+def get_host_ip(hostIP=None):
+    if hostIP is None or hostIP == "auto":
+        hostIP = "ip"
+
+    if hostIP == "dns":
+        hostIP = socket.getfqdn()
+    elif hostIP == "ip":
+        from socket import gaierror
+
+        try:
+            hostIP = socket.gethostbyname(socket.getfqdn())
+        except gaierror:
+            logger.warn("gethostbyname(socket.getfqdn()) failed... trying on hostname()")
+            hostIP = socket.gethostbyname(socket.gethostname())
+        if hostIP.startswith("127."):
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # doesn't have to be reachable
+            s.connect(("10.255.255.255", 1))
+            hostIP = s.getsockname()[0]
+    return hostIP
+
+
 def rabit_run(
     exec_fun,
     args,
@@ -268,7 +290,7 @@ class Rabit(object):
             # Launch tracker on master only
             if self.is_master_host:
                 self.tracker = RabitTracker(
-                    host_ip=self.master_host, n_workers=self.n_workers, port=self.port, sortby="task"
+                    host_ip=get_host_ip(self.master_host), n_workers=self.n_workers, port=self.port, sortby="task"
                 )
                 self.tracker.start()
                 self.logger.info("RabitTracker started")
@@ -279,7 +301,7 @@ class Rabit(object):
 
             # Set environment variables for collective
             os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
-            os.environ["DMLC_TRACKER_URI"] = self.master_host
+            os.environ["DMLC_TRACKER_URI"] = get_host_ip(self.master_host)
             os.environ["DMLC_TRACKER_PORT"] = str(self.port)
             os.environ["DMLC_TASK_ID"] = str(self.hosts.index(self.current_host))
 
