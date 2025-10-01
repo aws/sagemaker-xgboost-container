@@ -20,7 +20,7 @@ import socket
 import sys
 import json
 import os
-import time
+from threading import Thread
 
 from retrying import retry
 from xgboost.tracker import RabitTracker
@@ -273,9 +273,9 @@ class Rabit(object):
                 self.tracker.start()
                 self.logger.info("RabitTracker started")
 
-                with collective.CommunicatorContext(**self.tracker.worker_args()):
-                    ret = collective.broadcast("msg", 0)
-                    assert str(ret) == "msg", f"Expected msg is returned"
+                thread = Thread(target=self.tracker.wait_for)
+                thread.daemon = True
+                thread.start()
 
             # Set environment variables for collective
             os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
