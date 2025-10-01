@@ -147,12 +147,12 @@ class RabitHelper(object):
         """
         import time
 
-        self._is_master = is_master  # Store hostname-based master determination
+        self.is_master = is_master  # Store hostname-based master determination
         self.current_host = current_host
         self.master_port = master_port
         self._id = int(time.time() * 1000000) % 1000000  # Unique ID for debugging
         logging.info(
-            f"RABIT_HELPER_INIT: Created RabitHelper {self._id} with is_master={is_master} for host={current_host}"
+            f"RABIT_HELPER_INIT: Created RabitHelper {self._id} with is_master={self.is_master} for host={current_host}"
         )
 
         try:
@@ -162,21 +162,6 @@ class RabitHelper(object):
             logging.error("collective init failed", exc_info=True)
             self.rank = 0
             self.world_size = 1
-
-    @property
-    def is_master(self):
-        """Return hostname-based master determination, ignoring collective rank."""
-        logging.info(
-            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} \
-                returning is_master={self._is_master} \
-                    for host={self.current_host}"
-        )
-        print(
-            f"RABIT_HELPER_DEBUG: RabitHelper {self._id} \
-                returning is_master={self._is_master} \
-                    for host={self.current_host}"
-        )
-        return self._is_master
 
     def synchronize(self, data):
         """Synchronize data with the cluster.
@@ -338,14 +323,14 @@ class Rabit(object):
                 f"MASTER_DEBUG_FIXED: Using hostname logic: \
                     current_host={self.current_host}, \
                         master_host={self.master_host}, \
-                            is_master={is_master}"
+                            is_master={self.is_master_host}"
             )
         except Exception as e:
             self.logger.warning("Collective init failed: {}, " "falling back to single node".format(e))
             self._cleanup_tracker()
             return RabitHelper(True, self.current_host, self.port)
 
-        self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
+        self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={self.is_master_host}")
         return RabitHelper(self.is_master_host, self.current_host, self.port)
 
     def stop(self):
