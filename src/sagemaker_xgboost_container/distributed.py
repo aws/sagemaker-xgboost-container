@@ -281,7 +281,7 @@ class Rabit(object):
 
         try:
             # Launch tracker on master only
-            if self.current_host == self.master_host:
+            if self.is_master_host:
                 self.tracker = RabitTracker(
                     host_ip=self.master_host, n_workers=self.n_workers, port=self.port, sortby="task"
                 )
@@ -334,9 +334,6 @@ class Rabit(object):
             # # Initialize collective for synchronization
             collective.init()
 
-            # Use hostname-based master selection
-            is_master = self.current_host == self.master_host
-
             self.logger.info(
                 f"MASTER_DEBUG_FIXED: Using hostname logic: \
                     current_host={self.current_host}, \
@@ -349,7 +346,7 @@ class Rabit(object):
             return RabitHelper(True, self.current_host, self.port)
 
         self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={is_master}")
-        return RabitHelper(is_master, self.current_host, self.port)
+        return RabitHelper(self.is_master_host, self.current_host, self.port)
 
     def stop(self):
         """Shutdown collective communication."""
@@ -364,7 +361,7 @@ class Rabit(object):
 
     def _cleanup_tracker(self):
         """Clean up tracker safely."""
-        if hasattr(self, "tracker") and self.tracker is not None:
+        if self.tracker is not None:
             try:
                 self.tracker.free()
             except Exception as e:
@@ -373,7 +370,7 @@ class Rabit(object):
                 self.tracker = None
 
     def __enter__(self):
-        return self.start()
+        self.start()
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        return self.stop()
+        self.stop()
