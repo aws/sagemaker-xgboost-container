@@ -75,7 +75,7 @@ def rabit_run(
     first_port=None,
     second_port=None,
     max_connect_attempts=None,
-    connect_retry_timeout=3,
+    connect_retry_timeout=300,
     update_rabit_args=False,
 ):
     """Run execution function after initializing dmlc/rabit.
