@@ -271,10 +271,11 @@ class Rabit(object):
                     host_ip=self.master_host, n_workers=self.n_workers, port=self.port, sortby="task"
                 )
                 self.tracker.start()
+                self.logger.info("RabitTracker started")
 
                 with collective.CommunicatorContext(**self.tracker.worker_args()):
                     ret = collective.broadcast("msg", 0)
-                    assert str(ret) == "msg"
+                    assert str(ret) == "msg", f"Expected msg is returned"
 
             # Set environment variables for collective
             os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
@@ -282,41 +283,32 @@ class Rabit(object):
             os.environ["DMLC_TRACKER_PORT"] = str(self.port)
             os.environ["DMLC_TASK_ID"] = str(self.hosts.index(self.current_host))
 
-            # # Rabit runs as an in-process singleton library that can be configured once.
-            # # Calling this multiple times will cause a seg-fault (without calling finalize).
-            # # We pass it the environment variables that match up with the RabitTracker
-            # # so that this instance can discover its peers (and recover from failure).
-            # #
-            # # First we check that the RabitTracker is up and running. Rabit actually
-            # # breaks (at least on Mac OS X) if the server is not running before it
-            # # begins to try to connect (its internal retries fail because they reuse
-            # # the same socket instead of creating a new one).
-            # #
-            # # if self.max_connect_attempts is None, this will loop indefinitely.
-            # attempt = 0
-            # successful_connection = False
-            # while not successful_connection and (
-            #     self.max_connect_attempts is None or attempt < self.max_connect_attempts
-            # ):
-            #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            #         try:
-            #             self.logger.debug("Checking if RabitTracker is available.")
-            #             s.connect((self.master_host, self.port))
-            #             successful_connection = True
-            #             self.logger.debug("Successfully connected to RabitTracker.")
-            #         except OSError:
-            #             self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
-            #             attempt += 1
-            #             self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
-            #             time.sleep(self.connect_retry_timeout)
+            # Wait for RabitTracker to be available before initializing collective
+            if not self.is_master_host:
+                attempt = 0
+                successful_connection = False
+                while not successful_connection and (
+                    self.max_connect_attempts is None or attempt < self.max_connect_attempts
+                ):
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        try:
+                            self.logger.debug("Checking if RabitTracker is available.")
+                            s.connect((self.master_host, self.port))
+                            successful_connection = True
+                            self.logger.debug("Successfully connected to RabitTracker.")
+                        except OSError:
+                            self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
+                            attempt += 1
+                            self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
+                            time.sleep(self.connect_retry_timeout)
 
-            # if not successful_connection:
-            #     self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
-            #     raise Exception("Failed to connect to Rabit Tracker")
-            # else:
-            #     self.logger.info("Connected to RabitTracker.")
+                if not successful_connection:
+                    self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
+                    raise Exception("Failed to connect to Rabit Tracker")
+                else:
+                    self.logger.info("Connected to RabitTracker.")
 
-            # # Initialize collective for synchronization
+            # Initialize collective for synchronization
             collective.init()
 
             self.logger.info(
@@ -355,7 +347,7 @@ class Rabit(object):
                 self.tracker = None
 
     def __enter__(self):
-        self.start()
+        return self.start()
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.stop()
