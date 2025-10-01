@@ -535,8 +535,6 @@ def create_docker_host(
     optml_volumes = ["/private" + v if v.startswith("/var") else v for v in optml_volumes]
     optml_volumes.extend(volumes)
 
-    networks = ["xgboost_network"]
-
     host_config = {
         "image": image,
         "stdin_open": True,
@@ -544,7 +542,6 @@ def create_docker_host(
         "volumes": optml_volumes,
         "environment": environment,
         "command": command,
-        "networks": networks,
     }
 
     if entrypoint:
