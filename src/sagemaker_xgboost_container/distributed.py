@@ -301,28 +301,28 @@ class Rabit(object):
                 thread.start()
                 self.logger.info(f"RabitTracker worker_args: {self.tracker.worker_args()}")
 
-            attempt = 0
-            successful_connection = False
-            while not successful_connection and (
-                self.max_connect_attempts is None or attempt < self.max_connect_attempts
-            ):
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    try:
-                        self.logger.debug("Checking if RabitTracker is available.")
-                        s.connect((self.master_host, self.port))
-                        successful_connection = True
-                        self.logger.debug("Successfully connected to RabitTracker.")
-                    except OSError:
-                        self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
-                        attempt += 1
-                        self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
-                        time.sleep(self.connect_retry_timeout)
+            # attempt = 0
+            # successful_connection = False
+            # while not successful_connection and (
+            #     self.max_connect_attempts is None or attempt < self.max_connect_attempts
+            # ):
+            #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            #         try:
+            #             self.logger.debug("Checking if RabitTracker is available.")
+            #             s.connect((self.master_host, self.port))
+            #             successful_connection = True
+            #             self.logger.debug("Successfully connected to RabitTracker.")
+            #         except OSError:
+            #             self.logger.info("Failed to connect to RabitTracker on attempt {}".format(attempt))
+            #             attempt += 1
+            #             self.logger.info("Sleeping for {} sec before retrying".format(self.connect_retry_timeout))
+            #             time.sleep(self.connect_retry_timeout)
 
-            if not successful_connection:
-                self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
-                raise Exception("Failed to connect to Rabit Tracker")
-            else:
-                self.logger.info("Connected to RabitTracker.")
+            # if not successful_connection:
+            #     self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
+            #     raise Exception("Failed to connect to Rabit Tracker")
+            # else:
+            #     self.logger.info("Connected to RabitTracker.")
 
             # Set environment variables for collective
             os.environ["DMLC_NUM_WORKER"] = str(self.n_workers)
