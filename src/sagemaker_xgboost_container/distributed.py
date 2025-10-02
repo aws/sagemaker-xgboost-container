@@ -313,9 +313,9 @@ class Rabit(object):
                             is_master={self.is_master_host}"
             )
         except Exception as e:
-            self.logger.warning("Collective init failed: {}, " "falling back to single node".format(e))
+            self.logger.error("Collective init failed: {}, " "".format(e))
             self._cleanup_tracker()
-            return RabitHelper(True, self.current_host, self.port)
+            raise e
 
         self.logger.info(f"RABIT_START_DEBUG: Creating RabitHelper with is_master={self.is_master_host}")
         return RabitHelper(self.is_master_host, self.current_host, self.port)
