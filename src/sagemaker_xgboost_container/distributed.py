@@ -285,6 +285,11 @@ class Rabit(object):
             self.logger.debug("Single worker detected, skipping collective init")
             return RabitHelper(True, self.current_host, self.port)
 
+        import os
+
+        os.environ["DMLC_TRACKER_URI"] = str(_dns_lookup(self.master_host))
+        os.environ["DMLC_TRACKER_PORT"] = str(self.port)
+
         try:
             # Launch tracker on master only
             if self.is_master_host:
@@ -307,11 +312,6 @@ class Rabit(object):
                             is_master={self.is_master_host}, \
                                 port={self.port}"
             )
-
-            import os
-
-            os.environ["DMLC_TRACKER_URI"] = str(_dns_lookup(self.master_host))
-            os.environ["DMLC_TRACKER_PORT"] = str(self.port)
 
             # Initialize collective for synchronization
             collective.init(
