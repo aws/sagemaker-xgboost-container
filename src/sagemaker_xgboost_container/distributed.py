@@ -74,7 +74,7 @@ def rabit_run(
     first_port=None,
     second_port=None,
     max_connect_attempts=None,
-    connect_retry_timeout=300,
+    connect_retry_timeout=3,
     update_rabit_args=False,
 ):
     """Run execution function after initializing dmlc/rabit.
@@ -289,7 +289,7 @@ class Rabit(object):
             # Launch tracker on master only
             if self.is_master_host:
                 self.tracker = RabitTracker(
-                    host_ip=_dns_lookup(self.master_host), n_workers=self.n_workers, port=45689, sortby="task"
+                    host_ip=_dns_lookup(self.master_host), n_workers=self.n_workers, port=self.port, sortby="task"
                 )
                 self.tracker.start()
                 thread = Thread(target=self.tracker.wait_for)
@@ -297,16 +297,10 @@ class Rabit(object):
                 thread.start()
                 self.logger.info(f"RabitTracker worker_args: {self.tracker.worker_args()}")
 
-            # Set environment variables for collective
-            # os.environ["DMLC_NUM_WORKER"] = str(_dns_lookup(self.master_host))
-            # os.environ["DMLC_TRACKER_URI"] = self.master_host
-            # os.environ["DMLC_TRACKER_PORT"] = str(self.port)
-            # os.environ["DMLC_TASK_ID"] = str(self.hosts.index(self.current_host))
-
             # Initialize collective for synchronization
             collective.init(
                 dmlc_tracker_uri=_dns_lookup(self.master_host),
-                dmlc_tracker_port=45689,
+                dmlc_tracker_port=self.port,
                 dmlc_task_id=str(self.hosts.index(self.current_host)),
                 dmlc_retry=self.max_connect_attempts,
                 dmlc_timeout=self.connect_retry_timeout,
