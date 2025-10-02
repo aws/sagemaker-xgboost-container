@@ -300,6 +300,14 @@ class Rabit(object):
                 thread.start()
                 self.logger.info(f"RabitTracker worker_args: {self.tracker.worker_args()}")
 
+            self.logger.info(
+                f"MASTER_DEBUG_FIXED: Using hostname logic: \
+                    current_host={self.current_host}, \
+                        master_host={self.master_host}, \
+                            is_master={self.is_master_host}, \
+                                port={self.port}"
+            )
+
             # Initialize collective for synchronization
             collective.init(
                 dmlc_tracker_uri=str(_dns_lookup(self.master_host)),
@@ -309,12 +317,6 @@ class Rabit(object):
                 dmlc_timeout=self.connect_retry_timeout,
             )
 
-            self.logger.info(
-                f"MASTER_DEBUG_FIXED: Using hostname logic: \
-                    current_host={self.current_host}, \
-                        master_host={self.master_host}, \
-                            is_master={self.is_master_host}"
-            )
         except Exception as e:
             self.logger.error("Collective init failed: {}, " "".format(e))
             self._cleanup_tracker()

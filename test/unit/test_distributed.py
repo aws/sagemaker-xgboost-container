@@ -74,6 +74,7 @@ def test_integration_rabit_synchronize():
     q = Queue()
 
     port, _ = find_two_open_ports()
+    print(f"test_integration_rabit_synchronize, port={port}")
 
     host_count = 5
     host_list = range(host_count)
