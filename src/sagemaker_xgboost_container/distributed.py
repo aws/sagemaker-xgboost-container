@@ -289,7 +289,10 @@ class Rabit(object):
             # Launch tracker on master only
             if self.is_master_host:
                 self.tracker = RabitTracker(
-                    host_ip=_dns_lookup(self.master_host), n_workers=self.n_workers, port=self.port, sortby="task"
+                    host_ip=str(_dns_lookup(self.master_host)),
+                    n_workers=int(self.n_workers),
+                    port=int(self.port),
+                    sortby="task",
                 )
                 self.tracker.start()
                 thread = Thread(target=self.tracker.wait_for)
@@ -299,8 +302,8 @@ class Rabit(object):
 
             # Initialize collective for synchronization
             collective.init(
-                dmlc_tracker_uri=_dns_lookup(self.master_host),
-                dmlc_tracker_port=self.port,
+                dmlc_tracker_uri=str(_dns_lookup(self.master_host)),
+                dmlc_tracker_port=int(self.port),
                 dmlc_task_id=str(self.hosts.index(self.current_host)),
                 dmlc_retry=self.max_connect_attempts,
                 dmlc_timeout=self.connect_retry_timeout,
