@@ -19,7 +19,6 @@ import logging
 import socket
 import sys
 import json
-import os
 
 from threading import Thread
 from retrying import retry
