@@ -308,6 +308,11 @@ class Rabit(object):
                                 port={self.port}"
             )
 
+            import os
+
+            os.environ["DMLC_TRACKER_URI"] = str(_dns_lookup(self.master_host))
+            os.environ["DMLC_TRACKER_PORT"] = str(self.port)
+
             # Initialize collective for synchronization
             collective.init(
                 dmlc_tracker_uri=str(_dns_lookup(self.master_host)),
