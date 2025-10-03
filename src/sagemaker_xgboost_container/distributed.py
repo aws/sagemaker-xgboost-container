@@ -124,6 +124,13 @@ def rabit_run(
         # with the previous rabit configuration
         logging.info(f"SECOND_RABIT_DEBUG: hosts_with_data={hosts_with_data}, current_host={current_host}")
 
+        # Ensure collective is finalized before second initialization
+        try:
+            collective.finalize()
+        except Exception as e:
+            logging.error("First RabitTracker collective clean up failed", exc_info=True)
+            raise e
+
         with Rabit(
             hosts=hosts_with_data,
             current_host=current_host,
