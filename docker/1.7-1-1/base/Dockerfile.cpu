@@ -1,0 +1,197 @@
+ARG UBUNTU_VERSION=20.04
+ARG CUDA_VERSION=11.6.1
+ARG IMAGE_DIGEST=c2d95c9c6ff77da41cf0f2f9e8c5088f5b4db20c16a7566b808762f05b9032ef
+
+# Build stage for SQLite compilation
+FROM ubuntu:${UBUNTU_VERSION} as sqlite-builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        wget \
+        ca-certificates \
+        && \
+    cd /tmp && \
+    wget https://www.sqlite.org/2025/sqlite-autoconf-3500200.tar.gz && \
+    tar xzf sqlite-autoconf-3500200.tar.gz && \
+    cd sqlite-autoconf-3500200 && \
+    ./configure --prefix=/usr/local && \
+    make && \
+    make install && \
+    ldconfig && \
+    cd / && \
+    rm -rf /tmp/sqlite-autoconf-3500200 /tmp/sqlite-autoconf-3500200.tar.gz && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Main image
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}@sha256:${IMAGE_DIGEST}
+
+ARG MINICONDA_VERSION=24.7.1
+ARG CONDA_CHECKSUM=684cda724bc37e3bbbb342e440fc4cac515c92e91a489eb4359feca35382894b
+ARG CONDA_PY_VERSION=310
+ARG CONDA_PKG_VERSION=24.7.1
+ARG PYTHON_VERSION=3.10
+ARG PYARROW_VERSION=14.0.1
+ARG MLIO_VERSION=0.9.0
+ARG XGBOOST_VERSION=1.7.4
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# Python won’t try to write .pyc or .pyo files on the import of source modules
+# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING='utf-8'
+
+RUN apt-key del 7fa2af80 && \
+        apt-get update && apt-get install -y --no-install-recommends wget && \
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb && \
+        dpkg -i cuda-keyring_1.0-1_all.deb && \
+        apt-get update && \
+    apt-get -y upgrade && \
+    apt-get -y install --no-install-recommends \
+        build-essential \
+        curl \
+        git \
+        jq \
+        libatlas-base-dev \
+        expat \
+        nginx \
+        openjdk-8-jdk-headless \
+        unzip \
+        wget \
+        apparmor \
+        linux-libc-dev \
+        libxml2 \
+        libgstreamer1.0-0 \
+        linux-libc-dev \
+        && \
+    # MLIO build dependencies
+    # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
+    # Kitware contains the latest version of CMake.
+    wget http://es.archive.ubuntu.com/ubuntu/pool/main/libf/libffi/libffi7_3.3-4_amd64.deb && \
+    dpkg -i libffi7_3.3-4_amd64.deb && \
+    apt-get -y install --no-install-recommends \
+        apt-transport-https \
+        ca-certificates \
+        gnupg \
+        software-properties-common \
+        && \
+    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
+        gpg --dearmor - | \
+        tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null && \
+    echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ bionic main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
+    apt-get update && \
+    rm /usr/share/keyrings/kitware-archive-keyring.gpg && \
+    apt-get install -y --no-install-recommends \
+        autoconf \
+        automake \
+        build-essential \
+        cmake \
+        cmake-data \
+        doxygen \
+        kitware-archive-keyring \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        libtool \
+        ninja-build \
+        python3-dev \
+        python3-distutils \
+        python3-pip \
+        zlib1g-dev \
+        libxml2 \
+        zstd \
+        libsqlite3-0 \
+        && \
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install --upgrade certifi && \
+    apt-get clean && \
+    # Node.js setup
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | \
+        gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | \
+        tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install conda
+RUN cd /tmp && \
+    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-0-Linux-x86_64.sh && \
+    echo "${CONDA_CHECKSUM} /tmp/Miniconda3.sh" | sha256sum -c - && \
+    bash /tmp/Miniconda3.sh -bfp /miniconda3 && \
+    rm /tmp/Miniconda3.sh
+
+ENV PATH=/miniconda3/bin:${PATH}
+
+# Install MLIO with Apache Arrow integration
+
+# We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
+# which increases training time. We build from source to minimize the image size.
+RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
+    # Conda configuration see https://conda.io/projects/conda/en/latest/configuration.html
+    conda config --system --set auto_update_conda false && \
+    conda config --system --set show_channel_urls true && \
+    echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
+    conda install -c conda-forge python=${PYTHON_VERSION} --solver classic && \
+    pip install requests==2.27.0 && \
+    conda install conda=${CONDA_PKG_VERSION} --solver classic  && \
+    conda update -y conda && \
+    conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
+    cd /miniconda3/pkgs/libgrpc-*/info/test/examples/node && \
+    npm install minimist@latest protobufjs@latest && \
+    # Remove Node.js, npm, and their dependencies
+    apt-get purge -y nodejs npm && \
+    apt-get autoremove -y && \
+    # Final cleanup
+    rm -rf /etc/apt/sources.list.d/nodesource.list \
+           /etc/apt/keyrings/nodesource.gpg \
+           /etc/apt/sources.list.d/kitware.list && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Continue with the rest of the build process
+    cd /tmp && \
+    git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
+    cd mlio && \
+    build-tools/build-dependency build/third-party all && \
+    mkdir -p build/release && \
+    cd build/release && \
+    cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="$(pwd)/../third-party" ../.. && \
+    cmake --build . && \
+    cmake --build . --target install && \
+    cmake -DMLIO_INCLUDE_PYTHON_EXTENSION=ON -DPYTHON_EXECUTABLE="/miniconda3/bin/python3" \
+        -DMLIO_INCLUDE_ARROW_INTEGRATION=ON ../.. && \
+    cmake --build . --target mlio-py && \
+    cmake --build . --target mlio-arrow && \
+    cd ../../src/mlio-py && \
+    python3 setup.py bdist_wheel && \
+    python3 -m pip install typing && \
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install dist/*.whl && \
+    cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
+    ldconfig && \
+    rm -rf /tmp/mlio
+
+# Copy compiled SQLite from builder stage
+COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/sqlite3
+COPY --from=sqlite-builder /usr/local/lib/libsqlite3.* /usr/local/lib/
+COPY --from=sqlite-builder /usr/local/include/sqlite3*.h /usr/local/include/
+
+# Update library cache and ensure /usr/local/bin is in PATH
+RUN ldconfig && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/sqlite3.conf && \
+    ldconfig
+
+ENV PATH="/usr/local/bin:${PATH}"
+
+RUN echo "sqlite3 " 
+# This command will check the version and print it to the build logs
+RUN sqlite3 --version
+
+RUN apt list --installed
+
+# Install latest version of XGBoost
+RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION}
