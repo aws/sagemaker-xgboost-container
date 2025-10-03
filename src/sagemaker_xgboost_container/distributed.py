@@ -123,7 +123,7 @@ def rabit_run(
         # Set up rabit with nodes that have data and an unused port so that previous slaves don't confuse it
         # with the previous rabit configuration
         logging.info(f"SECOND_RABIT_DEBUG: hosts_with_data={hosts_with_data}, current_host={current_host}")
-        print(f"SECOND_RABIT_DEBUG: hosts_with_data={hosts_with_data}, current_host={current_host}")
+
         with Rabit(
             hosts=hosts_with_data,
             current_host=current_host,
@@ -136,11 +136,6 @@ def rabit_run(
                     f"RABIT_DEBUG: \
                              cluster.is_master={cluster.is_master}, \
                             current_host={current_host}"
-                )
-                print(
-                    f"RABIT_DEBUG: \
-                      cluster.is_master={cluster.is_master}, \
-                      current_host={current_host}"
                 )
 
                 args.update({"is_master": cluster.is_master})
@@ -284,11 +279,6 @@ class Rabit(object):
         if self.n_workers == 1:
             self.logger.debug("Single worker detected, skipping collective init")
             return RabitHelper(True, self.current_host, self.port)
-
-        import os
-
-        os.environ["DMLC_TRACKER_URI"] = str(_dns_lookup(self.master_host))
-        os.environ["DMLC_TRACKER_PORT"] = str(self.port)
 
         try:
             # Launch tracker on master only
