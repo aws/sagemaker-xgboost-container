@@ -74,7 +74,7 @@ def rabit_run(
     first_port=None,
     second_port=None,
     max_connect_attempts=None,
-    connect_retry_timeout=3,
+    connect_retry_timeout=10,
     update_rabit_args=False,
 ):
     """Run execution function after initializing dmlc/rabit.
@@ -324,9 +324,9 @@ class Rabit(object):
 
             if not successful_connection:
                 self.logger.error("Failed to connect to Rabit Tracker after %s attempts", self.max_connect_attempts)
-                raise Exception("Failed to connect to Rabit Tracker")
+                raise Exception(f"Failed to connect to Rabit Tracker, current_host={self.current_host}")
             else:
-                self.logger.info("Connected to RabitTracker.")
+                self.logger.info(f"Connected to RabitTracker, current_host={self.current_host}")
 
             # Initialize collective for synchronization
             collective.init(
@@ -338,7 +338,7 @@ class Rabit(object):
             )
 
         except Exception as e:
-            self.logger.error("Collective init failed: {}, " "".format(e))
+            self.logger.error(f"{self.current_host} collective init failed", exc_info=True)
             self._cleanup_tracker()
             raise e
 
@@ -347,12 +347,12 @@ class Rabit(object):
 
     def stop(self):
         """Shutdown collective communication."""
-        self.logger.info("Shutting down collective.")
+        self.logger.info(f"Shutting down collective, current_host={self.current_host}")
 
         try:
             collective.finalize()
         except Exception as e:
-            self.logger.error("Collective finalize failed: {}".format(e))
+            self.logger.error(f"{self.current_host} collective finalize failed", exc_info=True)
 
         self._cleanup_tracker()
 
