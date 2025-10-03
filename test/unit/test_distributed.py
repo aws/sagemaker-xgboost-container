@@ -151,7 +151,7 @@ def test_rabit_delay_master():
 
     for idx in host_list:
         p = Process(
-            target=rabit_run_delay_master, args=(host_count, True, first_port, second_port, idx == 0, idx, q, None)
+            target=rabit_run_delay_master, args=(host_count, True, first_port, second_port, idx == 0, idx, q, 3)
         )
         p.start()
 
