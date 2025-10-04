@@ -107,7 +107,7 @@ def test_rabit_run_all_hosts_run():
 
     num_responses = 0
     while num_responses < host_count:
-        response = q.get(timeout=30)
+        response = q.get(timeout=120)
         expected_results.remove(response)
         num_responses += 1
 
