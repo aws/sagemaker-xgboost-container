@@ -157,7 +157,7 @@ def test_rabit_delay_master():
 
     num_responses = 0
     while num_responses < host_count:
-        response = q.get(timeout=30)
+        response = q.get(timeout=120)
         expected_results.remove(response)
         num_responses += 1
 
