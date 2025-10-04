@@ -352,7 +352,7 @@ class Rabit(object):
 
         try:
             collective.finalize()
-        except Exception as e:
+        except Exception:
             self.logger.error(f"{self.current_host} collective finalize failed", exc_info=True)
 
         # Wait for tracker thread to finish
