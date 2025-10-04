@@ -290,9 +290,9 @@ class Rabit(object):
                     sortby="task",
                 )
                 self.tracker.start()
-                thread = Thread(target=self.tracker.wait_for)
-                thread.daemon = True
-                thread.start()
+                self.tracker_thread = Thread(target=self.tracker.wait_for)
+                self.tracker_thread.daemon = True
+                self.tracker_thread.start()
                 self.logger.info(f"RabitTracker worker_args: {self.tracker.worker_args()}")
 
             self.logger.info(
@@ -354,6 +354,15 @@ class Rabit(object):
         except Exception as e:
             self.logger.error(f"{self.current_host} collective finalize failed", exc_info=True)
 
+        # Wait for tracker thread to finish
+        if self.tracker_thread is not None:
+            try:
+                self.tracker_thread.join(timeout=1.0)
+            except Exception as e:
+                self.logger.debug("Tracker thread join failed: {}".format(e))
+            finally:
+                self.tracker_thread = None
+
         self._cleanup_tracker()
 
     def _cleanup_tracker(self):
@@ -370,5 +379,4 @@ class Rabit(object):
         return self.start()
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-
         self.stop()
