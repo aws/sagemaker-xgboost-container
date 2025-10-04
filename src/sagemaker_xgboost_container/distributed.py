@@ -274,6 +274,7 @@ class Rabit(object):
         """
         self.logger.debug("Starting collective communication.")
         self.tracker = None
+        self.tracker_thread = None
 
         # For single node, skip collective initialization
         if self.n_workers == 1:
