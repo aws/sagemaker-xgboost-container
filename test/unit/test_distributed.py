@@ -32,7 +32,7 @@ def synchronize_fn(host_count, port, master, idx, q):
 
 
 def rabit_run_fn(
-    host_count, is_run, first_port, second_port, master, idx, q, max_connect_attempts=None, connect_retry_timeout=15
+    host_count, is_run, first_port, second_port, master, idx, q, max_connect_attempts=None, connect_retry_timeout=60
 ):
     hosts = ["127.0.0.1"] + ["localhost" for _ in range(host_count - 1)]
     current_host = "127.0.0.1" if master else "localhost"
