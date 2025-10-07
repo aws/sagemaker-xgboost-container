@@ -43,28 +43,6 @@ def wait_hostname_resolution(sm_hosts):
         _dns_lookup(host)
 
 
-def get_host_ip(hostIP=None):
-    if hostIP is None or hostIP == "auto":
-        hostIP = "ip"
-
-    if hostIP == "dns":
-        hostIP = socket.getfqdn()
-    elif hostIP == "ip":
-        from socket import gaierror
-
-        try:
-            hostIP = socket.gethostbyname(socket.getfqdn())
-        except gaierror:
-            logging.warn("gethostbyname(socket.getfqdn()) failed... trying on hostname()")
-            hostIP = socket.gethostbyname(socket.gethostname())
-        if hostIP.startswith("127."):
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # doesn't have to be reachable
-            s.connect(("10.255.255.255", 1))
-            hostIP = s.getsockname()[0]
-    return hostIP
-
-
 def rabit_run(
     exec_fun,
     args,
@@ -74,7 +52,9 @@ def rabit_run(
     first_port=None,
     second_port=None,
     max_connect_attempts=None,
-    connect_retry_timeout=10,
+    # TEST LN
+    # connect_retry_timeout=10,
+    connect_retry_timeout=3,
     update_rabit_args=False,
 ):
     """Run execution function after initializing dmlc/rabit.
