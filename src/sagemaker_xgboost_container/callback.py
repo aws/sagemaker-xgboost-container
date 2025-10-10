@@ -82,7 +82,7 @@ def get_callbacks(
 
     if checkpoint_dir and is_master:
         save_checkpoint = xgb.callback.TrainingCheckPoint(
-            directory=checkpoint_dir, iterations=iteration, name=checkpointing.CHECKPOINT_FILENAME
+            directory=checkpoint_dir, interval=iteration, name=checkpointing.CHECKPOINT_FILENAME
         )
         callbacks.append(save_checkpoint)
 
