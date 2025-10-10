@@ -164,8 +164,12 @@ def test_get_selected_content_keys_error():
     [
         (TEST_RAW_PREDICTIONS, TEST_KEYS_BINARY_LOG, serve_utils.BINARY_LOG, TEST_PREDICTIONS_BINARY_LOG),
         (TEST_RAW_PREDICTIONS_REG_LOG, TEST_KEYS_REG_LOG, serve_utils.REG_LOG, TEST_PREDICTIONS_REG_LOG),
-        (TEST_RAW_PREDICTIONS_REG_ABSOLUTEERR, TEST_KEYS_REG_ABSOLUTEERR, serve_utils.REG_ABSOLUTEERR,
-         TEST_PREDICTIONS_REG_ABSOLUTEERR),
+        (
+            TEST_RAW_PREDICTIONS_REG_ABSOLUTEERR,
+            TEST_KEYS_REG_ABSOLUTEERR,
+            serve_utils.REG_ABSOLUTEERR,
+            TEST_PREDICTIONS_REG_ABSOLUTEERR,
+        ),
     ],
 )
 def test_get_selected_predictions_all_keys(test_raw_predictions, selected_keys, objective, expected_predictions):

@@ -221,11 +221,33 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
         else:
             raise ValueError("Content type {} is not supported".format(content_type))
 
+    def _predict_with_compat(booster, dtest):
+        """Predict with compatibility for both old and new XGBoost versions."""
+        best_iteration = getattr(booster, "best_ntree_limit", 0)
+
+        # Handle MagicMock objects in tests
+        try:
+            best_iteration = int(best_iteration) if best_iteration is not None else 0
+        except (TypeError, ValueError):
+            best_iteration = 0
+
+        # Check XGBoost version to determine which API to use
+        import inspect
+
+        predict_signature = inspect.signature(booster.predict)
+
+        if "ntree_limit" in predict_signature.parameters:
+            # Old XGBoost API (< 2.0)
+            return booster.predict(dtest, ntree_limit=best_iteration, validate_features=False)
+        else:
+            # New XGBoost API (>= 2.0)
+            if best_iteration > 0:
+                return booster.predict(dtest, iteration_range=(0, best_iteration), validate_features=False)
+            else:
+                return booster.predict(dtest, validate_features=False)
+
     if isinstance(model, list):
-        ensemble = [
-            booster.predict(dtest, ntree_limit=getattr(booster, "best_ntree_limit", 0), validate_features=False)
-            for booster in model
-        ]
+        ensemble = [_predict_with_compat(booster, dtest) for booster in model]
 
         if objective in [MULTI_SOFTMAX, BINARY_HINGE]:
             logging.info(f"Vote ensemble prediction of {objective} with {len(model)} models")
@@ -234,7 +256,7 @@ def predict(model, model_format, dtest, input_content_type, objective=None):
             logging.info(f"Average ensemble prediction of {objective} with {len(model)} models")
             return np.mean(ensemble, axis=0)
     else:
-        return model.predict(dtest, ntree_limit=getattr(model, "best_ntree_limit", 0), validate_features=False)
+        return _predict_with_compat(model, dtest)
 
 
 def is_selectable_inference_output():

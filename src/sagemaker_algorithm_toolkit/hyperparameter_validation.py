@@ -374,8 +374,8 @@ class Interval(Range):
         return str(open_ if open_ is not None else closed if closed is not None else default)
 
     def format_as_integer(self):
-        max_neg_signed_int = -(2 ** 31)
-        max_signed_int = 2 ** 31 - 1
+        max_neg_signed_int = -(2**31)
+        max_signed_int = 2**31 - 1
         return (
             self._format_range_value(self.min_open, self.min_closed, max_neg_signed_int),
             self._format_range_value(self.max_open, self.max_closed, max_signed_int),

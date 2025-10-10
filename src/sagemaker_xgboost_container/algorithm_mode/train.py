@@ -267,6 +267,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     :param model_dir: Directory where model will be saved
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
+    logging.info(f"TRAIN_JOB_DEBUG: Received is_master={is_master}")
+    print(f"TRAIN_JOB_DEBUG: Received is_master={is_master}")
+
     # Parse arguments for train() API
     num_round = train_cfg.pop("num_round")
     # Parse arguments for intermediate model callback
@@ -321,7 +324,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 train_dmatrix,
                 num_boost_round=num_round - iteration,
                 evals=watchlist,
-                feval=configured_feval,
+                custom_metric=configured_feval,
                 callbacks=callbacks,
                 xgb_model=xgb_model,
                 verbose_eval=False,
@@ -386,7 +389,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                     cv_train_dmatrix,
                     num_boost_round=num_round - iteration,
                     evals=watchlist,
-                    feval=configured_feval,
+                    custom_metric=configured_feval,
                     evals_result=evals_result,
                     callbacks=callbacks,
                     xgb_model=xgb_model,
@@ -417,7 +420,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
+    logging.info(f"FINAL_MODEL_DEBUG: is_master={is_master}, model_dir={model_dir}")
+    print(f"FINAL_MODEL_DEBUG: is_master={is_master}, model_dir={model_dir}")
+
     if is_master:
+        logging.info("FINAL_MODEL_SAVE: Saving final model as master")
+        print("FINAL_MODEL_SAVE: Saving final model as master")
         if type(bst) is not list:
             model_location = os.path.join(model_dir, MODEL_NAME)
             bst.save_model(model_location)

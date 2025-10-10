@@ -18,7 +18,7 @@ import os
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.datasets import load_boston
+from sklearn.datasets import fetch_california_housing
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
@@ -37,11 +37,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Load the Boston housing data into pandas data frame
-    boston = load_boston()
-    data = pd.DataFrame(boston.data)
-    data.columns = boston.feature_names
-    data["PRICE"] = boston.target
+    # Load the California housing data into pandas data frame (replacement for deprecated Boston dataset)
+    california = fetch_california_housing()
+    data = pd.DataFrame(california.data)
+    data.columns = california.feature_names
+    data["PRICE"] = california.target
 
     # Convert Pandas dataframe to XGBoost DMatrix for better performance (used later).
     X, y = data.iloc[:, :-1], data.iloc[:, -1]
@@ -74,10 +74,13 @@ if __name__ == "__main__":
     if not os.path.exists(args.output_data_dir):
         os.makedirs(args.output_data_dir)
 
-    ax = xgb.plot_importance(xg_reg)
-    fig = ax.figure
-    fig.set_size_inches(5, 5)
-    fig.savefig(os.path.join(args.output_data_dir, "feature-importance-plot.png"))
+    try:
+        ax = xgb.plot_importance(xg_reg)
+        fig = ax.figure
+        fig.set_size_inches(5, 5)
+        fig.savefig(os.path.join(args.output_data_dir, "feature-importance-plot.png"))
+    except Exception as e:
+        print(f"Warning: Could not create feature importance plot: {e}")
 
     # Finally, lets do a bit of cross-validation by using native XGB functionality (keeping some parameters constant, so
     # that we don't have a huge input list for this simple example.

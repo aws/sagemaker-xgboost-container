@@ -40,8 +40,9 @@ class TestSaveCheckpoint(unittest.TestCase):
         iteration = 42
         end_iteration = 100
 
-        callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, rank=rank, iteration=iteration,
-                                          end_iteration=end_iteration)
+        callback = SaveCheckpointCallBack(
+            checkpoint_dir=self.test_dir, rank=rank, iteration=iteration, end_iteration=end_iteration
+        )
 
         callback(model)
 
@@ -57,8 +58,9 @@ class TestSaveCheckpoint(unittest.TestCase):
         rank = 0
         end_iteration = 100
 
-        callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, max_to_keep=3, rank=rank,
-                                          end_iteration=end_iteration)
+        callback = SaveCheckpointCallBack(
+            checkpoint_dir=self.test_dir, max_to_keep=3, rank=rank, end_iteration=end_iteration
+        )
 
         for iteration in range(end_iteration):
             callback(model)
@@ -110,8 +112,9 @@ class TestSaveCheckpoint(unittest.TestCase):
         rank = 0
         end_iteration = 100
 
-        callback = SaveCheckpointCallBack(checkpoint_dir=self.test_dir, max_to_keep=1, rank=rank,
-                                          end_iteration=end_iteration)
+        callback = SaveCheckpointCallBack(
+            checkpoint_dir=self.test_dir, max_to_keep=1, rank=rank, end_iteration=end_iteration
+        )
 
         # For iteration 0
         callback(model)
