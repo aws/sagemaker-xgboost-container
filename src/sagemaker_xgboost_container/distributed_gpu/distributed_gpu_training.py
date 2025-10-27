@@ -17,7 +17,7 @@ import socket
 import time
 from typing import Dict
 
-import xgboost as xgb
+import xgboost
 from dask.distributed import Client
 
 from sagemaker_algorithm_toolkit import exceptions as exc
@@ -47,14 +47,23 @@ WAIT_FOR_ALL_WORKERS_TIMEOUT_SEC = 20
 WORKER_STAY_ALIVE_CHECK_FREQ_SEC = 10
 SUPPORTED_TRAINING_CONTENT_TYPES = {CSV, PARQUET}
 
-NON_GPU_ERROR_MSG = "Dask training is only available for `gpu_hist` training on GPU instances."
-PIPE_MODE_ERROR_MSG = "Dask training is not supported for pipe mode input. Please use File mode."
+NON_GPU_ERROR_MSG = (
+    "Dask training is only available for `gpu_hist` training on GPU instances."
+)
+PIPE_MODE_ERROR_MSG = (
+    "Dask training is not supported for pipe mode input. Please use File mode."
+)
 INPUT_FORMAT_ERROR_MSG = "Dask training is only supported for CSV and Parquet input."
 NOT_REPLICATED_ERROR_MSG = "Dask distributed training requires FullyReplicated data."
 
 
 def validate_gpu_train_configuration(
-    tree_method_hp: str, num_hosts: int, num_gpus: int, input_mode: str, input_format: str, data_config: Dict
+    tree_method_hp: str,
+    num_hosts: int,
+    num_gpus: int,
+    input_mode: str,
+    input_format: str,
+    data_config: Dict,
 ) -> [str]:
     all_exceptions = []
     if tree_method_hp != GPU_TREE_METHOD or num_gpus == 0:
@@ -64,7 +73,10 @@ def validate_gpu_train_configuration(
     if input_format not in SUPPORTED_TRAINING_CONTENT_TYPES:
         all_exceptions.append(INPUT_FORMAT_ERROR_MSG)
     is_channels_not_replicated = any(
-        {channel.get(S3_DIST_TYPE, None) != Channel.REPLICATED for channel in data_config.values()}
+        {
+            channel.get(S3_DIST_TYPE, None) != Channel.REPLICATED
+            for channel in data_config.values()
+        }
     )
     # For single host replicated and sharded means the same thing.
     if is_channels_not_replicated and num_hosts > 1:
@@ -108,7 +120,9 @@ def run_training_with_dask(
 
             # Log train data dimension for sanity check.
             train_num_rows, train_num_cols = get_dataframe_dimensions(X_train)
-            logging.info(f"Train features matrix has {train_num_rows} rows and {train_num_cols} columns")
+            logging.info(
+                f"Train features matrix has {train_num_rows} rows and {train_num_cols} columns"
+            )
 
             watchlist.append((dtrain, "train"))
 
@@ -131,11 +145,17 @@ def run_training_with_dask(
             * Does allowing for cross validation outweigh overhead concerns between CPU & GPU?
             """
             num_round = hyperparameters.pop("num_round")
-            save_model_on_termination = hyperparameters.pop("save_model_on_termination", "false")
-            tuning_objective_metric_param = hyperparameters.pop("_tuning_objective_metric", None)
+            save_model_on_termination = hyperparameters.pop(
+                "save_model_on_termination", "false"
+            )
+            tuning_objective_metric_param = hyperparameters.pop(
+                "_tuning_objective_metric", None
+            )
             eval_metric = hyperparameters.pop("eval_metric", None)
-            cleaned_eval_metric, configured_feval, tuning_objective_metric = train_utils.get_eval_metrics_and_feval(
-                tuning_objective_metric_param, eval_metric
+            cleaned_eval_metric, configured_feval, tuning_objective_metric = (
+                train_utils.get_eval_metrics_and_feval(
+                    tuning_objective_metric_param, eval_metric
+                )
             )
             if cleaned_eval_metric:
                 hyperparameters["eval_metric"] = cleaned_eval_metric
@@ -161,7 +181,7 @@ def run_training_with_dask(
             )
 
             try:
-                output = xgb.dask.train(
+                output = xgboost.dask.train(
                     client=client,
                     params=hyperparameters,
                     dtrain=dtrain,
@@ -187,6 +207,8 @@ def run_training_with_dask(
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as alive_socket:
                 alive_check = alive_socket.connect_ex(scheduler)
                 if alive_check != 0:
-                    logging.info("Received a shutdown signal from scheduler. Exiting...")
+                    logging.info(
+                        "Received a shutdown signal from scheduler. Exiting..."
+                    )
                     break
             time.sleep(WORKER_STAY_ALIVE_CHECK_FREQ_SEC)
