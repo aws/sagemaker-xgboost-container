@@ -20,6 +20,8 @@ from typing import Dict
 import xgboost
 from dask.distributed import Client
 
+from xgboost.dask import train
+
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import S3_DIST_TYPE, Channel
 from sagemaker_xgboost_container.algorithm_mode import train_utils
@@ -181,7 +183,7 @@ def run_training_with_dask(
             )
 
             try:
-                output = xgboost.dask.train(
+                output = train(
                     client=client,
                     params=hyperparameters,
                     dtrain=dtrain,
