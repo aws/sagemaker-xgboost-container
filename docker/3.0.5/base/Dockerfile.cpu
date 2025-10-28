@@ -127,6 +127,10 @@ RUN cd /tmp && \
 
 ENV PATH=/miniconda3/bin:${PATH}
 
+
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
 # Install MLIO with Apache Arrow integration
 
 # We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
