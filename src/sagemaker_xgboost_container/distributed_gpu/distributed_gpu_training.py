@@ -17,10 +17,9 @@ import socket
 import time
 from typing import Dict
 
-import xgboost
 from dask.distributed import Client
 
-from xgboost.dask import train
+import xgboost.dask.train as train
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import S3_DIST_TYPE, Channel
