@@ -19,7 +19,7 @@ from typing import Dict
 
 from dask.distributed import Client
 
-import xgboost.dask.train as train
+from xgboost import dask as dxgb
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import S3_DIST_TYPE, Channel
@@ -182,7 +182,7 @@ def run_training_with_dask(
             )
 
             try:
-                output = train(
+                output = dxgb.train(
                     client=client,
                     params=hyperparameters,
                     dtrain=dtrain,
