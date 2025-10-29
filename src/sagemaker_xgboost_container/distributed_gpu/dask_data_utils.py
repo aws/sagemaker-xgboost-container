@@ -16,7 +16,7 @@ import os
 import dask.dataframe as dask_dataframe
 from dask.dataframe import DataFrame, Series
 from dask.distributed import Client
-from xgboost.dask import DaskDMatrix
+from xgboost import dask as dxgb
 
 from sagemaker_algorithm_toolkit.exceptions import AlgorithmError, UserError
 from sagemaker_xgboost_container.data_utils import CSV, PARQUET
@@ -51,9 +51,9 @@ def get_dataframe_dimensions(dataframe: DataFrame) -> (int, int):
 
 def create_dask_dmatrix(
     client: Client, features: DataFrame, labels: Series
-) -> DaskDMatrix:
+) -> dxgb.DaskDMatrix:
     try:
-        dmatrix = DaskDMatrix(client, features, labels)
+        dmatrix = dxgb.DaskDMatrix(client, features, labels)
     except Exception as e:
         raise AlgorithmError(
             f"Failed to create DaskDMatrix with given data. Exception: {e}"

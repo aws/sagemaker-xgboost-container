@@ -29,7 +29,11 @@ def start_daemons_in_current_instance(scheduler_address: str, is_scheduler_host:
     scheduler_cli_command = [SCHEDULER_EXEC_PATH, "--no-dashboard"]
     scheduler_conn_string = f"tcp://{scheduler_address}"
     # Dask cuda worker API doc: https://docs.rapids.ai/api/dask-cuda/nightly/api.html
-    worker_cli_command = [CUDA_WORKER_EXEC_PATH, scheduler_conn_string, "--no-dashboard"]
+    worker_cli_command = [
+        CUDA_WORKER_EXEC_PATH,
+        scheduler_conn_string,
+        "--no-dashboard",
+    ]
     if is_scheduler_host:
         Popen(scheduler_cli_command)
     try:
@@ -48,5 +52,7 @@ def get_host_ip(host_name: str) -> str:
         host_ip = socket.gethostbyname(host_name)
     except socket.gaierror as e:
         # This shouldn't have happened, and it's not the user's fault.
-        raise PlatformError(f"Failed hostname resolution for host '{host_name}', exception: {e}")
+        raise PlatformError(
+            f"Failed hostname resolution for host '{host_name}', exception: {e}"
+        )
     return host_ip

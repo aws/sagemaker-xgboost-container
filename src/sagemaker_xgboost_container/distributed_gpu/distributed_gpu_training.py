@@ -19,7 +19,7 @@ from typing import Dict
 
 from dask.distributed import Client
 
-import xgboost as xgb
+from xgboost import dask as dxgb
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_algorithm_toolkit.channel_validation import S3_DIST_TYPE, Channel
 from sagemaker_xgboost_container.algorithm_mode import train_utils
@@ -129,7 +129,7 @@ def run_training_with_dask(
             dvalid = None
             if validation_path:
                 X_valid, y_valid = read_data(validation_path, content_type)
-                dvalid = create_dask_dmatrix(client, X_valid, y_valid)
+                dvalid = create_gdask_dmatrix(client, X_valid, y_valid)
                 watchlist.append((dvalid, "validation"))
 
             logging.info("Data load complete. Starting training...")
@@ -181,7 +181,7 @@ def run_training_with_dask(
             )
 
             try:
-                output = xgb.dask.train(
+                output = dxgb.train(
                     client=client,
                     params=hyperparameters,
                     dtrain=dtrain,
