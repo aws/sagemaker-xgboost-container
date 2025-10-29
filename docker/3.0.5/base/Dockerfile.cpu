@@ -147,10 +147,9 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
     cd /tmp && \
     #libgrpc new version doesn't have node in the examples
-    export REPO_ROOT=grpc-node && \
-    git clone https://github.com/grpc/grpc-node $REPO_ROOT && \
-    cd $REPO_ROOT/examples && \
-    npm install minimist@latest protobufjs@latest && \
+    git clone https://github.com/grpc/grpc-node . && \
+    cd /examples && \
+    npm install && \
     # Remove Node.js, npm, and their dependencies
     apt-get purge -y nodejs npm && \
     apt-get autoremove -y && \
