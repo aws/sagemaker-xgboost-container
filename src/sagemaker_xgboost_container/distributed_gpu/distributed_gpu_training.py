@@ -181,7 +181,7 @@ def run_training_with_dask(
             )
 
             try:
-                output = xgb.train(
+                output = xgb.dask.train(
                     client=client,
                     params=hyperparameters,
                     dtrain=dtrain,
