@@ -10,7 +10,7 @@ Pillow==9.1.1
 PyYAML==6.0.1
 boto3==1.17.52
 botocore==1.20.52
-conda==24.7.1
+conda==25.9.1
 cryptography==45.0.5
 gunicorn==23.0.0
 matplotlib==3.9.2
@@ -42,7 +42,9 @@ def assert_python_version(major, minor):
 
 def assert_package_version(package_name, version):
     installed_version = pkg_resources.get_distribution(package_name).version
-    error_message = f"{package_name} requires {version} but {installed_version} is installed."
+    error_message = (
+        f"{package_name} requires {version} but {installed_version} is installed."
+    )
     assert version == installed_version, error_message
 
 
