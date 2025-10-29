@@ -148,7 +148,7 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     cd /tmp && \
     #libgrpc new version doesn't have node in the examples
     export REPO_ROOT=grpc-node && \
-    git clone -b RELEASE_TAG_HERE https://github.com/grpc/grpc-node $REPO_ROOT && \
+    git clone https://github.com/grpc/grpc-node $REPO_ROOT && \
     cd $REPO_ROOT/examples && \
     npm install minimist@latest protobufjs@latest && \
     # Remove Node.js, npm, and their dependencies
