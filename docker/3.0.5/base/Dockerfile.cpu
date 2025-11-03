@@ -25,12 +25,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Main image
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}
 
-ARG MINICONDA_VERSION=24.7.1
-ARG CONDA_CHECKSUM=684cda724bc37e3bbbb342e440fc4cac515c92e91a489eb4359feca35382894b
+ARG MINICONDA_VERSION=25.9.1
+ARG CONDA_CHECKSUM=04a8b03d8b0ec062d923e592201a6fd88b7247c309ef8848afb25c424c40ac39
 ARG CONDA_PY_VERSION=310
-ARG CONDA_PKG_VERSION=24.7.1
+ARG CONDA_PKG_VERSION=25.9.1
 ARG PYTHON_VERSION=3.10
-ARG PYARROW_VERSION=17.0.0
+ARG PYARROW_VERSION=22.0.0
 ARG MLIO_VERSION=0.9.0
 ARG XGBOOST_VERSION=3.0.5
 
@@ -120,14 +120,14 @@ RUN apt-key del 7fa2af80 && \
 
 # Install conda
 RUN cd /tmp && \
-    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-0-Linux-x86_64.sh && \
-    echo "${CONDA_CHECKSUM} /tmp/Miniconda3.sh" | sha256sum -c - && \
+    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-1-Linux-x86_64.sh && \    echo "${CONDA_CHECKSUM} /tmp/Miniconda3.sh" | sha256sum -c - && \
     bash /tmp/Miniconda3.sh -bfp /miniconda3 && \
     rm /tmp/Miniconda3.sh
 
 ENV PATH=/miniconda3/bin:${PATH}
 # Install MLIO with Apache Arrow integration
-
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 # We could install mlio-py from conda, but it comes  with extra support such as image reader that increases image size
 # which increases training time. We build from source to minimize the image size.
 RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
@@ -136,11 +136,10 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda config --system --set show_channel_urls true && \
     echo "python ${PYTHON_VERSION}.*" >> /miniconda3/conda-meta/pinned && \
     conda install -c conda-forge python=${PYTHON_VERSION} --solver classic && \
-    pip install requests==2.32.3 && \
-    conda install conda=${CONDA_PKG_VERSION} --solver classic  && \
+    conda install -c conda-forge requests=2.32.3 && \
+    conda install conda=${CONDA_PKG_VERSION} --solver classic && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
-    cd /miniconda3/pkgs/libgrpc-*/info/test/examples/node && \
     git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     cd grpc/examples/node/  && \
     npm install minimist@latest protobufjs@latest && \
@@ -157,8 +156,8 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     cd /tmp && \
     git clone --branch v${MLIO_VERSION} https://github.com/awslabs/ml-io.git mlio && \
     cd mlio && \
-    sed -i 's/find_package(Arrow 14.0.1 REQUIRED/find_package(Arrow 17.0.0 REQUIRED/g' CMakeLists.txt && \
-    sed -i 's/pyarrow==14.0.1/pyarrow==17.0.0/g' src/mlio-py/setup.py && \
+    sed -i 's/find_package(Arrow 14.0.1 REQUIRED/find_package(Arrow 22.0.0 REQUIRED/g' CMakeLists.txt && \
+    sed -i 's/pyarrow==14.0.1/pyarrow==22.0.0/g' src/mlio-py/setup.py && \
     build-tools/build-dependency build/third-party all && \
     mkdir -p build/release && \
     cd build/release && \
