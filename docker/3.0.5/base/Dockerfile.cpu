@@ -120,7 +120,8 @@ RUN apt-key del 7fa2af80 && \
 
 # Install conda
 RUN cd /tmp && \
-    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-1-Linux-x86_64.sh && \    echo "${CONDA_CHECKSUM} /tmp/Miniconda3.sh" | sha256sum -c - && \
+    curl -L --output /tmp/Miniconda3.sh https://repo.anaconda.com/miniconda/Miniconda3-py${CONDA_PY_VERSION}_${MINICONDA_VERSION}-1-Linux-x86_64.sh && \ 
+    echo "${CONDA_CHECKSUM} /tmp/Miniconda3.sh" | sha256sum -c - && \
     bash /tmp/Miniconda3.sh -bfp /miniconda3 && \
     rm /tmp/Miniconda3.sh
 
