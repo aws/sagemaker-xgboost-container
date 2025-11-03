@@ -141,6 +141,8 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
     cd /miniconda3/pkgs/libgrpc-*/info/test/examples/node && \
+    git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
+    cd grpc/examples/node/  && \
     npm install minimist@latest protobufjs@latest && \
     # Remove Node.js, npm, and their dependencies
     apt-get purge -y nodejs npm && \
