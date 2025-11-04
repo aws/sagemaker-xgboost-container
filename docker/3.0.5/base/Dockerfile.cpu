@@ -141,19 +141,20 @@ RUN echo "conda ${CONDA_PKG_VERSION}" >> /miniconda3/conda-meta/pinned && \
     conda install conda=${CONDA_PKG_VERSION} --solver classic && \
     conda update -y conda && \
     conda install -c conda-forge pyarrow=${PYARROW_VERSION} --solver classic && \
+    # First handle the grpc clone and copy
     git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
-    # Assuming grpc is already cloned and libgrpc directory exists
     LIBGRPC_DIR=$(find /miniconda3/pkgs -name "libgrpc-*" -type d | head -n 1) && \
+    mkdir -p ${LIBGRPC_DIR}/info/test/examples && \
     cp -r grpc/examples/* ${LIBGRPC_DIR}/info/test/examples/ && \
-    ls -la ${LIBGRPC_DIR}/info/test/examples && \
-    npm install minimist@latest protobufjs@latest && \
-    # Remove Node.js, npm, and their dependencies
+    # Then handle npm installations separately
+    cd ${LIBGRPC_DIR}/info/test/examples/node && \
+    npm cache clean --force && \
+    npm install minimist@latest protobufjs@latest \
     apt-get purge -y nodejs npm && \
     apt-get autoremove -y && \
-    # Final cleanup
     rm -rf /etc/apt/sources.list.d/nodesource.list \
-           /etc/apt/keyrings/nodesource.gpg \
-           /etc/apt/sources.list.d/kitware.list && \
+        /etc/apt/keyrings/nodesource.gpg \
+        /etc/apt/sources.list.d/kitware.list && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     # Continue with the rest of the build process
