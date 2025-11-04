@@ -139,7 +139,7 @@ RUN conda config --system --set channel_priority strict && \
         requests=2.32.3 \
         conda=${CONDA_PKG_VERSION} \
         pyarrow=${PYARROW_VERSION} \
-        protobuf=3.20.1 \
+        # protobuf=3.20.1 \
     --solver=libmamba && \
     conda clean -afy
 
