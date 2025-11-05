@@ -1,5 +1,5 @@
 ARG SAGEMAKER_XGBOOST_VERSION=3.0-5
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.10
 
 FROM xgboost-container-base:${SAGEMAKER_XGBOOST_VERSION}-cpu-py3
 
@@ -24,7 +24,7 @@ RUN python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git
 COPY requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
 
-RUN sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python3.11/site-packages/sagemaker_containers/_mapping.py
+RUN sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python3.10/site-packages/sagemaker_containers/_mapping.py
 
 ###########################
 # Copy wheel to container #
