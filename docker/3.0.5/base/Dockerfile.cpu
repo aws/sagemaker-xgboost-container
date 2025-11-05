@@ -26,10 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}
 
 ARG MINICONDA_VERSION=25.9.1
-ARG CONDA_CHECKSUM=04a8b03d8b0ec062d923e592201a6fd88b7247c309ef8848afb25c424c40ac39
-ARG CONDA_PY_VERSION=310
+ARG CONDA_CHECKSUM=238abad23f8d4d8ba89dd05df0b0079e278909a36e06955f12bbef4aa94e6131
+ARG CONDA_PY_VERSION=311
 ARG CONDA_PKG_VERSION=25.9.1
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.11
 ARG PYARROW_VERSION=22.0.0
 ARG MLIO_VERSION=0.9.0
 ARG XGBOOST_VERSION=3.0.5
@@ -139,7 +139,6 @@ RUN conda config --system --set channel_priority strict && \
         requests=2.32.3 \
         conda=${CONDA_PKG_VERSION} \
         pyarrow=${PYARROW_VERSION} \
-        # protobuf=3.20.1 \
     --solver=libmamba && \
     conda clean -afy
 
