@@ -19,14 +19,13 @@ ARG SAGEMAKER_XGBOOST_VERSION=3.0.5
 
 
 # Install smdebug from source
-# RUN python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git@v1.0.32
+RUN python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git@v1.0.32
 
 COPY requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
 
-RUN pip install --no-cache-dir "protobuf>=3.20.0,<=3.20.3" smdebug
-
-ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+RUN pip install --no-cache-dir "protobuf>=3.20.0,<=3.20.3"
+# ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 RUN sed -i 's/collections\.Mapping/collections.abc.Mapping/g' /miniconda3/lib/python3.10/site-packages/sagemaker_containers/_mapping.py
 

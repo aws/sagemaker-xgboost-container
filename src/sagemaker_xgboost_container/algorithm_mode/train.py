@@ -354,12 +354,12 @@ def train_job(
                 save_model_on_termination=save_model_on_termination,
                 is_master=is_master,
             )
-            add_debugging(
-                callbacks=callbacks,
-                hyperparameters=train_cfg,
-                train_dmatrix=train_dmatrix,
-                val_dmatrix=val_dmatrix,
-            )
+            # add_debugging(
+            #     callbacks=callbacks,
+            #     hyperparameters=train_cfg,
+            #     train_dmatrix=train_dmatrix,
+            #     val_dmatrix=val_dmatrix,
+            # )
 
             bst = xgb.train(
                 train_cfg,
@@ -417,12 +417,12 @@ def train_job(
                     is_master=is_master,
                     fold=len(bst),
                 )
-                add_debugging(
-                    callbacks=callbacks,
-                    hyperparameters=train_cfg,
-                    train_dmatrix=cv_train_dmatrix,
-                    val_dmatrix=cv_val_dmatrix,
-                )
+                # add_debugging(
+                #     callbacks=callbacks,
+                #     hyperparameters=train_cfg,
+                #     train_dmatrix=cv_train_dmatrix,
+                #     val_dmatrix=cv_val_dmatrix,
+                # )
 
                 evals_result = {}
                 logging.info(f"Train cross validation fold {(len(bst) % kfold) + 1}")
