@@ -26,6 +26,8 @@ from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
 
 # from sagemaker_xgboost_container.callback import add_debugging, get_callbacks
+from sagemaker_xgboost_container.callback import get_callbacks
+
 from sagemaker_xgboost_container.constants.sm_env_constants import (
     SM_NUM_GPUS,
     SM_OUTPUT_DATA_DIR,
