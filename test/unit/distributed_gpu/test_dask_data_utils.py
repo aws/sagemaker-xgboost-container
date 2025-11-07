@@ -40,7 +40,7 @@ class TestDaskDataUtils(unittest.TestCase):
         x, y = read_data(self.data_path_csv, CSV)
         assert x.shape[0].compute() == self.NUM_ROWS_IN_EACH_FILE
         assert x.shape[1] == self.NUM_COLS_IN_EACH_FILE - 1
-        assert y.shape[0].compute() == self.NUM_ROWS_IN_EACH_FILE
+        assert len(y) == self.NUM_ROWS_IN_EACH_FILE
 
     def test_read_data_csv_malformed_path(self):
         x, y = read_data(self.data_path_csv + "/", CSV)
@@ -54,7 +54,7 @@ class TestDaskDataUtils(unittest.TestCase):
         x, y = read_data(self.data_path_parquet, PARQUET)
         assert x.shape[0].compute() == self.NUM_ROWS_IN_EACH_FILE * 2
         assert x.shape[1] == self.NUM_COLS_IN_EACH_FILE - 1
-        assert y.shape[0].compute() == self.NUM_ROWS_IN_EACH_FILE * 2
+        assert len(y) == self.NUM_ROWS_IN_EACH_FILE * 2
 
     def test_read_data_unsupported_content(self):
         with self.assertRaises(UserError):

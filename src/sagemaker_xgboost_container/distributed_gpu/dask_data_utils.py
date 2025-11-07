@@ -16,7 +16,7 @@ import os
 import dask.dataframe as dask_dataframe
 from dask.dataframe import DataFrame, Series
 from dask.distributed import Client
-from xgboost.dask import DaskDMatrix
+from xgboost import dask as dxgb
 
 from sagemaker_algorithm_toolkit.exceptions import AlgorithmError, UserError
 from sagemaker_xgboost_container.data_utils import CSV, PARQUET
@@ -24,11 +24,15 @@ from sagemaker_xgboost_container.data_utils import CSV, PARQUET
 
 def read_data(local_path: str, content_type: str) -> (DataFrame, Series):
     if content_type == CSV:
-        dataframe = dask_dataframe.read_csv(os.path.join(local_path, "*.csv"), header=None)
+        dataframe = dask_dataframe.read_csv(
+            os.path.join(local_path, "*.csv"), header=None
+        )
     elif content_type == PARQUET:
         dataframe = dask_dataframe.read_parquet(local_path)
     else:
-        raise UserError(f"Unexpected content type '{content_type}'. Supported content types are CSV and PARQUET.")
+        raise UserError(
+            f"Unexpected content type '{content_type}'. Supported content types are CSV and PARQUET."
+        )
 
     target_column = dataframe.columns[0]
     labels = dataframe[target_column]
@@ -45,9 +49,13 @@ def get_dataframe_dimensions(dataframe: DataFrame) -> (int, int):
     return rows, cols
 
 
-def create_dask_dmatrix(client: Client, features: DataFrame, labels: Series) -> DaskDMatrix:
+def create_dask_dmatrix(
+    client: Client, features: DataFrame, labels: Series
+) -> dxgb.DaskDMatrix:
     try:
-        dmatrix = DaskDMatrix(client, features, labels)
+        dmatrix = dxgb.DaskDMatrix(client, features, labels)
     except Exception as e:
-        raise AlgorithmError(f"Failed to create DaskDMatrix with given data. Exception: {e}")
+        raise AlgorithmError(
+            f"Failed to create DaskDMatrix with given data. Exception: {e}"
+        )
     return dmatrix

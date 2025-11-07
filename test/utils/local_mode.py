@@ -146,7 +146,7 @@ def train(
     entrypoint=None,
     source_dir=None,
     early_stopping=False,
-    train_time=30,
+    train_time=20,
 ):
     additional_env_vars = additional_env_vars or []
     additional_volumes = additional_volumes or []
@@ -426,7 +426,7 @@ def read_hyperparameters(customer_script, additonal_hyperparameters=None):
 
 def create_input_data_config(data_path, customer_script):
     channels = []
-    for (_, dirs, _) in os.walk(data_path):
+    for _, dirs, _ in os.walk(data_path):
         channels.extend(dirs)
         del dirs
 
