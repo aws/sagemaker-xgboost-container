@@ -129,7 +129,7 @@ def run_training_with_dask(
             dvalid = None
             if validation_path:
                 X_valid, y_valid = read_data(validation_path, content_type)
-                dvalid = create_gdask_dmatrix(client, X_valid, y_valid)
+                dvalid = create_dask_dmatrix(client, X_valid, y_valid)
                 watchlist.append((dvalid, "validation"))
 
             logging.info("Data load complete. Starting training...")
