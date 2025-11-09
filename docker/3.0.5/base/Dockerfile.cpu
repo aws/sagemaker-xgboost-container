@@ -203,3 +203,7 @@ RUN apt list --installed
 
 # Install latest version of XGBoost
 RUN python3 -m pip install --no-cache -I xgboost==${XGBOOST_VERSION} numpy==2.1.0 pyarrow==22.0.0 pandas==2.2.3
+
+# Starting from XGBoost 2.1.0, the PyPI package won't bundle with nccl
+# set PATH so xgboost can find libnccl
+ENV LD_LIBRARY_PATH=/miniconda3/lib/python3.10/site-packages/nvidia/nccl/lib:$LD_LIBRARY_PATH

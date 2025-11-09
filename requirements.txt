@@ -11,8 +11,6 @@ gunicorn==23.0.0
 itsdangerous==2.0.1
 matplotlib==3.9.2
 multi-model-server==1.1.2
-# start from XGBoost 2.1.0, the PyPI package no long bundles NCCL
-nvidia-nccl-cu12
 numpy==2.1.0
 pandas==2.2.3
 # protobuf==5.27.0
