@@ -104,8 +104,8 @@ RUN apt-key del 7fa2af80 && \
         zstd \
         libsqlite3-0 \
         && \
-    # pip will attempt to install setuptools from PyPi from pip>=25.3
-    python3 -m pip install --upgrade pip==25.2 && \
+    # system pip, highest version is 25.0.1
+    python3 -m pip install --upgrade "pip<=25.2" && \
     python3 -m pip install --upgrade certifi && \
     apt-get clean && \
     # Node.js setup
@@ -178,6 +178,7 @@ RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     cd ../../src/mlio-py && \
     python3 setup.py bdist_wheel && \
     python3 -m pip install typing && \
+    # pip will attempt to install setuptools from PyPi from pip>=25.3
     python3 -m pip install --upgrade pip==25.2 && \
     python3 -m pip install dist/*.whl && \
     cp -r /tmp/mlio/build/third-party/lib/libtbb* /usr/local/lib/ && \
