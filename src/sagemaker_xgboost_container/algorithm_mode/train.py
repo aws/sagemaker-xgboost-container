@@ -24,7 +24,10 @@ from sagemaker_xgboost_container.algorithm_mode import channel_validation as cv
 from sagemaker_xgboost_container.algorithm_mode import hyperparameter_validation as hpv
 from sagemaker_xgboost_container.algorithm_mode import metrics as metrics_mod
 from sagemaker_xgboost_container.algorithm_mode import train_utils
-from sagemaker_xgboost_container.callback import add_debugging, get_callbacks
+
+# from sagemaker_xgboost_container.callback import add_debugging, get_callbacks
+from sagemaker_xgboost_container.callback import get_callbacks
+
 from sagemaker_xgboost_container.constants.sm_env_constants import (
     SM_NUM_GPUS,
     SM_OUTPUT_DATA_DIR,
@@ -49,7 +52,12 @@ DOCUMENTATION_LINK = "https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.ht
 
 
 def get_validated_dmatrices(
-    train_path, validate_path, content_type, csv_weights=0, is_pipe=False, combine_train_val=False
+    train_path,
+    validate_path,
+    content_type,
+    csv_weights=0,
+    is_pipe=False,
+    combine_train_val=False,
 ):
     """Get training and validation Data Matrices for XGBoost training.
 
@@ -85,7 +93,9 @@ def get_validated_dmatrices(
         else None
     )
     val_dmatrix = (
-        get_dmatrix(validate_path, content_type, csv_weights=csv_weights, is_pipe=is_pipe)
+        get_dmatrix(
+            validate_path, content_type, csv_weights=csv_weights, is_pipe=is_pipe
+        )
         if val_files_size > 0
         else None
     )
@@ -94,14 +104,24 @@ def get_validated_dmatrices(
     if combine_train_val and train_dmatrix is not None and val_dmatrix is not None:
         logging.info("Read both train and validation data into one DMatrix")
         train_val_dmatrix = get_dmatrix(
-            [train_path, validate_path], content_type, csv_weights=csv_weights, is_pipe=is_pipe
+            [train_path, validate_path],
+            content_type,
+            csv_weights=csv_weights,
+            is_pipe=is_pipe,
         )
 
     return train_dmatrix, val_dmatrix, train_val_dmatrix
 
 
 def sagemaker_train(
-    train_config, data_config, train_path, val_path, model_dir, sm_hosts, sm_current_host, checkpoint_config
+    train_config,
+    data_config,
+    train_path,
+    val_path,
+    model_dir,
+    sm_hosts,
+    sm_current_host,
+    checkpoint_config,
 ):
     """Train XGBoost in a SageMaker training environment.
 
@@ -140,7 +160,9 @@ def sagemaker_train(
     validation_channel = validated_data_config.get("validation", None)
     combine_train_val = "_kfold" in validated_train_config
     if val_path is not None:
-        if train_path == val_path or os.path.basename(train_path) == os.path.basename(val_path):
+        if train_path == val_path or os.path.basename(train_path) == os.path.basename(
+            val_path
+        ):
             logger.warning(
                 "Found same path for training and validation. This is not recommended and results may not "
                 "be correct."
@@ -161,13 +183,15 @@ def sagemaker_train(
     is_dask_job = validated_train_config.pop("use_dask_gpu_training", "false")
 
     if is_dask_job == "true":
-        gpu_train_validation_errors = distributed_gpu_training.validate_gpu_train_configuration(
-            tree_method_hp=tree_method_hp,
-            num_hosts=num_hosts,
-            num_gpus=num_gpus,
-            input_mode=input_mode,
-            input_format=file_type,
-            data_config=validated_data_config,
+        gpu_train_validation_errors = (
+            distributed_gpu_training.validate_gpu_train_configuration(
+                tree_method_hp=tree_method_hp,
+                num_hosts=num_hosts,
+                num_gpus=num_gpus,
+                input_mode=input_mode,
+                input_format=file_type,
+                data_config=validated_data_config,
+            )
         )
 
         if gpu_train_validation_errors:
@@ -211,7 +235,9 @@ def sagemaker_train(
         )
         if num_hosts > 1:
             # Wait for hosts to find each other
-            logging.info(f"Distributed node training with {num_hosts} hosts: {sm_hosts}")
+            logging.info(
+                f"Distributed node training with {num_hosts} hosts: {sm_hosts}"
+            )
             distributed.wait_hostname_resolution(sm_hosts)
             include_in_training = True
             if not train_dmatrix:
@@ -244,17 +270,29 @@ def sagemaker_train(
         elif num_hosts == 1:
             if train_dmatrix:
                 if missing_validation_data:
-                    raise exc.UserError(f"No data in validation channel path {val_path}")
+                    raise exc.UserError(
+                        f"No data in validation channel path {val_path}"
+                    )
                 logging.info("Single node training.")
                 train_args.update({"is_master": True})
                 train_job(**train_args)
             else:
                 raise exc.UserError(f"No data in training channel path {train_path}")
         else:
-            raise exc.PlatformError("Number of hosts should be an int greater than or equal to 1")
+            raise exc.PlatformError(
+                "Number of hosts should be an int greater than or equal to 1"
+            )
 
 
-def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_dir, checkpoint_dir, is_master):
+def train_job(
+    train_cfg,
+    train_dmatrix,
+    val_dmatrix,
+    train_val_dmatrix,
+    model_dir,
+    checkpoint_dir,
+    is_master,
+):
     """Train and save XGBoost model using data on current node.
 
     If doing distributed training, XGBoost will use rabit to sync the trained model between each boosting iteration.
@@ -267,6 +305,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     :param model_dir: Directory where model will be saved
     :param is_master: True if single node training, or the current node is the master node in distributed training.
     """
+    logging.info(f"TRAIN_JOB_DEBUG: Received is_master={is_master}")
+    print(f"TRAIN_JOB_DEBUG: Received is_master={is_master}")
+
     # Parse arguments for train() API
     num_round = train_cfg.pop("num_round")
     # Parse arguments for intermediate model callback
@@ -275,8 +316,10 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     # Evaluation metrics to use with train() API
     tuning_objective_metric_param = train_cfg.pop("_tuning_objective_metric", None)
     eval_metric = train_cfg.get("eval_metric")
-    cleaned_eval_metric, configured_feval, tuning_objective_metric = train_utils.get_eval_metrics_and_feval(
-        tuning_objective_metric_param, eval_metric
+    cleaned_eval_metric, configured_feval, tuning_objective_metric = (
+        train_utils.get_eval_metrics_and_feval(
+            tuning_objective_metric_param, eval_metric
+        )
     )
     if cleaned_eval_metric:
         train_cfg["eval_metric"] = cleaned_eval_metric
@@ -292,7 +335,9 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
         elif eval_metric:
             early_stopping_metric = eval_metric[-1]
 
-    logging.info(f"Train matrix has {train_dmatrix.num_row()} rows and {train_dmatrix.num_col()} columns")
+    logging.info(
+        f"Train matrix has {train_dmatrix.num_row()} rows and {train_dmatrix.num_col()} columns"
+    )
     if val_dmatrix:
         logging.info(f"Validation matrix has {val_dmatrix.num_row()} rows")
 
@@ -312,16 +357,19 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 save_model_on_termination=save_model_on_termination,
                 is_master=is_master,
             )
-            add_debugging(
-                callbacks=callbacks, hyperparameters=train_cfg, train_dmatrix=train_dmatrix, val_dmatrix=val_dmatrix
-            )
+            # add_debugging(
+            #     callbacks=callbacks,
+            #     hyperparameters=train_cfg,
+            #     train_dmatrix=train_dmatrix,
+            #     val_dmatrix=val_dmatrix,
+            # )
 
             bst = xgb.train(
                 train_cfg,
                 train_dmatrix,
                 num_boost_round=num_round - iteration,
                 evals=watchlist,
-                feval=configured_feval,
+                custom_metric=configured_feval,
                 callbacks=callbacks,
                 xgb_model=xgb_model,
                 verbose_eval=False,
@@ -372,12 +420,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                     is_master=is_master,
                     fold=len(bst),
                 )
-                add_debugging(
-                    callbacks=callbacks,
-                    hyperparameters=train_cfg,
-                    train_dmatrix=cv_train_dmatrix,
-                    val_dmatrix=cv_val_dmatrix,
-                )
+                # add_debugging(
+                #     callbacks=callbacks,
+                #     hyperparameters=train_cfg,
+                #     train_dmatrix=cv_train_dmatrix,
+                #     val_dmatrix=cv_val_dmatrix,
+                # )
 
                 evals_result = {}
                 logging.info(f"Train cross validation fold {(len(bst) % kfold) + 1}")
@@ -386,7 +434,7 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                     cv_train_dmatrix,
                     num_boost_round=num_round - iteration,
                     evals=watchlist,
-                    feval=configured_feval,
+                    custom_metric=configured_feval,
                     evals_result=evals_result,
                     callbacks=callbacks,
                     xgb_model=xgb_model,
@@ -397,13 +445,17 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
                 val_pred.record(val_idx, booster.predict(cv_val_dmatrix))
 
                 if len(bst) % kfold == 0:
-                    logging.info(f"The metrics of round {int(len(bst) / kfold)} cross validation")
+                    logging.info(
+                        f"The metrics of round {int(len(bst) / kfold)} cross validation"
+                    )
                     print_cv_metric(num_round, evals_results[-kfold:])
 
             val_pred.save()
 
             if num_cv_round > 1:
-                logging.info(f"The overall metrics of {num_cv_round}-round cross validation")
+                logging.info(
+                    f"The overall metrics of {num_cv_round}-round cross validation"
+                )
                 print_cv_metric(num_round, evals_results)
 
     except Exception as e:
@@ -417,7 +469,12 @@ def train_job(train_cfg, train_dmatrix, val_dmatrix, train_val_dmatrix, model_di
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
+    logging.info(f"FINAL_MODEL_DEBUG: is_master={is_master}, model_dir={model_dir}")
+    print(f"FINAL_MODEL_DEBUG: is_master={is_master}, model_dir={model_dir}")
+
     if is_master:
+        logging.info("FINAL_MODEL_SAVE: Saving final model as master")
+        print("FINAL_MODEL_SAVE: Saving final model as master")
         if type(bst) is not list:
             model_location = os.path.join(model_dir, MODEL_NAME)
             bst.save_model(model_location)
@@ -435,6 +492,9 @@ def print_cv_metric(num_round, evals_results):
     metric_names = evals_results[0]["train"].keys()
     for metric_name in metric_names:
         for data_name in data_names:
-            metric_val = [evals_result[data_name][metric_name][-1] for evals_result in evals_results]
+            metric_val = [
+                evals_result[data_name][metric_name][-1]
+                for evals_result in evals_results
+            ]
             cv_eval_report += f"\t{data_name}-{metric_name}:{np.mean(metric_val):.5f}"
     print(cv_eval_report)

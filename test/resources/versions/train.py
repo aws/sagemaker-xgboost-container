@@ -10,24 +10,23 @@ Pillow==9.1.1
 PyYAML==6.0.1
 boto3==1.17.52
 botocore==1.20.52
-conda==24.7.1
-cryptography==39.0.1
+conda==25.9.1
+cryptography==45.0.5
 gunicorn==23.0.0
-matplotlib==3.6.3
+matplotlib==3.9.2
 multi-model-server==1.1.2
-numpy==1.24.1
-pandas==1.4.4
-psutil==5.6.7
-pyarrow==14.0.1
-python-dateutil==2.8.1
+numpy==2.1.0
+pandas==2.2.3
+psutil==5.8.0
+pyarrow==22.0.0
+python-dateutil==2.8.2
 retrying==1.3.3
 sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
-scikit-learn==1.0.2
-scipy==1.9.3
-smdebug==1.0.29
+scipy==1.15.0
+scikit-learn==1.5.2
 urllib3==1.26.5
-wheel==0.36.2
+wheel==0.45.1
 jinja2==2.11.3
 MarkupSafe==1.1.1
 Werkzeug==0.15.6
@@ -42,7 +41,9 @@ def assert_python_version(major, minor):
 
 def assert_package_version(package_name, version):
     installed_version = pkg_resources.get_distribution(package_name).version
-    error_message = f"{package_name} requires {version} but {installed_version} is installed."
+    error_message = (
+        f"{package_name} requires {version} but {installed_version} is installed."
+    )
     assert version == installed_version, error_message
 
 

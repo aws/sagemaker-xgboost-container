@@ -5,34 +5,38 @@ import xgboost as xgb
 
 from sagemaker_xgboost_container import checkpointing
 from sagemaker_xgboost_container.algorithm_mode import train_utils
-from sagemaker_xgboost_container.constants.xgb_constants import MODEL_NAME, XGB_MAXIMIZE_METRICS
-from smdebug.xgboost import Hook
+from sagemaker_xgboost_container.constants.xgb_constants import (
+    MODEL_NAME,
+    XGB_MAXIMIZE_METRICS,
+)
+
+# from smdebug.xgboost import Hook
 
 logger = logging.getLogger(__name__)
 
 
-def add_debugging(callbacks, hyperparameters, train_dmatrix, val_dmatrix=None, json_config_path=None):
-    """Add a sagemaker debug hook to a list of callbacks.
+# def add_debugging(callbacks, hyperparameters, train_dmatrix, val_dmatrix=None, json_config_path=None):
+#     """Add a sagemaker debug hook to a list of callbacks.
 
-    :param callbacks: List of callback functions.
-    :param hyperparameters: Dict of hyperparamters.
-                            Same as `params` in xgb.train(params, dtrain).
-    :param train_dmatrix: Training data set.
-    :param val_dmatrix: Validation data set.
-    :param json_config_path: If specified, this json config will be used
-                             instead of default config file.
-    """
-    try:
-        hook = Hook.hook_from_config(json_config_path)
-        hook.hyperparameters = hyperparameters
-        hook.train_data = train_dmatrix
-        if val_dmatrix is not None:
-            hook.validation_data = val_dmatrix
-        callbacks.append(hook)
-        logging.info("Debug hook created from config")
-    except Exception as e:
-        logging.debug("Failed to create debug hook", e)
-        return
+#     :param callbacks: List of callback functions.
+#     :param hyperparameters: Dict of hyperparamters.
+#                             Same as `params` in xgb.train(params, dtrain).
+#     :param train_dmatrix: Training data set.
+#     :param val_dmatrix: Validation data set.
+#     :param json_config_path: If specified, this json config will be used
+#                              instead of default config file.
+#     """
+#     try:
+#         hook = Hook.hook_from_config(json_config_path)
+#         hook.hyperparameters = hyperparameters
+#         hook.train_data = train_dmatrix
+#         if val_dmatrix is not None:
+#             hook.validation_data = val_dmatrix
+#         callbacks.append(hook)
+#         logging.info("Debug hook created from config")
+#     except Exception as e:
+#         logging.debug("Failed to create debug hook", e)
+#         return
 
 
 def add_sigterm_handler(model_dir, is_master):
@@ -79,17 +83,31 @@ def get_callbacks(
 
     callbacks = []
     callbacks.append(xgb.callback.EvaluationMonitor())
-    if checkpoint_dir:
+
+    if checkpoint_dir and is_master:
         save_checkpoint = xgb.callback.TrainingCheckPoint(
-            directory=checkpoint_dir, iterations=iteration, name=checkpointing.CHECKPOINT_FILENAME
-         )
+            directory=checkpoint_dir,
+            interval=iteration,
+            name=checkpointing.CHECKPOINT_FILENAME,
+        )
         callbacks.append(save_checkpoint)
 
-    if save_model_on_termination == "true":
+    logging.info(
+        f"CALLBACK_SETUP_DEBUG: save_model_on_termination={save_model_on_termination}, is_master={is_master}"
+    )
+
+    if save_model_on_termination == "true" and is_master:
+        logging.info("CALLBACK_ADDING: Adding SaveIntermediateModelCallBack on master")
         model_name = f"{MODEL_NAME}-{fold}" if fold is not None else MODEL_NAME
-        save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(model_dir, model_name, is_master)
+        save_intermediate_model = checkpointing.SaveIntermediateModelCallBack(
+            model_dir, model_name, is_master
+        )
         callbacks.append(save_intermediate_model)
         add_sigterm_handler(model_dir, is_master)
+    else:
+        logging.info(
+            f"CALLBACK_SKIPPING save_model_on_termination={save_model_on_termination}, is_master={is_master})"
+        )
 
     if early_stopping_data_name and early_stopping_metric and early_stopping_rounds:
         maximize = early_stopping_metric in XGB_MAXIMIZE_METRICS
@@ -98,7 +116,7 @@ def get_callbacks(
             data_name=early_stopping_data_name,
             metric_name=early_stopping_metric,
             maximize=maximize,
-            save_best=True,
+            save_best=is_master,
         )
         callbacks.append(early_stop)
 

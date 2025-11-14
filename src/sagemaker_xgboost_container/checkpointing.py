@@ -7,7 +7,8 @@ import threading
 
 import xgboost as xgb
 from typing import Optional
-from xgboost import rabit
+
+# from xgboost import rabit
 from xgboost.callback import EvaluationMonitor
 from xgboost.core import XGBoostError
 
@@ -54,10 +55,17 @@ def train(train_args, checkpoint_dir):
         logging.info("Resuming from iteration %s", start_iteration)
 
     callbacks = train_args.get("callbacks", [])
-    callbacks.append(print_checkpointed_evaluation(start_iteration=start_iteration,
-                                                   end_iteration=train_args["num_boost_round"]))
-    callbacks.append(save_checkpoint(checkpoint_dir, start_iteration=start_iteration, iteration=start_iteration,
-                                     end_iteration=train_args["num_boost_round"]))
+    callbacks.append(
+        print_checkpointed_evaluation(start_iteration=start_iteration, end_iteration=train_args["num_boost_round"])
+    )
+    callbacks.append(
+        save_checkpoint(
+            checkpoint_dir,
+            start_iteration=start_iteration,
+            iteration=start_iteration,
+            end_iteration=train_args["num_boost_round"],
+        )
+    )
 
     train_args["verbose_eval"] = False  # suppress xgboost's print_evaluation()
     train_args["xgb_model"] = xgb_model
@@ -116,7 +124,7 @@ class PrintCheckpoint(xgb.callback.TrainingCallback):
                         score = log[-1]
                     msg += evaluation_monitor._fmt_metric(data, metric_name, score, stdv)
             msg += "\n"
-            rabit.tracker_print("[%d]\t%s\n" % (i + self.start_iteration, msg))
+            # rabit.tracker_print("[%d]\t%s\n" % (i + self.start_iteration, msg))
 
 
 def print_checkpointed_evaluation(end_iteration, iteration=0, rank=0, period=1, show_stdv=True, start_iteration=0):
@@ -164,16 +172,21 @@ def _sort_checkpoints(checkpoint_files):
     return checkpoint_files
 
 
-def save_checkpoint(checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0,
-                    end_iteration=None):
+def save_checkpoint(
+    checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0, end_iteration=None
+):
     """A callback function that saves checkpoints to disk.
 
     This is a wrapper function around SaveCheckpoint.
     For details, see SaveCheckpoint.
     """
     return SaveCheckpointCallBack(
-        checkpoint_dir=checkpoint_dir, start_iteration=start_iteration, max_to_keep=max_to_keep, num_round=num_round,
-        iteration=iteration, end_iteration=end_iteration
+        checkpoint_dir=checkpoint_dir,
+        start_iteration=start_iteration,
+        max_to_keep=max_to_keep,
+        num_round=num_round,
+        iteration=iteration,
+        end_iteration=end_iteration,
     )
 
 
@@ -220,12 +233,13 @@ class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
         Example:
             >>> save_checkpoint = SaveCheckpoint("/opt/ml/checkpoints")
             >>> xgboost.train(prams, dtrain, callbacks=[save_checkpoint])
-        """
+    """
 
     SENTINEL = None
 
-    def __init__(self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0,
-                 end_iteration=None):
+    def __init__(
+        self, checkpoint_dir, start_iteration=0, max_to_keep=5, num_round=None, rank=0, iteration=0, end_iteration=None
+    ):
         """Init SaveCheckpoint with checkpoint_dir"""
         self.checkpoint_dir = checkpoint_dir
         self.max_to_keep = max_to_keep
@@ -295,6 +309,7 @@ class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
         When training is complete, we put SENTINEL on the queue, and when we
         see the SENTINEL, we clean up and exit the thread.
         """
+
         def _is_uploading(path):
             uploading = os.path.isfile(path + FILE_LOCK_SUFFIX)
             uploaded = os.path.isfile(path + FILE_SAFE_SUFFIX)
@@ -344,9 +359,7 @@ class SaveCheckpointCallBack(xgb.callback.TrainingCallback):
             _delete_uploaded_files()
             _cleanup()
 
-        self.thread = threading.Thread(
-            target=_delete_uploaded_files_and_cleanup,
-            daemon=True)
+        self.thread = threading.Thread(target=_delete_uploaded_files_and_cleanup, daemon=True)
         self.thread.start()
 
     def stop(self):

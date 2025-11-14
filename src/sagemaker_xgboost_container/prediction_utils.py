@@ -91,7 +91,11 @@ class ValidationPredictionRecorder:
         if self.classification:
             columns.append(self.y_prob.mean(axis=-1))
             # mode always returns same number of dimensions of output as for input
-            columns.append(stats.mode(self.y_pred, axis=1).mode[:, 0])
+            model_result = stats.mode(self.y_pred, axis=1, keepdims=True)
+            model_values = model_result.mode
+            if model_values.ndim > 1:
+                model_values = model_values[:, 0]
+            columns.append(model_values)
         else:
             columns.append(self.y_pred.mean(axis=-1))
 

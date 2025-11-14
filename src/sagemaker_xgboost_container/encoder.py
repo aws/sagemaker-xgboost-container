@@ -69,7 +69,7 @@ def libsvm_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
             temp_file_location = libsvm_file.name
             libsvm_file.write(string_like)
 
-        dmatrix = xgb.DMatrix(temp_file_location)
+        dmatrix = xgb.DMatrix(f"{temp_file_location}?format=libsvm")
     finally:
         if temp_file_location and os.path.exists(temp_file_location):
             os.remove(temp_file_location)
