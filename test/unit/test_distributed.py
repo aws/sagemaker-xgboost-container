@@ -32,7 +32,7 @@ def synchronize_fn(host_count, port, master, idx, q):
 
 
 def rabit_run_fn(
-    host_count, is_run, first_port, second_port, master, idx, q, max_connect_attempts=None, connect_retry_timeout=60
+    host_count, is_run, first_port, second_port, master, idx, q, max_connect_attempts=None, connect_retry_timeout=3
 ):
     hosts = ["127.0.0.1"] + ["localhost" for _ in range(host_count - 1)]
     current_host = "127.0.0.1" if master else "localhost"
@@ -86,7 +86,7 @@ def test_integration_rabit_synchronize():
 
     num_responses = 0
     while num_responses < host_count:
-        host_aggregated_result = q.get(timeout=30)
+        host_aggregated_result = q.get(timeout=10)
         for host_individual_result in host_aggregated_result:
             assert host_individual_result in expected_results
         num_responses += 1
@@ -107,7 +107,7 @@ def test_rabit_run_all_hosts_run():
 
     num_responses = 0
     while num_responses < host_count:
-        response = q.get(timeout=120)
+        response = q.get(timeout=15)
         expected_results.remove(response)
         num_responses += 1
 
@@ -133,7 +133,7 @@ def test_rabit_run_exclude_one_host():
 
     num_responses = 0
     while num_responses < host_count - 1:
-        response = q.get(timeout=300)
+        response = q.get(timeout=15)
         expected_results.remove(response)
         num_responses += 1
 
@@ -157,7 +157,7 @@ def test_rabit_delay_master():
 
     num_responses = 0
     while num_responses < host_count:
-        response = q.get(timeout=300)
+        response = q.get(timeout=20)
         expected_results.remove(response)
         num_responses += 1
 
@@ -182,6 +182,6 @@ def test_rabit_run_fail_bad_max_retry_attempts(bad_max_retry_attempts):
 
     num_responses = 0
     while num_responses < host_count:
-        host_result = q.get(timeout=30)
+        host_result = q.get(timeout=10)
         assert "max_connect_attempts must be None or an integer greater than 0." in host_result
         num_responses += 1
