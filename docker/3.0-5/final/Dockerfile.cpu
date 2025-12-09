@@ -24,7 +24,8 @@ RUN python3 -m pip install git+https://github.com/awslabs/sagemaker-debugger.git
 COPY requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
 
-RUN pip install --no-cache-dir "protobuf>=3.20.0,<=3.20.3" "fonttools>=4.60.2"
+# Patches
+RUN python3 -m pip install --no-cache-dir "protobuf>=3.20.0,<=3.20.3" "fonttools>=4.60.2"
 
 # ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
