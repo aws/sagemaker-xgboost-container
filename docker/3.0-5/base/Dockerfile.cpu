@@ -138,6 +138,7 @@ RUN conda config --system --set channel_priority strict && \
     conda install -y -c conda-forge \
         python=${PYTHON_VERSION} \
         requests=2.32.3 \
+        openssl=3.6.1 \
         conda=${CONDA_PKG_VERSION} \
         pyarrow=${PYARROW_VERSION} \
     --solver=libmamba && \
