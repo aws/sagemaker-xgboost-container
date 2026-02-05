@@ -151,7 +151,7 @@ RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
 
     RUN cd ${LIBGRPC_DIR}/info/test/examples/node && \
     npm cache clean --force && \
-    npm install minimist@latest protobufjs@latest \
+    npm install minimist@latest protobufjs@latest && \
     apt-get purge -y nodejs npm && \
     apt-get autoremove -y && \
     rm -rf /etc/apt/sources.list.d/nodesource.list \
