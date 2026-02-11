@@ -147,9 +147,8 @@ RUN conda config --system --set channel_priority strict && \
 RUN git clone -b v1.65.4 https://github.com/grpc/grpc.git && \
     LIBGRPC_DIR=$(find /miniconda3/pkgs -name "libgrpc-*" -type d | head -n 1) && \
     mkdir -p ${LIBGRPC_DIR}/info/test/examples && \
-    cp -r grpc/examples/* ${LIBGRPC_DIR}/info/test/examples/
-
-    RUN cd ${LIBGRPC_DIR}/info/test/examples/node && \
+    cp -r grpc/examples/* ${LIBGRPC_DIR}/info/test/examples/ && \
+    cd ${LIBGRPC_DIR}/info/test/examples/node && \
     npm cache clean --force && \
     npm install minimist@latest protobufjs@latest && \
     apt-get purge -y nodejs npm && \
