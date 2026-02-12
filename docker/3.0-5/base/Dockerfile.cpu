@@ -66,6 +66,7 @@ RUN apt-key del 7fa2af80 && \
         libxml2 \
         libgstreamer1.0-0 \
         linux-libc-dev \
+        libglib2.0-0 \
         && \
     # MLIO build dependencies
     # Official Ubuntu APT repositories do not contain an up-to-date version of CMake required to build MLIO.
