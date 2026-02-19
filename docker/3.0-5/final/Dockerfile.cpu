@@ -39,7 +39,8 @@ RUN rm -rf /miniconda3/lib/python${PYTHON_VERSION}/site-packages/numpy-1.21.2.di
     python3 -m pip install --force-reinstall PyYAML==6.0.1 && \
     python3 -m pip install --no-cache --no-deps /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
     python3 -m pip uninstall -y typing && \
-    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl
+    rm /sagemaker_xgboost_container-1.0-py2.py3-none-any.whl && \
+    ln -sf /miniconda3/bin/pip3 /usr/local/bin/pip3
 
 ##############
 # DMLC PATCH #
