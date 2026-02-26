@@ -1,3 +1,5 @@
+.gitignore
+.kiro/
 dist/
 build/
 src/sagemaker_xgboost_container.egg-info/
