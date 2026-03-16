@@ -138,6 +138,17 @@ def initialize(metrics):
                 "either 'exact', 'hist' or 'approx'."
             )
 
+    @hpv.dependencies_validator(["objective"])
+    def learning_to_rank_param_validator(value, dependencies):
+        if value is None:
+            return
+        objective = dependencies.get("objective")
+        if objective not in ("rank:ndcg", "rank:map", "rank:pairwise"):
+            raise exc.UserError(
+                "Learning-to-rank parameters can only be used when objective is one of "
+                "'rank:ndcg', 'rank:map', or 'rank:pairwise'."
+            )
+
     hyperparameters = hpv.Hyperparameters(
         hpv.IntegerHyperparameter(
             name="num_round",
@@ -334,6 +345,48 @@ def initialize(metrics):
         hpv.CategoricalHyperparameter(name="deterministic_histogram", range=["true", "false"], required=False),
         hpv.CategoricalHyperparameter(name="sampling_method", range=["uniform", "gradient_based"], required=False),
         hpv.IntegerHyperparameter(name="prob_buffer_row", range=hpv.Interval(min_open=1.0), required=False),
+        hpv.CategoricalHyperparameter(
+            name="lambdarank_pair_method",
+            range=["mean", "topk"],
+            required=False,
+            dependencies=learning_to_rank_param_validator,
+        ),
+        hpv.IntegerHyperparameter(
+            name="lambdarank_num_pair_per_sample",
+            range=hpv.Interval(min_closed=1),
+            required=False,
+            dependencies=learning_to_rank_param_validator,
+        ),
+        hpv.CategoricalHyperparameter(
+            name="lambdarank_normalization",
+            range=["true", "false"],
+            required=False,
+            dependencies=learning_to_rank_param_validator,
+        ),
+        hpv.CategoricalHyperparameter(
+            name="lambdarank_score_normalization",
+            range=["true", "false"],
+            required=False,
+            dependencies=learning_to_rank_param_validator,
+        ),
+        hpv.CategoricalHyperparameter(
+            name="lambdarank_unbiased",
+            range=["true", "false"],
+            required=False,
+            dependencies=learning_to_rank_param_validator,
+        ),
+        hpv.ContinuousHyperparameter(
+            name="lambdarank_bias_norm",
+            range=hpv.Interval(min_closed=0),
+            required=False,
+            dependencies=learning_to_rank_param_validator,
+        ),
+        hpv.CategoricalHyperparameter(
+            name="ndcg_exp_gain",
+            range=["true", "false"],
+            required=False,
+            dependencies=learning_to_rank_param_validator,
+        ),
         # Not an XGB training HP, but is used to determine which distributed training framework to use by SM XGB.
         hpv.CategoricalHyperparameter(name="use_dask_gpu_training", range=["true", "false"], required=False),
     )
