@@ -101,3 +101,68 @@ class TestHyperparameterValidation(unittest.TestCase):
             "objective": "survival:aft",
         }
         assert hyperparameters.validate(test_hp2)
+
+    def test_learning_to_rank_params_valid_with_rank_objective(self):
+        """Learning-to-rank params are valid when objective is rank:ndcg, rank:map, or rank:pairwise."""
+        for objective in ("rank:ndcg", "rank:map", "rank:pairwise"):
+            test_hp = {
+                "num_round": "10",
+                "objective": objective,
+                "lambdarank_pair_method": "topk",
+                "lambdarank_num_pair_per_sample": "6",
+                "lambdarank_normalization": "true",
+                "lambdarank_score_normalization": "true",
+                "lambdarank_unbiased": "false",
+                "lambdarank_bias_norm": "2.0",
+                "ndcg_exp_gain": "true",
+            }
+            assert hyperparameters.validate(test_hp), "Failed for objective={}".format(objective)
+
+        test_hp_mean = {
+            "num_round": "10",
+            "objective": "rank:ndcg",
+            "lambdarank_pair_method": "mean",
+            "lambdarank_num_pair_per_sample": "5",
+        }
+        assert hyperparameters.validate(test_hp_mean)
+
+    def test_learning_to_rank_params_invalid_when_objective_missing(self):
+        """Learning-to-rank params raise UserError when objective is not set."""
+        test_hp = {"num_round": "10", "lambdarank_pair_method": "topk"}
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate(test_hp)
+
+    def test_learning_to_rank_params_invalid_with_non_rank_objective(self):
+        """Learning-to-rank params raise UserError when objective is not a rank objective."""
+        ltr_params = {
+            "lambdarank_pair_method": "topk",
+            "lambdarank_num_pair_per_sample": "6",
+            "lambdarank_normalization": "true",
+            "lambdarank_score_normalization": "true",
+            "lambdarank_unbiased": "false",
+            "lambdarank_bias_norm": "2.0",
+            "ndcg_exp_gain": "true",
+        }
+        non_rank_objectives = ["reg:squarederror", "binary:logistic", "multi:softmax"]
+
+        for param_name, param_value in ltr_params.items():
+            for objective in non_rank_objectives:
+                test_hp = {"num_round": "10", "objective": objective, param_name: param_value}
+                with self.assertRaises(exc.UserError):
+                    hyperparameters.validate(test_hp)
+
+    def test_learning_to_rank_params_invalid_values(self):
+        """Invalid values for LTR params raise UserError."""
+        base_hp = {"num_round": "10", "objective": "rank:ndcg"}
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate({**base_hp, "lambdarank_pair_method": "invalid"})
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate({**base_hp, "lambdarank_num_pair_per_sample": "0"})
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate({**base_hp, "lambdarank_bias_norm": "-0.1"})
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate({**base_hp, "ndcg_exp_gain": "invalid"})
