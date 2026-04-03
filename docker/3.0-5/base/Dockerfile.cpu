@@ -119,7 +119,9 @@ RUN apt-key del 7fa2af80 && \
     rm -rf /var/lib/apt/lists/*
 
 # Refresh system packages to patch critical CVEs
-RUN apt-get update && \
+# Remove stale Kitware repo (CMake already installed) to avoid GPG errors on apt-get update
+RUN rm -f /etc/apt/sources.list.d/kitware.list && \
+    apt-get update && \
     apt-get install -y --only-upgrade \
         libxml2 \
         libglib2.0-0 \
