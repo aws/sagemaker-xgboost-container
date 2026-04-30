@@ -2,6 +2,16 @@
 SageMaker XGBoost Container
 ===========================
 
+.. important::
+
+   **This repository is no longer actively maintained for new XGBoost version upgrades.**
+
+   All future XGBoost version upgrades and container releases are tracked in the
+   `AWS Deep Learning Containers <https://github.com/aws/deep-learning-containers>`__ repository
+   under `docker/xgboost <https://github.com/aws/deep-learning-containers/tree/master/docker/xgboost>`__.
+
+   This repository remains available as a source reference for the SageMaker XGBoost serving framework code.
+
 SageMaker XGBoost Container is an open source library for making the
 XGBoost framework run on Amazon SageMaker.
 
