@@ -27,7 +27,7 @@ import requests
 import yaml
 from botocore.exceptions import ClientError
 from sagemaker import fw_utils, utils
-from sagemaker_containers.beta.framework import content_types
+CSV_CONTENT_TYPE = "text/csv"
 
 CYAN_COLOR = "\033[36m"
 END_COLOR = "\033[0m"
@@ -305,6 +305,7 @@ def start_docker(tmpdir, command):
 def shutdown(compose_file):
     print("shutting down")
     subprocess.call(["docker-compose", "-f", compose_file, "down"])
+    sleep(2)  # allow port to be released
 
 
 def early_stop_docker(tmpdir, command, train_time):
@@ -777,7 +778,7 @@ def get_model_dir(resource_folder, host="algo-1"):
     return os.path.join(resource_folder, host)
 
 
-def request(data, content_type=content_types.CSV, accept_type=content_types.CSV, request_url=REQUEST_URL):
+def request(data, content_type=CSV_CONTENT_TYPE, accept_type=CSV_CONTENT_TYPE, request_url=REQUEST_URL):
     headers = {"Content-type": content_type, "Accept": accept_type}
     response = requests.post(request_url, data=data, headers=headers)
     return response.status_code, response.text

@@ -17,17 +17,13 @@ import csv
 import io
 import json
 import logging
-import os
-import tempfile
 from typing import Union
 
-import mlio
 import numpy as np
 import xgboost as xgb
-from mlio.integ.numpy import as_numpy
-from mlio.integ.scipy import to_coo_matrix
 from sagemaker_containers import _content_types, _errors
-from scipy.sparse import vstack as scipy_vstack
+
+from sagemaker_xgboost_container.recordio_protobuf import read_recordio_protobuf
 
 from sagemaker_xgboost_container.constants import xgb_content_types
 
@@ -63,18 +59,32 @@ def libsvm_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
     Returns:
         (xgb.DMatrix): XGBoost DataMatrix
     """
-    temp_file_location = None
-    try:
-        with tempfile.NamedTemporaryFile(delete=False) as libsvm_file:
-            temp_file_location = libsvm_file.name
-            libsvm_file.write(string_like)
+    if isinstance(string_like, (bytes, bytearray)):
+        string_like = string_like.decode("utf-8")
 
-        dmatrix = xgb.DMatrix(f"{temp_file_location}?format=libsvm")
-    finally:
-        if temp_file_location and os.path.exists(temp_file_location):
-            os.remove(temp_file_location)
+    rows = []
+    for line in string_like.strip().split("\n"):
+        row = {}
+        tokens = line.strip().split()
+        for token in tokens:
+            if ":" in token:
+                idx, val = token.split(":", 1)
+                row[int(idx)] = float(val)
+        rows.append(row)
 
-    return dmatrix
+    if not rows or not any(rows):
+        return xgb.DMatrix(np.empty((0, 0)))
+
+    # Detect if indices are 1-based (standard libsvm) and shift to 0-based
+    min_idx = min(idx for row in rows for idx in row)
+    offset = 1 if min_idx >= 1 else 0
+    max_col = max(idx for row in rows for idx in row) - offset + 1
+    data = np.zeros((len(rows), max_col))
+    for i, row in enumerate(rows):
+        for idx, val in row.items():
+            data[i, idx - offset] = val
+
+    return xgb.DMatrix(data)
 
 
 def recordio_protobuf_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
@@ -84,21 +94,8 @@ def recordio_protobuf_to_dmatrix(string_like):  # type: (bytes) -> xgb.DMatrix
     Returns:
     (xgb.DMatrix): XGBoost DataMatrix
     """
-    buf = bytes(string_like)
-    dataset = [mlio.InMemoryStore(buf)]
-    reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=100)
-    reader = mlio.RecordIOProtobufReader(reader_params)
-
-    is_dense_tensor = type(reader.peek_example()["values"]) is mlio.DenseTensor
-
-    examples = []
-    for example in reader:
-        # Ignore labels if present
-        values = as_numpy(example["values"]) if is_dense_tensor else to_coo_matrix(example["values"])
-        examples.append(values)
-
-    data = np.vstack(examples) if is_dense_tensor else scipy_vstack(examples).tocsr()
-    dmatrix = xgb.DMatrix(data)
+    features, labels = read_recordio_protobuf(bytes(string_like))
+    dmatrix = xgb.DMatrix(features, label=labels if labels is not None else None)
     return dmatrix
 
 

@@ -100,7 +100,7 @@ def _get_sparse_matrix_from_libsvm(payload):
     for row_idx, line in enumerate(pylist):
         for item in line:
             if colon in item:
-                col_idx = item.split(colon)[0]
+                col_idx = int(item.split(colon)[0])
                 val = item.split(colon)[1]
                 row.append(row_idx)
                 col.append(col_idx)
@@ -108,6 +108,9 @@ def _get_sparse_matrix_from_libsvm(payload):
 
     row = np.array(row)
     col = np.array(col).astype(int)
+    # Shift 1-based libsvm indices to 0-based
+    if len(col) > 0 and col.min() >= 1:
+        col = col - 1
     data = np.array(data).astype(float)
     if not (len(row) == len(col) and len(col) == len(data)):
         raise RuntimeError("Dimension checking failed when transforming sparse matrix.")

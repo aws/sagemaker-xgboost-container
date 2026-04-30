@@ -18,8 +18,8 @@ from dask.distributed import Client
 
 from sagemaker_algorithm_toolkit.exceptions import AlgorithmError, PlatformError
 
-SCHEDULER_EXEC_PATH = "/miniconda3/bin/dask-scheduler"
-CUDA_WORKER_EXEC_PATH = "/miniconda3/bin/dask-cuda-worker"
+SCHEDULER_EXEC_PATH = "/opt/venv/bin/dask-scheduler"
+CUDA_WORKER_EXEC_PATH = "/opt/venv/bin/dask-cuda-worker"
 
 SCHEDULER_CONN_TIMEOUT = "20s"
 

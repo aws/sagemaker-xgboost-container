@@ -151,7 +151,7 @@ def test_xgboost_abalone_custom_inference_with_transform_fn(docker_image, opt_ml
             response_status_code, response_body = local_mode.request(request_body, content_type="text/libsvm")
     assert response_status_code == 200
     assert not local_mode.file_exists(opt_ml, "output/failure"), "Failure happened"
-    assert len(response_body.split(",")) == len(request_body.split()) + 1  # final column is the bias term
+    assert len(response_body.split(",")) == sum(1 for t in request_body.split() if b":" in t) + 1  # features + bias
 
 
 def test_xgboost_abalone_mme(docker_image, opt_ml):
@@ -221,5 +221,6 @@ def test_xgboost_abalone_mme_with_transform_fn(docker_image, opt_ml):
             )
 
     assert invoke_status_code == 200
-    assert len(invoke_response_body.split(",")) == len(request_body.split()) + 1  # final column is the bias term
+    num_features = sum(1 for t in request_body.split() if b":" in t)
+    assert len(invoke_response_body.split(",")) == num_features + 1  # features + bias
     assert not local_mode.file_exists(opt_ml, "output/failure"), "Failure happened"

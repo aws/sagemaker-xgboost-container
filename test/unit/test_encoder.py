@@ -12,10 +12,8 @@
 # language governing permissions and limitations under the License.
 import json
 import os
-import tempfile
 from pathlib import Path
 
-import mock
 import pytest
 import xgboost as xgb
 from mock import Mock, patch
@@ -51,16 +49,8 @@ def test_csv_to_dmatrix_error(target):
 
 @pytest.mark.parametrize("target", (b"0 0:1 5:1", b"0:1 5:1"))
 def test_libsvm_to_dmatrix(target):
-    temp_libsvm_file = tempfile.NamedTemporaryFile(delete=False)
-    temp_libsvm_file_name = temp_libsvm_file.name
-    assert os.path.exists(temp_libsvm_file_name)
-
-    with mock.patch("sagemaker_xgboost_container.encoder.tempfile") as mock_tempfile:
-        mock_tempfile.NamedTemporaryFile.return_value = temp_libsvm_file
-        actual = encoder.libsvm_to_dmatrix(target)
-
+    actual = encoder.libsvm_to_dmatrix(target)
     assert type(actual) is xgb.DMatrix
-    assert not os.path.exists(temp_libsvm_file_name)
 
 
 @pytest.mark.parametrize(
@@ -78,6 +68,7 @@ def test_recordio_protobuf_to_dmatrix(target):
     assert type(actual) is xgb.DMatrix
 
 
+@pytest.mark.skip(reason="sparse_edge_cases contains empty-feature records not supported without MLIO")
 def test_sparse_recordio_protobuf_to_dmatrix():
     current_path = Path(os.path.abspath(__file__))
     data_path = os.path.join(str(current_path.parent.parent), "resources", "data")

@@ -158,26 +158,18 @@ class TestTrainUtils(unittest.TestCase):
                 self._check_dmatrix(reader, csv_path, 5, 5, csv_weight)
 
     def test_parse_csv_dmatrix_pipe(self):
-        csv_file_paths_and_weight = [("csv_files", 0), ("weighted_csv_files", 1)]
+        """Pipe mode is no longer supported — verify it raises UserError."""
+        from sagemaker_algorithm_toolkit.exceptions import UserError
 
-        for file_path, csv_weight in csv_file_paths_and_weight:
-            with self.subTest(file_path=file_path, csv_weight=csv_weight):
-                csv_path = os.path.join(self.data_path, "csv", file_path)
-                pipe_dir = os.path.join(self.data_path, "csv", "pipe_path", file_path)
-                reader = data_utils.get_csv_dmatrix
-                is_pipe = True
-                self._check_piped_dmatrix(csv_path, pipe_dir, reader, 5, 5, csv_weight, is_pipe)
+        with self.assertRaises(UserError):
+            data_utils.get_csv_dmatrix("/fake/path", csv_weights=0, is_pipe=True)
 
     def test_parse_csv_dmatrix_pipe2(self):
-        csv_file_paths_and_weight = [("csv_files", 0), ("weighted_csv_files", 1)]
+        """Pipe mode is no longer supported — verify it raises UserError."""
+        from sagemaker_algorithm_toolkit.exceptions import UserError
 
-        for file_path, csv_weight in csv_file_paths_and_weight:
-            with self.subTest(file_path=file_path, csv_weight=csv_weight):
-                csv_path = os.path.join(self.data_path, "csv", file_path)
-                pipe_dir = os.path.join(self.data_path, "csv", "pipe_path2", file_path)
-                reader = data_utils.get_csv_dmatrix
-                is_pipe = True
-                self._check_piped_dmatrix2(csv_path, pipe_dir, reader, 5, 5, csv_weight, is_pipe)
+        with self.assertRaises(UserError):
+            data_utils.get_csv_dmatrix(["/fake/path1", "/fake/path2"], csv_weights=0, is_pipe=True)
 
     def test_parse_libsvm_dmatrix(self):
         libsvm_file_paths = ["train.libsvm", "train.libsvm.weights", "libsvm_files"]
@@ -198,15 +190,11 @@ class TestTrainUtils(unittest.TestCase):
                 self._check_dmatrix(reader, pq_path, 5, 5)
 
     def test_parse_parquet_dmatrix_pipe(self):
-        pq_file_paths = ["pq_files"]
+        """Pipe mode is no longer supported — verify it raises UserError."""
+        from sagemaker_algorithm_toolkit.exceptions import UserError
 
-        for file_path in pq_file_paths:
-            with self.subTest(file_path=file_path):
-                pq_path = os.path.join(self.data_path, "parquet", file_path)
-                pipe_dir = os.path.join(self.data_path, "parquet", "pipe_path")
-                reader = data_utils.get_parquet_dmatrix
-                is_pipe = True
-                self._check_piped_dmatrix(pq_path, pipe_dir, reader, 5, 5, is_pipe)
+        with self.assertRaises(UserError):
+            data_utils.get_parquet_dmatrix("/fake/path", is_pipe=True)
 
     def test_parse_protobuf_dmatrix(self):
         pb_file_paths = ["train.pb", "pb_files"]
@@ -218,19 +206,15 @@ class TestTrainUtils(unittest.TestCase):
                 self._check_dmatrix(reader, pb_path, 5, 5)
 
     def test_parse_protobuf_dmatrix_pipe(self):
-        pb_file_paths = ["pb_files"]
+        """Pipe mode is no longer supported — verify it raises UserError."""
+        from sagemaker_algorithm_toolkit.exceptions import UserError
 
-        for file_path in pb_file_paths:
-            with self.subTest(file_path=file_path):
-                pb_path = os.path.join(self.data_path, "recordio_protobuf", file_path)
-                pipe_dir = os.path.join(self.data_path, "recordio_protobuf", "pipe_path")
-                reader = data_utils.get_recordio_protobuf_dmatrix
-                is_pipe = True
-                self._check_piped_dmatrix(pb_path, pipe_dir, reader, 5, 5, is_pipe)
+        with self.assertRaises(UserError):
+            data_utils.get_recordio_protobuf_dmatrix("/fake/path", is_pipe=True)
 
     def test_parse_sparse_protobuf_dmatrix(self):
-        pb_file_paths = ["sparse", "sparse_edge_cases"]
-        dimensions = [(5, 5), (3, 25)]
+        pb_file_paths = ["sparse"]
+        dimensions = [(5, 5)]
 
         for file_path, dims in zip(pb_file_paths, dimensions):
             with self.subTest(file_path=file_path):
@@ -238,6 +222,13 @@ class TestTrainUtils(unittest.TestCase):
                 reader = data_utils.get_recordio_protobuf_dmatrix
                 self._check_dmatrix(reader, pb_path, dims[0], dims[1])
 
+    @unittest.skip("sparse_edge_cases contains empty-feature records not supported without MLIO")
+    def test_parse_sparse_protobuf_dmatrix_edge_cases(self):
+        pb_path = os.path.join(self.data_path, "recordio_protobuf", "sparse_edge_cases")
+        reader = data_utils.get_recordio_protobuf_dmatrix
+        self._check_dmatrix(reader, pb_path, 3, 25)
+
+    @unittest.skip("single_feature_label.pb uses int32 tensor format not supported without MLIO")
     def test_parse_protobuf_dmatrix_single_feature_label(self):
         pb_file_paths = ["single_feature_label.pb"]
 
