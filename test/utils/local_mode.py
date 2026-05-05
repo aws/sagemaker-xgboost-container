@@ -289,6 +289,7 @@ class Container(object):
                 pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        shutdown(self.compose_file)
         self._process.terminate()
         purge()
 
@@ -305,7 +306,6 @@ def start_docker(tmpdir, command):
 def shutdown(compose_file):
     print("shutting down")
     subprocess.call(["docker-compose", "-f", compose_file, "down"])
-    sleep(2)  # allow port to be released
 
 
 def early_stop_docker(tmpdir, command, train_time):
