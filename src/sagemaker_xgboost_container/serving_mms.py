@@ -121,7 +121,6 @@ def _set_mms_configs(is_multi_model, handler):
             with open(MMS_CONFIG_FILE_PATH, "w+") as g:
                 g.write(
                     "vmargs=-XX:-UseLargePages"
-                    + " -XX:+UseParNewGC"
                     + " -XX:MaxMetaspaceSize=32M"
                     + " -XX:InitiatingHeapOccupancyPercent=25"
                     + " -Xms"

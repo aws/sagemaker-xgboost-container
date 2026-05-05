@@ -17,19 +17,14 @@ import os
 import shutil
 from typing import List, Union
 
-import mlio
-import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 import xgboost as xgb
-from mlio.integ.arrow import as_arrow_file
-from mlio.integ.numpy import as_numpy
-from mlio.integ.scipy import to_coo_matrix
 from sagemaker_containers import _content_types
-from scipy.sparse import vstack as scipy_vstack
 
 from sagemaker_algorithm_toolkit import exceptions as exc
 from sagemaker_xgboost_container.constants import xgb_content_types
+from sagemaker_xgboost_container.recordio_protobuf import read_recordio_protobuf
 
 BATCH_SIZE = 4000
 
@@ -330,42 +325,10 @@ def _get_csv_dmatrix_pipe_mode(pipe_path, csv_weights):
     :param csv_weights: 1 if instance weights are in second column of CSV data; else 0
     :return: xgb.DMatrix or None
     """
-    try:
-        pipes_path = pipe_path if isinstance(pipe_path, list) else [pipe_path]
-        dataset = [mlio.SageMakerPipe(path) for path in pipes_path]
-        reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=BATCH_SIZE)
-        csv_params = mlio.CsvParams(header_row_index=None)
-        reader = mlio.CsvReader(reader_params, csv_params)
-
-        # Check if data is present in reader
-        if reader.peek_example() is not None:
-            examples = []
-            for example in reader:
-                # Write each feature (column) of example into a single numpy array
-                tmp = [as_numpy(feature).squeeze() for feature in example]
-                tmp = np.array(tmp)
-                if len(tmp.shape) > 1:
-                    # Columns are written as rows, needs to be transposed
-                    tmp = tmp.T
-                else:
-                    # If tmp is a 1-D array, it needs to be reshaped as a matrix
-                    tmp = np.reshape(tmp, (1, tmp.shape[0]))
-                examples.append(tmp)
-
-            data = np.vstack(examples)
-            del examples
-
-            if csv_weights == 1:
-                dmatrix = xgb.DMatrix(data[:, 2:], label=data[:, 0], weight=data[:, 1])
-            else:
-                dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
-
-            return dmatrix
-        else:
-            return None
-
-    except Exception as e:
-        raise exc.UserError("Failed to load csv data with exception:\n{}".format(e))
+    raise exc.UserError(
+        "Pipe mode for CSV is no longer supported. Please use Fast File mode (default) instead. "
+        "Set input_mode='File' in your SageMaker Estimator or TrainingInput."
+    )
 
 
 def get_csv_dmatrix(path, csv_weights, is_pipe=False):
@@ -433,33 +396,10 @@ def _get_parquet_dmatrix_pipe_mode(pipe_path):
     :param pipe_path: SageMaker pipe path where parquet formatted training data is piped
     :return: xgb.DMatrix or None
     """
-    try:
-        examples = []
-
-        pipes_path = pipe_path if isinstance(pipe_path, list) else [pipe_path]
-        for path in pipes_path:
-            f = mlio.SageMakerPipe(path)
-            with f.open_read() as strm:
-                reader = mlio.ParquetRecordReader(strm)
-
-                for record in reader:
-                    table = pq.read_table(as_arrow_file(record))
-                    array = table.to_pandas()
-                    if type(array) is pd.DataFrame:
-                        array = array.to_numpy()
-                    examples.append(array)
-
-        if examples:
-            data = np.vstack(examples)
-            del examples
-
-            dmatrix = xgb.DMatrix(data[:, 1:], label=data[:, 0])
-            return dmatrix
-        else:
-            return None
-
-    except Exception as e:
-        raise exc.UserError("Failed to load parquet data with exception:\n{}".format(e))
+    raise exc.UserError(
+        "Pipe mode for Parquet is no longer supported. Please use Fast File mode (default) instead. "
+        "Set input_mode='File' in your SageMaker Estimator or TrainingInput."
+    )
 
 
 def get_parquet_dmatrix(path, is_pipe=False):
@@ -482,36 +422,39 @@ def get_recordio_protobuf_dmatrix(path, is_pipe=False):
     :param is_pipe: Boolean to indicate if data is being read in pipe mode
     :return: xgb.DMatrix or None
     """
+    if is_pipe:
+        raise exc.UserError(
+            "Pipe mode for RecordIO-Protobuf is no longer supported. Please use Fast File mode (default) instead. "
+            "Set input_mode='File' in your SageMaker Estimator or TrainingInput."
+        )
+
     try:
-        if is_pipe:
-            pipes_path = path if isinstance(path, list) else [path]
-            dataset = [mlio.SageMakerPipe(pipe_path) for pipe_path in pipes_path]
+        # Collect all data files
+        if os.path.isfile(path):
+            file_paths = [path]
         else:
-            dataset = mlio.list_files(path)
+            file_paths = [
+                os.path.join(path, f)
+                for f in sorted(os.listdir(path))
+                if _is_data_file(path, f)
+            ]
 
-        reader_params = mlio.DataReaderParams(dataset=dataset, batch_size=BATCH_SIZE)
-        reader = mlio.RecordIOProtobufReader(reader_params)
-
-        if reader.peek_example() is not None:
-            # recordio-protobuf tensor may be dense (use numpy) or sparse (use scipy)
-            is_dense_tensor = type(reader.peek_example()["values"]) is mlio.DenseTensor
-
-            all_features = []
-            all_labels = []
-            for example in reader:
-                features = as_numpy(example["values"]) if is_dense_tensor else to_coo_matrix(example["values"])
-                all_features.append(features)
-
-                labels = as_numpy(example["label_values"])
-                all_labels.append(labels)
-
-            all_features = np.vstack(all_features) if is_dense_tensor else scipy_vstack(all_features).tocsr()
-            all_labels = np.concatenate(all_labels, axis=None)
-            dmatrix = xgb.DMatrix(all_features, label=all_labels)
-            return dmatrix
-        else:
+        if not file_paths:
             return None
 
+        # Read and concatenate all files
+        all_bufs = []
+        for fp in file_paths:
+            with open(fp, "rb") as f:
+                all_bufs.append(f.read())
+
+        buf = b"".join(all_bufs)
+        features, labels = read_recordio_protobuf(buf)
+        dmatrix = xgb.DMatrix(features, label=labels)
+        return dmatrix
+
+    except exc.UserError:
+        raise
     except Exception as e:
         raise exc.UserError("Failed to load recordio-protobuf data with exception:\n{}".format(e))
 

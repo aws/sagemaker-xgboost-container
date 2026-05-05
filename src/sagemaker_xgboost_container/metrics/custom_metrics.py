@@ -20,6 +20,7 @@ from sklearn.metrics import (
     precision_score,
     r2_score,
     recall_score,
+    root_mean_squared_error,
 )
 
 
@@ -133,7 +134,7 @@ def rmse(preds, dtrain):
     :return: Metric name, root mean squared error
     """
     labels = dtrain.get_label()
-    return "rmse", mean_squared_error(labels, preds, squared=False)
+    return "rmse", root_mean_squared_error(labels, preds)
 
 
 def precision(preds, dtrain):

@@ -3,35 +3,31 @@ import sys
 import pkg_resources
 
 PYTHON_MAJOR_VERSION = 3
-PYTHON_MINOR_VERSION = 10
+PYTHON_MINOR_VERSION = 12
 REQUIREMENTS = """\
-Flask==1.1.1
-Pillow==9.1.1
+Flask==3.1.3
+Pillow==12.2.0
 PyYAML==6.0.1
-boto3==1.17.52
-botocore==1.20.52
-conda==25.9.1
-cryptography==45.0.5
-gunicorn==23.0.0
-matplotlib==3.9.2
+boto3==1.38.0
+botocore==1.38.0
+cryptography==46.0.7
+gunicorn==25.3.0
+matplotlib==3.10.9
 multi-model-server==1.1.2
 numpy==2.1.0
 pandas==2.2.3
-psutil==5.8.0
+psutil==7.0.0
 pyarrow==22.0.0
-python-dateutil==2.8.2
+python-dateutil==2.9.0
 retrying==1.3.3
 sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
 scipy==1.15.0
-scikit-learn==1.5.2
-urllib3==1.26.5
-wheel==0.45.1
-jinja2==2.11.3
-MarkupSafe==1.1.1
-Werkzeug==0.15.6
-certifi==2023.7.22
-gevent==23.9.1
+scikit-learn==1.8.0
+urllib3==2.4.0
+Werkzeug==3.1.8
+certifi==2025.4.26
+gevent==26.4.0
 """.strip()
 
 

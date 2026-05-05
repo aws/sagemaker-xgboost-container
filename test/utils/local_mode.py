@@ -27,7 +27,7 @@ import requests
 import yaml
 from botocore.exceptions import ClientError
 from sagemaker import fw_utils, utils
-from sagemaker_containers.beta.framework import content_types
+CSV_CONTENT_TYPE = "text/csv"
 
 CYAN_COLOR = "\033[36m"
 END_COLOR = "\033[0m"
@@ -289,6 +289,7 @@ class Container(object):
                 pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        shutdown(self.compose_file)
         self._process.terminate()
         purge()
 
@@ -777,7 +778,7 @@ def get_model_dir(resource_folder, host="algo-1"):
     return os.path.join(resource_folder, host)
 
 
-def request(data, content_type=content_types.CSV, accept_type=content_types.CSV, request_url=REQUEST_URL):
+def request(data, content_type=CSV_CONTENT_TYPE, accept_type=CSV_CONTENT_TYPE, request_url=REQUEST_URL):
     headers = {"Content-type": content_type, "Accept": accept_type}
     response = requests.post(request_url, data=data, headers=headers)
     return response.status_code, response.text

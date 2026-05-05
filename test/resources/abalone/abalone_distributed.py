@@ -16,7 +16,6 @@ import argparse
 import json
 import logging
 import os
-import pickle as pkl
 
 import xgboost as xgb
 from sagemaker_containers import entry_point
@@ -39,7 +38,7 @@ def _xgb_train(params, dtrain, evals, num_boost_round, model_dir, is_master):
 
     if is_master:
         model_location = model_dir + "/xgboost-model"
-        pkl.dump(booster, open(model_location, "wb"))
+        booster.save_model(model_location)
         logging.info("Stored trained model at {}".format(model_location))
 
 
@@ -118,5 +117,7 @@ def model_fn(model_dir):
     Note that this should have the same name as the serialized model in the _xgb_train method
     """
     model_file = "xgboost-model"
-    booster = pkl.load(open(os.path.join(model_dir, model_file), "rb"))
+    model_path = os.path.join(model_dir, model_file)
+    booster = xgb.Booster()
+    booster.load_model(model_path)
     return booster
