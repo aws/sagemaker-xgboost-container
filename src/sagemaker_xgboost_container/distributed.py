@@ -192,8 +192,10 @@ class Rabit(object):
             else:
                 self._worker_args = None
 
-            # Wait for tracker to be reachable
-            self._wait_for_tracker()
+            # Give tracker time to bind — raw TCP probes corrupt the XGBoost protocol state
+            if not self.is_master_host:
+                _dns_lookup(self.master_host)
+                time.sleep(2)
 
             # Build worker args — non-master workers construct from known tracker info
             if self._worker_args is None:
@@ -220,21 +222,6 @@ class Rabit(object):
             raise e
 
         return RabitHelper(self.is_master_host, self.current_host, self.port)
-
-    def _wait_for_tracker(self):
-        """Wait for the tracker to become reachable."""
-        attempt = 0
-        while self.max_connect_attempts is None or attempt < self.max_connect_attempts:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.connect((self.master_host, self.port))
-                    self.logger.debug("Connected to RabitTracker.")
-                    return
-                except OSError:
-                    attempt += 1
-                    time.sleep(self.connect_retry_timeout)
-
-        raise Exception(f"Failed to connect to RabitTracker after {self.max_connect_attempts} attempts")
 
     def stop(self):
         """Shutdown collective communication."""
