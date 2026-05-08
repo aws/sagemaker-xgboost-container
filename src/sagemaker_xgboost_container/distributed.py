@@ -210,7 +210,7 @@ class Rabit(object):
             if self.max_connect_attempts is not None:
                 self._worker_args["dmlc_retry"] = self.max_connect_attempts
             if self.connect_retry_timeout is not None:
-                self._worker_args["dmlc_timeout"] = self.connect_retry_timeout
+                self._worker_args["dmlc_timeout"] = max(self.connect_retry_timeout, 30)
 
             # Use CommunicatorContext for proper init/finalize
             self._comm_ctx = collective.CommunicatorContext(**self._worker_args)
