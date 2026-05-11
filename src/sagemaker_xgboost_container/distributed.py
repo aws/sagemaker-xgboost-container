@@ -192,10 +192,9 @@ class Rabit(object):
             else:
                 self._worker_args = None
 
-            # Give tracker time to bind — raw TCP probes corrupt the XGBoost protocol state
+            # Non-master workers resolve tracker host before attempting connection
             if not self.is_master_host:
                 _dns_lookup(self.master_host)
-                time.sleep(2)
 
             # Build worker args — non-master workers construct from known tracker info
             if self._worker_args is None:
@@ -210,9 +209,22 @@ class Rabit(object):
             if self.connect_retry_timeout is not None:
                 self._worker_args["dmlc_timeout"] = max(self.connect_retry_timeout, 30)
 
-            # Use CommunicatorContext for proper init/finalize
-            self._comm_ctx = collective.CommunicatorContext(**self._worker_args)
-            self._comm_ctx.__enter__()
+            # Connect to tracker with retries — XGBoost's CommunicatorInit doesn't
+            # retry internally on connection refused, so we retry the full init.
+            # Raw TCP probes corrupt the protocol, so we must retry at this level.
+            timeout = self.connect_retry_timeout if self.connect_retry_timeout else 60
+            max_attempts = self.max_connect_attempts if self.max_connect_attempts else max(timeout // 5, 6)
+            for attempt in range(max_attempts):
+                try:
+                    self._comm_ctx = collective.CommunicatorContext(**self._worker_args)
+                    self._comm_ctx.__enter__()
+                    break
+                except Exception:
+                    self._comm_ctx = None
+                    if attempt == max_attempts - 1:
+                        raise
+                    self.logger.debug(f"Tracker not ready (attempt {attempt + 1}/{max_attempts}), retrying in 5s...")
+                    time.sleep(5)
 
         except Exception as e:
             self.logger.error(f"Collective init failed on {self.current_host}", exc_info=True)
