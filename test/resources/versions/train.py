@@ -24,7 +24,7 @@ sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
 scipy==1.15.0
 scikit-learn==1.8.0
-urllib3==2.4.0
+urllib3==2.7.0
 Werkzeug==3.1.8
 certifi==2025.4.26
 gevent==26.4.0
