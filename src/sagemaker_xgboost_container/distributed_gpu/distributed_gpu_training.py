@@ -48,7 +48,7 @@ WORKER_STAY_ALIVE_CHECK_FREQ_SEC = 10
 SUPPORTED_TRAINING_CONTENT_TYPES = {CSV, PARQUET}
 
 NON_GPU_ERROR_MSG = (
-    "Dask training is only available for `gpu_hist` training on GPU instances."
+    "Dask training is only available for `hist` (or `gpu_hist`) training on GPU instances."
 )
 PIPE_MODE_ERROR_MSG = (
     "Dask training is not supported for pipe mode input. Please use File mode."
@@ -66,7 +66,7 @@ def validate_gpu_train_configuration(
     data_config: Dict,
 ) -> [str]:
     all_exceptions = []
-    if tree_method_hp != GPU_TREE_METHOD or num_gpus == 0:
+    if tree_method_hp not in (GPU_TREE_METHOD, "hist") or num_gpus == 0:
         all_exceptions.append(NON_GPU_ERROR_MSG)
     if input_mode == PIPE_MODE:
         all_exceptions.append(PIPE_MODE_ERROR_MSG)

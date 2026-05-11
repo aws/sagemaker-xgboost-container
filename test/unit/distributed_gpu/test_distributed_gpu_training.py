@@ -40,6 +40,10 @@ class TestDistributedGPUTraining(unittest.TestCase):
         exc_list = validate_gpu_train_configuration("gpu_hist", 2, 1, "File", "csv", self.train_channel_replicated)
         assert not exc_list
 
+    def test_conditions_pass_hist_tree_method(self):
+        exc_list = validate_gpu_train_configuration("hist", 1, 1, "File", "csv", self.train_channel_replicated)
+        assert not exc_list
+
     def test_conditions_pass_channel_not_replicated_singlehost(self):
         exc_list = validate_gpu_train_configuration("gpu_hist", 1, 1, "File", "csv", self.train_channel_not_replicated)
         assert not exc_list
