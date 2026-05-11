@@ -207,8 +207,6 @@ class Rabit(object):
             # Add task ID for deterministic rank assignment
             self._worker_args["dmlc_task_id"] = str(self.hosts.index(self.current_host))
 
-            if self.max_connect_attempts is not None:
-                self._worker_args["dmlc_retry"] = self.max_connect_attempts
             if self.connect_retry_timeout is not None:
                 self._worker_args["dmlc_timeout"] = max(self.connect_retry_timeout, 30)
 
