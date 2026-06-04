@@ -6,12 +6,11 @@ PYTHON_MAJOR_VERSION = 3
 PYTHON_MINOR_VERSION = 10
 REQUIREMENTS = """\
 Flask==1.1.1
-Pillow==9.1.1
+Pillow==12.2.0
 PyYAML==6.0.1
 boto3==1.17.52
 botocore==1.20.52
-conda==25.9.1
-cryptography==45.0.5
+cryptography==46.0.7
 gunicorn==23.0.0
 matplotlib==3.9.2
 multi-model-server==1.1.2
@@ -25,12 +24,12 @@ sagemaker-containers==2.8.6.post2
 sagemaker-inference==1.5.5
 scipy==1.15.0
 scikit-learn==1.5.2
-urllib3==1.26.5
+urllib3==1.26.20
 wheel==0.45.1
 jinja2==2.11.3
 MarkupSafe==1.1.1
 Werkzeug==0.15.6
-certifi==2023.7.22
+certifi==2025.4.26
 gevent==23.9.1
 """.strip()
 
