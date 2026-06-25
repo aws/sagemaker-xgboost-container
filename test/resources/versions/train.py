@@ -10,7 +10,7 @@ Pillow==12.2.0
 PyYAML==6.0.1
 boto3==1.38.0
 botocore==1.38.0
-cryptography==46.0.7
+cryptography==48.0.1
 gunicorn==25.3.0
 matplotlib==3.10.9
 multi-model-server==1.1.2
