@@ -207,7 +207,7 @@ class TupleHyperparameter(Hyperparameter):
 
     def parse(self, value):
         if isinstance(value, str):
-            return eval(value)
+            return ast.literal_eval(value)
         elif isinstance(value, tuple):
             return value
 
