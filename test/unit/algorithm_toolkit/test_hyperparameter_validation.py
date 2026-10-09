@@ -10,6 +10,7 @@
 # distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import os
 import unittest
 
 from sagemaker_algorithm_toolkit import exceptions as exc
@@ -193,6 +194,14 @@ class TestHyperparameters(unittest.TestCase):
 
         result = hyperparameters.validate({"tuple_": "(1,0,-1)"})
         self.assertEqual(result["tuple_"], (1, 0, -1))
+
+    def test_tuple_does_not_execute_code(self):
+        hyperparameters = hpv.Hyperparameters(hpv.TupleHyperparameter(name="tuple_", range=[-1, 0, 1], required=False))
+        payload = "__import__('os').environ.__setitem__('HPV_TUPLE_INJECTED', '1') or (1,0,-1)"
+
+        with self.assertRaises(exc.UserError):
+            hyperparameters.validate({"tuple_": payload})
+        self.assertNotIn("HPV_TUPLE_INJECTED", os.environ)
 
     def test_tuple_alias(self):
         hyperparameters = hpv.Hyperparameters(hpv.TupleHyperparameter(name="tuple_", range=[-1, 0, 1], required=False))
